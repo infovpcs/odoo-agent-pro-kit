@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate skill frontmatter and scan for private strings
+        run: python3 scripts/validate_skills.py plugin/skills
+      - name: Run validator unit tests
+        run: python3 -m unittest tests.test_validate_skills -v
+      - name: Verify plugin manifests are valid JSON
+        run: |
+          python3 -m json.tool .claude-plugin/marketplace.json > /dev/null
+          python3 -m json.tool plugin/.claude-plugin/plugin.json > /dev/null
+          python3 -m json.tool plugin/hooks/hooks.json > /dev/null
+      - name: Syntax-check shell scripts
+        run: |
+          bash -n bootstrap.sh
+          for f in plugin/hooks/*.sh plugin/odoo_mcp/*.sh odoo_local_setup/*.sh; do
+            bash -n "$f"
+          done
