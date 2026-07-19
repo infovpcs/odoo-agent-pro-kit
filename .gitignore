@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Odoo
+*.log
+data/
+logs/
+.odoo_workspace_lock
+
+# Env / secrets
+.env
+.env.*
+*.pid
+
+# IDE / OS
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Diagram tooling
+docs/.render_cache/
