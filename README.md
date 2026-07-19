@@ -43,7 +43,7 @@ reads it natively). See `integrations/codex/INSTALL.md`.
 
 | Component | Where |
 |---|---|
-| 17 Odoo skills (coding standards, dependency context, tools, testing, docs) | `plugin/skills/` |
+| 18 Odoo skills (coding standards, dependency context, tools, testing, docs) | `plugin/skills/` |
 | 4 slash commands (`/plan-analysis`, `/start-coding`, `/testing`, `/fleet`) | `plugin/commands/` |
 | 3 hooks (SessionStart/PreCompact/Stop) for context optimization | `plugin/hooks/` |
 | Live MCP server for Odoo 17/18/19 model discovery | `plugin/odoo_mcp/` |
