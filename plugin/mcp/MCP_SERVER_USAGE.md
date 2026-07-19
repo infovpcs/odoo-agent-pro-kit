@@ -36,7 +36,7 @@ Before using the MCP Server, ensure you have:
 
 2. **Start the MCP Server**:
    ```bash
-   cd <path-to-odoo-agent-pro-kit>/plugin/mcp
+   cd <path-to-odoo-agent-pro-kit>/plugin/odoo_mcp
    chmod +x start_mcp_server.sh
    ./start_mcp_server.sh --start
    ```
@@ -245,8 +245,12 @@ MCP_AUTO_REFRESH=true
     "odoo-mcp": {
       "command": "python",
       "args": [
-        "<path-to-odoo-agent-pro-kit>/plugin/mcp/odoo_mcp_server.py"
-      ]
+        "-m",
+        "odoo_mcp.odoo_mcp_server"
+      ],
+      "env": {
+        "PYTHONPATH": "<path-to-odoo-agent-pro-kit>/plugin"
+      }
     }
   }
 }
@@ -272,23 +276,35 @@ This option runs the MCP server as a subprocess - best for local development.
     "odoo-mcp-17": {
       "command": "python",
       "args": [
-        "<path-to-odoo-agent-pro-kit>/plugin/mcp/odoo_mcp_server.py",
+        "-m",
+        "odoo_mcp.odoo_mcp_server",
         "--version", "17.0"
-      ]
+      ],
+      "env": {
+        "PYTHONPATH": "<path-to-odoo-agent-pro-kit>/plugin"
+      }
     },
     "odoo-mcp-18": {
       "command": "python",
       "args": [
-        "<path-to-odoo-agent-pro-kit>/plugin/mcp/odoo_mcp_server.py",
+        "-m",
+        "odoo_mcp.odoo_mcp_server",
         "--version", "18.0"
-      ]
+      ],
+      "env": {
+        "PYTHONPATH": "<path-to-odoo-agent-pro-kit>/plugin"
+      }
     },
     "odoo-mcp-19": {
       "command": "python",
       "args": [
-        "<path-to-odoo-agent-pro-kit>/plugin/mcp/odoo_mcp_server.py",
+        "-m",
+        "odoo_mcp.odoo_mcp_server",
         "--version", "19.0"
-      ]
+      ],
+      "env": {
+        "PYTHONPATH": "<path-to-odoo-agent-pro-kit>/plugin"
+      }
     }
   }
 }
@@ -304,10 +320,12 @@ Pass explicit database credentials for each Odoo version:
     "odoo-mcp-17": {
       "command": "python",
       "args": [
-        "<path-to-odoo-agent-pro-kit>/plugin/mcp/odoo_mcp_server.py",
+        "-m",
+        "odoo_mcp.odoo_mcp_server",
         "--version", "17.0"
       ],
       "env": {
+        "PYTHONPATH": "<path-to-odoo-agent-pro-kit>/plugin",
         "ODOO17_URL": "http://localhost:8107",
         "ODOO17_DB_NAME": "odoo17",
         "ODOO17_DB_USER": "admin",
@@ -317,10 +335,12 @@ Pass explicit database credentials for each Odoo version:
     "odoo-mcp-18": {
       "command": "python",
       "args": [
-        "<path-to-odoo-agent-pro-kit>/plugin/mcp/odoo_mcp_server.py",
+        "-m",
+        "odoo_mcp.odoo_mcp_server",
         "--version", "18.0"
       ],
       "env": {
+        "PYTHONPATH": "<path-to-odoo-agent-pro-kit>/plugin",
         "ODOO18_URL": "http://localhost:8090",
         "ODOO18_DB_NAME": "llmdb18",
         "ODOO18_DB_USER": "admin",
@@ -330,10 +350,12 @@ Pass explicit database credentials for each Odoo version:
     "odoo-mcp-19": {
       "command": "python",
       "args": [
-        "<path-to-odoo-agent-pro-kit>/plugin/mcp/odoo_mcp_server.py",
+        "-m",
+        "odoo_mcp.odoo_mcp_server",
         "--version", "19.0"
       ],
       "env": {
+        "PYTHONPATH": "<path-to-odoo-agent-pro-kit>/plugin",
         "ODOO_URL": "http://localhost:8090",
         "ODOO_DB_NAME": "llmdb19",
         "ODOO_DB_USER": "admin",
@@ -350,7 +372,7 @@ This option connects to already-running MCP servers via HTTP - best when servers
 
 **First, start the MCP servers:**
 ```bash
-cd <path-to-odoo-agent-pro-kit>/plugin/mcp
+cd <path-to-odoo-agent-pro-kit>/plugin/odoo_mcp
 ./start_mcp_server.sh --all
 ```
 
@@ -403,10 +425,14 @@ Cursor supports MCP servers viastdio or HTTP:
       "odoo-mcp-19": {
         "command": "python",
         "args": [
-          "<path-to-odoo-agent-pro-kit>/plugin/mcp/odoo_mcp_server.py",
+          "-m",
+          "odoo_mcp.odoo_mcp_server",
           "--version", "19.0",
           "--transport", "sse"
-        ]
+        ],
+        "env": {
+          "PYTHONPATH": "<path-to-odoo-agent-pro-kit>/plugin"
+        }
       }
     }
   }
@@ -422,9 +448,13 @@ Cursor supports MCP servers viastdio or HTTP:
       "odoo-mcp": {
         "command": "python",
         "args": [
-          "<path-to-odoo-agent-pro-kit>/plugin/mcp/odoo_mcp_server.py",
+          "-m",
+          "odoo_mcp.odoo_mcp_server",
           "--version", "19.0"
-        ]
+        ],
+        "env": {
+          "PYTHONPATH": "<path-to-odoo-agent-pro-kit>/plugin"
+        }
       }
     }
   }
@@ -470,7 +500,7 @@ After configuring, restart VS Code and start the MCP servers:
 
 ```bash
 # Start all versions
-cd <path-to-odoo-agent-pro-kit>/plugin/mcp
+cd <path-to-odoo-agent-pro-kit>/plugin/odoo_mcp
 ./start_mcp_server.sh --all
 
 # Or start specific version
