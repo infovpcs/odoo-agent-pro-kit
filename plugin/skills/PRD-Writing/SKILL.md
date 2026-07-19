@@ -12,7 +12,7 @@ Produce concise PRD artifacts (requirements → design → tasks) for Odoo custo
 
 ## Inputs
 - Business brief and stakeholders.
-- Existing dependency context (see AgentSkills/Odoo19ExistingDepencencyContext/SKILL.md).
+- Existing dependency context (see AgentSkills/Odoo19ExistingDependencyContext/SKILL.md).
 - Coding standards (see AgentSkills/Odoo19CodingStandard/SKILL.md and sample_module/ODOO19_CODING_STANDARDS.md).
 - Reusable tools (see AgentSkills/OdooTools19/SKILL.md) and upstream refs (odoo/odoo 19.0, 18.0, 17.0).
 

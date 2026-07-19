@@ -2,11 +2,10 @@
 id: copilot-odoo-sdk-agent
 name: Copilot Odoo SDK Agent
 description: |
-  Discoverable VS Code Copilot agent that uses the repository's AgentSkills and
-  the `AgentSkills/copilot_odoo_agent.py` SDK to run lifecycle commands and Odoo
-  development workflows. Default Odoo version: 19.
+  Discoverable VS Code Copilot agent that uses the repository's AgentSkills
+  (copied from `plugin/skills/` per this integration's INSTALL.md) to run
+  lifecycle commands and Odoo development workflows. Default Odoo version: 19.
 version: 1.0
-entrypoint: /.agent.md
 visibility: workspace
 tools:
   - run_in_terminal
@@ -21,7 +20,7 @@ constraints:
 # Registration for VS Code Copilot Agents UI
 
 This file registers the `copilot-odoo-sdk-agent` so it appears in the VS Code
-Copilot Agents explorer. It references the root `.agent.md` entry for details.
+Copilot Agents explorer.
 
 Notes
 - The agent will follow the repository's SKILL.md loading rules and use MCP
@@ -30,4 +29,7 @@ Notes
   destructive operations (module installs, DB resets, etc.).
 
 Pre-run validation
-- A helper script is available at `.github/copilot/agents/validate_agent_skills.sh` which runs the repository validation (`AgentSkills/scripts/validate_skills.py`). The agent SHOULD execute this validation before taking actions that depend on Skill metadata.
+- Before taking actions that depend on Skill metadata, the agent SHOULD run
+  the repository's skill validator directly:
+  `python3 scripts/validate_skills.py plugin/skills`
+  (the same command used by `CONTRIBUTING.md` and `.github/workflows/ci.yml`).

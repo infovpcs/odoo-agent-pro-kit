@@ -42,7 +42,7 @@ When processing any command, load these skills in order for the given version:
 ```
 1. AgentSkills/Odoo19CodingStandard/SKILL.md
 2. AgentSkills/OdooTools19/SKILL.md
-3. AgentSkills/Odoo19ExistingDepencencyContext/SKILL.md
+3. AgentSkills/Odoo19ExistingDependencyContext/SKILL.md
 4. AgentSkills/Agents/ (pick relevant agent: POS, Website, ServerSide, Web, Migration)
 5. AgentSkills/PRD-Writing/SKILL.md (for /plan-analysis only)
 6. AgentSkills/excalidraw-diagram-skill/SKILL.md (for /plan-analysis only — architecture diagram generation)
@@ -52,7 +52,7 @@ When processing any command, load these skills in order for the given version:
 ```
 1. AgentSkills/Odoo18CodingStandard/SKILL.md
 2. AgentSkills/OdooTools18/SKILL.md
-3. AgentSkills/Odoo18ExistingDepencencyContext/SKILL.md
+3. AgentSkills/Odoo18ExistingDependencyContext/SKILL.md
 4. AgentSkills/Agents/ (pick relevant agent)
 5. AgentSkills/PRD-Writing/SKILL.md (for /plan-analysis only)
 6. AgentSkills/excalidraw-diagram-skill/SKILL.md (for /plan-analysis only — architecture diagram generation)
@@ -62,7 +62,7 @@ When processing any command, load these skills in order for the given version:
 ```
 1. AgentSkills/Odoo17CodingStandard/SKILL.md
 2. AgentSkills/OdooTools17/SKILL.md
-3. AgentSkills/Odoo17ExistingDepencencyContext/SKILL.md
+3. AgentSkills/Odoo17ExistingDependencyContext/SKILL.md
 4. AgentSkills/Agents/ (pick relevant agent)
 5. AgentSkills/PRD-Writing/SKILL.md (for /plan-analysis only)
 6. AgentSkills/excalidraw-diagram-skill/SKILL.md (for /plan-analysis only — architecture diagram generation)

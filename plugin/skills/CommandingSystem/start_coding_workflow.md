@@ -78,7 +78,7 @@ if "- [ ]" not in tasks_content:
 **Load version-specific coding standards (Level 2):**
 ```
 1. read AgentSkills/Odoo{V}CodingStandard/SKILL.md
-2. read AgentSkills/Odoo{V}ExistingDepencencyContext/SKILL.md
+2. read AgentSkills/Odoo{V}ExistingDependencyContext/SKILL.md
 3. read {module_name}/docs/requirements.md
 4. read {module_name}/docs/design.md
 5. read {module_name}/docs/module_meta.md

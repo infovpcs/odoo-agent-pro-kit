@@ -754,7 +754,7 @@ class OdooMcpClient:
         Load version-specific skill context.
         Priority:
         1. context.json from storage
-        2. SKILL.md from OdooXXExistingDepencencyContext
+        2. SKILL.md from OdooXXExistingDependencyContext
         3. Static defaults
         """
         # 1. Try storage
@@ -776,8 +776,8 @@ class OdooMcpClient:
         try:
             major_version = version.split('.')[0]
             # Use absolute path to ensure correct resolution
-            base_dir = Path(__file__).resolve().parent.parent
-            skill_dir = base_dir / f"Odoo{major_version}ExistingDepencencyContext"
+            base_dir = Path(__file__).resolve().parent.parent / "skills"
+            skill_dir = base_dir / f"Odoo{major_version}ExistingDependencyContext"
             skill_file = skill_dir / "SKILL.md"
             
             if skill_file.exists():

@@ -34,8 +34,8 @@ class ContextMetadata:
 class ContextStorage:
     """Manages storage of Odoo model contexts."""
 
-    # Base directory for context storage (AgentSkills root)
-    BASE_DIR = Path(__file__).resolve().parent.parent
+    # Base directory for context storage (plugin/skills root)
+    BASE_DIR = Path(__file__).resolve().parent.parent / "skills"
 
     def __init__(self, base_dir: Optional[Path] = None):
         """
@@ -58,7 +58,7 @@ class ContextStorage:
         """
         # Extract major version (e.g., "18.0" -> "18")
         major_version = version.split('.')[0]
-        return self.base_dir / f"Odoo{major_version}ExistingDepencencyContext"
+        return self.base_dir / f"Odoo{major_version}ExistingDependencyContext"
 
     def get_context_file(self, version: str) -> Path:
         """
@@ -227,14 +227,14 @@ class ContextStorage:
             return versions
 
         for item in self.base_dir.iterdir():
-            if item.is_dir() and "Odoo" in item.name and "ExistingDepencencyContext" in item.name:
+            if item.is_dir() and "Odoo" in item.name and "ExistingDependencyContext" in item.name:
                 # Extract version from directory name
-                # e.g., "Odoo170ExistingDepencencyContext" -> "17.0"
-                # e.g., "Odoo180ExistingDepencencyContext" -> "18.0"
-                # e.g., "Odoo190ExistingDepencencyContext" -> "19.0"
+                # e.g., "Odoo170ExistingDependencyContext" -> "17.0"
+                # e.g., "Odoo180ExistingDependencyContext" -> "18.0"
+                # e.g., "Odoo190ExistingDependencyContext" -> "19.0"
                 name = item.name
-                if name.startswith("Odoo") and "ExistingDepencencyContext" in name:
-                    version_num = name.replace("Odoo", "").replace("ExistingDepencencyContext", "")
+                if name.startswith("Odoo") and "ExistingDependencyContext" in name:
+                    version_num = name.replace("Odoo", "").replace("ExistingDependencyContext", "")
                     if version_num.isdigit() and len(version_num) >= 2:
                         # e.g., "18" -> "18.0"
                         version = f"{version_num}.0"

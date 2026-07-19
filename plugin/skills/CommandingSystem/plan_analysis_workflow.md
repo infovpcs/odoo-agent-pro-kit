@@ -50,7 +50,7 @@ Load each skill in order and confirm it is read before proceeding:
 ```
 1. read AgentSkills/Odoo19CodingStandard/SKILL.md
 2. read AgentSkills/OdooTools19/SKILL.md
-3. read AgentSkills/Odoo19ExistingDepencencyContext/SKILL.md
+3. read AgentSkills/Odoo19ExistingDependencyContext/SKILL.md
 4. read AgentSkills/PRD-Writing/SKILL.md
 5. read AgentSkills/excalidraw-diagram-skill/SKILL.md
 ```
@@ -82,7 +82,7 @@ mcp_get_relationships(model_name="sale.order")  # get related models
 > Please install it via Settings → Apps, or confirm it exists in your addons path.
 > Alternatively, I can scan the addons path directly (slower, uses more tokens).
 
-**Fallback**: If MCP unavailable → read static context from `Odoo{V}ExistingDepencencyContext/SKILL.md`.
+**Fallback**: If MCP unavailable → read static context from `Odoo{V}ExistingDependencyContext/SKILL.md`.
 
 ---
 
