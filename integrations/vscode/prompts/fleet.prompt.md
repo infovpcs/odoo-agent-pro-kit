@@ -1,3 +1,4 @@
+---
 description: Copilot CLI Fleet/Autopilot Orchestrator for Odoo
 ---
 
