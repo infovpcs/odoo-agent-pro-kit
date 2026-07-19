@@ -1,0 +1,19 @@
+{
+  "name": "odoo-agent-pro-kit",
+  "owner": {
+    "name": "Vinay Rana",
+    "email": "vinay.ra@vperfectcs.com"
+  },
+  "plugins": [
+    {
+      "name": "odoo-agent-pro-kit",
+      "source": "./plugin",
+      "description": "Odoo 17/18/19 custom app development skills, commands, hooks, and MCP server for Claude Code.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Vinay Rana",
+        "url": "https://www.vperfectcs.com"
+      }
+    }
+  ]
+}
