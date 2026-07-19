@@ -1,0 +1,78 @@
+# Odoo 19.0 Configuration Template
+# For use with manage_modules.sh and AI Agent automation
+# Placeholders {{WORKSPACE_PATH}} are replaced by setup_odoo_workspaces.sh on copy
+
+[options]
+
+; ============================================================================
+; DATABASE SETTINGS (Odoo 19.0)
+; ============================================================================
+db_host = localhost
+db_port = 5432
+db_user = {{DB_USER}}
+db_password = {{DB_PASSWORD}}
+db_template = template0
+db_sslmode = prefer
+db_name = odoo19
+
+; Default database filter for this workspace
+dbfilter = ^odoo19$
+
+; ============================================================================
+; SERVER CONFIGURATION
+; ============================================================================
+http_port = 8109
+http_interface = 0.0.0.0
+xmlrpc_port = 8109
+xmlrpc_interface = 0.0.0.0
+
+; Allowed IPs for remote connections (for agent access)
+allowed_remote_addresses = 127.0.0.1,localhost
+
+; ============================================================================
+; PATHS & DIRECTORIES (dynamically set on copy)
+; ============================================================================
+addons_path = {{WORKSPACE_PATH}}/19.0/addons,{{WORKSPACE_PATH}}/extra-19
+data_dir = {{WORKSPACE_PATH}}/data
+logfile = {{WORKSPACE_PATH}}/logs/odoo.log
+
+; ============================================================================
+; LOGGING (Critical for AI Agent Error Extraction)
+; ============================================================================
+log_level = info
+log_handler = :INFO
+log_db_level = warning
+log_db = False
+log_format = %(asctime)s %(pid)d %(levelname)s %(name)s %(message)s
+
+; ============================================================================
+; PERFORMANCE SETTINGS
+; ============================================================================
+db_maxconn = 32
+limit_memory_soft = 2147483648
+limit_memory_hard = 4294967296
+limit_time_cpu = 600
+limit_time_real = 1200
+limit_request = 8192
+workers = 0
+max_cron_threads = 2
+
+; ============================================================================
+; SECURITY SETTINGS
+; ============================================================================
+admin_passwd = admin
+list_db = True
+proxy_mode = True
+
+; ============================================================================
+; TESTING CONFIGURATION (for AI Agent test runs)
+; ============================================================================
+test_enable = True
+test_file = {{WORKSPACE_PATH}}/logs/test-results.xml
+
+; ============================================================================
+; ODOO 19 SPECIFIC SETTINGS
+; ============================================================================
+demo = False
+without_demo = all
+cache_prefix = odoo_19
