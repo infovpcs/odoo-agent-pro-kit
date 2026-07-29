@@ -14,6 +14,7 @@ DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
 ADMIN_PASSWD="admin"
 EXTRA_ADDONS=""
+ODOO_REPO_URL="${ODOO_REPO_URL:-https://github.com/odoo/odoo.git}"
 FORCE=0
 SKIP_DEPS=0
 SKIP_DB=0
@@ -31,6 +32,7 @@ Options:
   --db-port PORT          PostgreSQL port (default: 5432)
   --admin-passwd PASS     Odoo admin password (default: admin)
   --extra-addons PATHS    Extra addons paths (comma-separated)
+  --odoo-repo-url URL     Odoo Git remote (default: ODOO_REPO_URL or GitHub)
   --force                 Recreate venv/config when present
   --skip-deps             Skip apt dependency install
   --skip-db               Skip PostgreSQL user/db setup
@@ -48,6 +50,7 @@ while [[ $# -gt 0 ]]; do
     --db-port) DB_PORT="$2"; shift 2;;
     --admin-passwd) ADMIN_PASSWD="$2"; shift 2;;
     --extra-addons) EXTRA_ADDONS="$2"; shift 2;;
+    --odoo-repo-url) ODOO_REPO_URL="$2"; shift 2;;
     --force) FORCE=1; shift;;
     --skip-deps) SKIP_DEPS=1; shift;;
     --skip-db) SKIP_DB=1; shift;;
@@ -246,7 +249,7 @@ clone_repo() {
   fi
 
   echo "Cloning Odoo ${version}.0 into $target..."
-  git clone --branch "${version}.0" --single-branch --depth 1 https://github.com/odoo/odoo.git "$target"
+  git clone --branch "${version}.0" --single-branch --depth 1 "$ODOO_REPO_URL" "$target"
 }
 
 pick_python() {
