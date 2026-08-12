@@ -25,17 +25,17 @@ that claims native macOS Sandbox support.
 
 ## Phase 1: Runtime proof of concept (Odoo 19)
 
-- [ ] Add `sandbox/compose/compose.yaml` with healthy PostgreSQL and Odoo.
-- [ ] Add the Odoo 19 dev image with pinned inputs and lock manifest.
-- [ ] Add generated config with container-safe paths and distinct DB/application
+- [x] Add `sandbox/compose/compose.yaml` with healthy PostgreSQL and Odoo.
+- [x] Add the Odoo 19 dev image with pinned inputs and lock manifest.
+- [x] Add generated config with container-safe paths and distinct DB/application
   credentials.
-- [ ] Bind-mount one fixture addon from the session workspace.
-- [ ] Add session-private DB, filestore, cache, logs, and results volumes/paths.
-- [ ] Add Odoo and database readiness checks with bounded timeouts.
-- [ ] Add basic `sandboxctl create/status/exec/logs/stop/start/destroy` commands.
-- [ ] Emit `session.json`, `events.jsonl`, and operation result JSON.
-- [ ] Add automatic diagnostic collection on failed readiness.
-- [ ] LIVE TEST: install, update, RPC-test, restart, export, and destroy an Odoo
+- [x] Bind-mount one fixture addon from the session workspace.
+- [x] Add session-private DB, filestore, cache, logs, and results volumes/paths.
+- [x] Add Odoo and database readiness checks with bounded timeouts.
+- [x] Add basic `sandboxctl create/status/exec/logs/stop/start/destroy` commands.
+- [x] Emit `session.json`, `events.jsonl`, and operation result JSON.
+- [x] Add automatic diagnostic collection on failed readiness.
+- [x] LIVE TEST: install, update, RPC-test, restart, export, and destroy an Odoo
   19 fixture module with no orphaned volumes.
 
 Exit gate: a fresh Odoo 19 session passes twice from a clean state and twice

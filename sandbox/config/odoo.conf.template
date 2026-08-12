@@ -1,0 +1,16 @@
+[options]
+admin_passwd = __ODOO_ADMIN_PASSWORD__
+db_host = db
+db_port = 5432
+db_user = __POSTGRES_USER__
+db_password = __POSTGRES_PASSWORD__
+db_name = __DATABASE_NAME__
+dbfilter = ^__DATABASE_NAME__$
+list_db = False
+addons_path = /mnt/extra-addons,/usr/lib/python3/dist-packages/odoo/addons
+data_dir = /var/lib/odoo
+logfile = /var/log/odoo/odoo.log
+log_level = info
+proxy_mode = False
+workers = 0
+max_cron_threads = 0

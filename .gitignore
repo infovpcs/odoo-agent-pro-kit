@@ -7,7 +7,7 @@ venv/
 
 # Odoo
 *.log
-data/
+/data/
 logs/
 .odoo_workspace_lock
 
@@ -24,3 +24,6 @@ logs/
 
 # Diagram tooling
 docs/.render_cache/
+
+# Docker Sandbox runtime state
+.sandbox/

@@ -58,6 +58,10 @@ sessions is in [`docs/docker-sandbox/`](docs/docker-sandbox/README.md). It
 includes requirements, architecture, source-guide corrections, release gates,
 and the full cross-version test matrix.
 
+The Odoo 19 inner runtime controller is documented in
+[`sandbox/README.md`](sandbox/README.md). Phase gates remain authoritative in
+[`docs/docker-sandbox/tasks.md`](docs/docker-sandbox/tasks.md).
+
 ## Commercial/open-core roadmap
 
 VPerfectCS's plan for keeping this repository useful and open source while
@@ -90,6 +94,9 @@ architecture evidence, edition boundary, resource defaults, and JSON contracts
 are recorded under [`docs/docker-sandbox/phase-0/`](docs/docker-sandbox/phase-0/).
 The stock-sandbox LIVE TEST passed on the designated Ubuntu 24.04 KVM host;
 repository, Docker, and registry checks passed on the available Intel Mac.
+The Odoo 19 Phase 1 runtime and its four-pass cold/warm Sandbox lifecycle are
+also complete; evidence is under
+[`docs/docker-sandbox/phase-1/`](docs/docker-sandbox/phase-1/live-test.md).
 
 ## Contributing
 

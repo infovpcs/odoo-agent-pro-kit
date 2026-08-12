@@ -18,7 +18,12 @@ bash -n \
   odoo_local_setup/*.sh \
   plugin/hooks/*.sh \
   plugin/odoo_mcp/*.sh \
+  sandbox/scripts/*.sh \
+  sandbox/tests/*.sh \
   scripts/validate.sh
+
+echo "==> Python syntax"
+python3 -m py_compile sandbox/bin/sandboxctl
 
 echo "==> Git whitespace validation"
 git diff --check

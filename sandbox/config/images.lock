@@ -1,0 +1,3 @@
+# Immutable multi-architecture image indexes verified 2026-08-12.
+ODOO_19_BASE=odoo:19.0@sha256:94a4f480b8039dc9ca2bca9e77e59f97d3311f66e2aad663cf2670be9c66d4ea
+POSTGRES_15=postgres:15-bookworm@sha256:e8db9bd3e9e1751eb639fb17be53cc6d1b62a322adf75b99e791767a7a16ce69

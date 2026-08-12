@@ -1,0 +1,236 @@
+#!/usr/bin/env python3
+"""Stable local controller for the inner Odoo Compose runtime."""
+
+import argparse
+import datetime as dt
+import json
+import os
+import re
+import secrets
+import shutil
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+COMPOSE = ROOT / "sandbox/compose/compose.yaml"
+LOCK = ROOT / "sandbox/config/images.lock"
+TEMPLATE = ROOT / "sandbox/config/odoo.conf.template"
+
+
+def now():
+    return dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def state_dir(session):
+    return ROOT / ".sandbox/sessions" / session
+
+
+def load_env(session):
+    values = {}
+    for line in (state_dir(session) / "runtime.env").read_text().splitlines():
+        if line and not line.startswith("#"):
+            key, value = line.split("=", 1)
+            values[key] = value
+    return values
+
+
+def compose(session, *args, capture=False, check=True):
+    env = os.environ.copy()
+    env.update(load_env(session))
+    command = ["docker", "compose", "--env-file", str(state_dir(session) / "runtime.env"), "-f", str(COMPOSE), *args]
+    return subprocess.run(command, env=env, text=True, check=check, capture_output=capture)
+
+
+def compose_json(output):
+    """Accept Compose releases that emit either a JSON array or JSONL."""
+    output = output.strip()
+    if not output:
+        return []
+    try:
+        value = json.loads(output)
+        return value if isinstance(value, list) else [value]
+    except json.JSONDecodeError:
+        return [json.loads(line) for line in output.splitlines() if line.strip()]
+
+
+def manifest(session):
+    return json.loads((state_dir(session) / "session.json").read_text())
+
+
+def write_manifest(data):
+    data["updated_at"] = now()
+    path = state_dir(data["session_id"]) / "session.json"
+    path.write_text(json.dumps(data, indent=2) + "\n")
+
+
+def transition(session, status, **extra):
+    data = manifest(session)
+    data["status"] = status
+    data.update(extra)
+    write_manifest(data)
+    event = {"timestamp": now(), "session_id": session, "status": status}
+    with (state_dir(session) / "events.jsonl").open("a") as stream:
+        stream.write(json.dumps(event) + "\n")
+
+
+def result(session, operation, started, status, exit_code, message=None, error=None, artifacts=None):
+    finished = time.time()
+    op_id = f"{operation}-{int(started * 1000)}"
+    data = {
+        "schema_version": "1.0.0", "session_id": session, "operation_id": op_id,
+        "operation": operation, "module": manifest(session)["module"], "attempt": 1,
+        "status": status, "started_at": dt.datetime.fromtimestamp(started, dt.timezone.utc).isoformat().replace("+00:00", "Z"),
+        "finished_at": now(), "duration_ms": int((finished - started) * 1000), "exit_code": exit_code,
+        "message": message, "logs": [str(state_dir(session) / "logs")], "artifacts": artifacts or [], "error": error,
+    }
+    target = state_dir(session) / "results" / f"{op_id}.json"
+    target.write_text(json.dumps(data, indent=2) + "\n")
+    return target
+
+
+def diagnostics(session):
+    target = state_dir(session) / "diagnostics" / f"readiness-{int(time.time())}.log"
+    with target.open("w") as stream:
+        subprocess.run(["docker", "compose", "--env-file", str(state_dir(session) / "runtime.env"), "-f", str(COMPOSE), "ps", "-a"], stdout=stream, stderr=subprocess.STDOUT, text=True)
+        subprocess.run(["docker", "compose", "--env-file", str(state_dir(session) / "runtime.env"), "-f", str(COMPOSE), "logs", "--no-color", "--tail", "200"], stdout=stream, stderr=subprocess.STDOUT, text=True)
+    return str(target)
+
+
+def wait_ready(session, timeout=180):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        proc = compose(session, "ps", "--format", "json", capture=True, check=False)
+        try:
+            rows = compose_json(proc.stdout)
+        except json.JSONDecodeError:
+            rows = []
+        if rows and len(rows) == 2 and all(row.get("Health") == "healthy" for row in rows):
+            return
+        time.sleep(3)
+    bundle = diagnostics(session)
+    raise RuntimeError(f"services did not become healthy within {timeout}s; diagnostics: {bundle}")
+
+
+def cmd_create(args):
+    if args.version not in ("19", "19.0"):
+        raise SystemExit("Phase 1 supports only Odoo 19.0")
+    if not re.fullmatch(r"[a-z][a-z0-9_]*", args.module):
+        raise SystemExit("invalid module name")
+    session = args.session or f"19-{args.module.replace('_', '-')}-{secrets.token_hex(3)}"
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]{2,62}", session):
+        raise SystemExit("invalid session ID")
+    directory = state_dir(session)
+    if directory.exists():
+        raise SystemExit(f"session already exists: {session}")
+    for child in ("config", "logs", "results", "diagnostics", "exports"):
+        (directory / child).mkdir(parents=True, exist_ok=True)
+    # These are container output drop zones. Their contents are non-secret and
+    # the sandbox boundary is the access control; make them writable across
+    # host/container UID mappings on native Linux.
+    os.chmod(directory / "logs", 0o777)
+    os.chmod(directory / "results", 0o777)
+    locks = dict(line.split("=", 1) for line in LOCK.read_text().splitlines() if line and not line.startswith("#"))
+    password = secrets.token_urlsafe(24)
+    admin = secrets.token_urlsafe(24)
+    dbname = "sandbox_db"
+    config = TEMPLATE.read_text().replace("__ODOO_ADMIN_PASSWORD__", admin).replace("__POSTGRES_USER__", "odoo_runtime").replace("__POSTGRES_PASSWORD__", password).replace("__DATABASE_NAME__", dbname)
+    config_file = directory / "config/odoo.conf"
+    config_file.write_text(config)
+    # Linux bind mounts preserve the host UID. The non-root Odoo image must be
+    # able to read this file; its containing state directory remains ignored
+    # and private runtime.env (which carries the same secrets) stays 0600.
+    os.chmod(config_file, 0o644)
+    env = {
+        "COMPOSE_PROJECT_NAME": session, "REPOSITORY_ROOT": str(ROOT), "ODOO_BASE_IMAGE": locks["ODOO_19_BASE"],
+        "ODOO_DEV_IMAGE": f"odoo-agent-dev:19-{locks['ODOO_19_BASE'].split('sha256:')[1][:12]}", "POSTGRES_IMAGE": locks["POSTGRES_15"],
+        "POSTGRES_USER": "odoo_runtime", "POSTGRES_PASSWORD": password, "ODOO_DB_NAME": dbname,
+        "ODOO_CONFIG_FILE": str(config_file), "ADDONS_DIR": str(ROOT / "sandbox/fixtures"),
+        "SESSION_LOGS_DIR": str(directory / "logs"), "SESSION_RESULTS_DIR": str(directory / "results"),
+    }
+    (directory / "runtime.env").write_text("".join(f"{key}={value}\n" for key, value in env.items()))
+    os.chmod(directory / "runtime.env", 0o600)
+    git_origin = subprocess.run(["git", "remote", "get-url", "origin"], cwd=ROOT, capture_output=True, text=True).stdout.strip() or None
+    git_ref = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip() or None
+    git_branch = subprocess.run(["git", "branch", "--show-current"], cwd=ROOT, capture_output=True, text=True).stdout.strip() or None
+    data = {"schema_version": "1.0.0", "session_id": session, "status": "requested", "odoo_version": "19.0", "module": args.module,
+            "workspace": {"mode": "clone", "path": str(ROOT)}, "git": {"origin": git_origin, "ref": git_ref, "branch": git_branch},
+            "runtime": {"sbx_version": os.environ.get("SBX_VERSION", "external"), "template": "inner-compose-v1", "kit": None,
+                        "odoo_image": env["ODOO_DEV_IMAGE"], "postgres_image": env["POSTGRES_IMAGE"], "compose_project": session},
+            "resources": {"cpus": 2, "memory_mib": 4096, "disk_mib": 12288}, "ports": [], "created_at": now()}
+    write_manifest(data)
+    started = time.time()
+    try:
+        transition(session, "provisioning")
+        compose(session, "build", "--pull", "odoo")
+        transition(session, "starting")
+        compose(session, "up", "-d", "--wait", "--wait-timeout", str(args.timeout), "db")
+        compose(session, "run", "--rm", "odoo", "odoo", "--config", "/etc/odoo/odoo.conf", "--database", dbname, "--init", "base", "--stop-after-init", "--no-http")
+        compose(session, "up", "-d", "--wait", "--wait-timeout", str(args.timeout))
+        wait_ready(session, args.timeout)
+        transition(session, "ready")
+        result(session, "create", started, "succeeded", 0, "Odoo and PostgreSQL are healthy")
+    except Exception as exc:
+        bundle = diagnostics(session)
+        transition(session, "failed", failure={"summary": str(exc), "diagnostic_bundle": bundle})
+        result(session, "create", started, "failed", 1, str(exc), {"code": "readiness_failed", "summary": str(exc), "diagnostic_bundle": bundle})
+        raise
+    print(session)
+
+
+def simple_operation(session, operation, action):
+    started = time.time()
+    try:
+        action()
+        result(session, operation, started, "succeeded", 0)
+    except Exception as exc:
+        result(session, operation, started, "failed", 1, str(exc), {"code": f"{operation}_failed", "summary": str(exc), "diagnostic_bundle": None})
+        raise
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    sub = parser.add_subparsers(dest="command", required=True)
+    create = sub.add_parser("create")
+    create.add_argument("--version", required=True); create.add_argument("--module", required=True); create.add_argument("--session"); create.add_argument("--timeout", type=int, default=180)
+    for name in ("status", "logs", "stop", "start", "destroy", "export"):
+        item = sub.add_parser(name); item.add_argument("session")
+        if name == "logs": item.add_argument("--service", choices=("odoo", "db")); item.add_argument("--follow", action="store_true")
+        if name == "destroy": item.add_argument("--keep-state", action="store_true")
+    execute = sub.add_parser("exec"); execute.add_argument("session"); execute.add_argument("remainder", nargs=argparse.REMAINDER)
+    args = parser.parse_args()
+    if args.command == "create": return cmd_create(args)
+    if not state_dir(args.session).is_dir(): raise SystemExit(f"unknown session: {args.session}")
+    if args.command == "status":
+        data = manifest(args.session); proc = compose(args.session, "ps", "--format", "json", capture=True, check=False); data["services"] = compose_json(proc.stdout); print(json.dumps(data, indent=2)); return
+    if args.command == "exec":
+        command = args.remainder[1:] if args.remainder[:1] == ["--"] else args.remainder
+        if not command: raise SystemExit("exec requires a command after --")
+        raise SystemExit(compose(args.session, "exec", "-T", "odoo", *command, check=False).returncode)
+    if args.command == "logs":
+        command = ["logs", "--no-color"] + (["--follow"] if args.follow else []) + ([args.service] if args.service else [])
+        raise SystemExit(compose(args.session, *command, check=False).returncode)
+    if args.command == "stop":
+        transition(args.session, "stopping"); simple_operation(args.session, "stop", lambda: compose(args.session, "stop")); transition(args.session, "stopped"); return
+    if args.command == "start":
+        transition(args.session, "starting")
+        def start(): compose(args.session, "start"); wait_ready(args.session)
+        simple_operation(args.session, "start", start); transition(args.session, "ready"); return
+    if args.command == "export":
+        started = time.time(); target = state_dir(args.session) / "exports" / f"{args.session}-{int(started)}.tar.gz"
+        subprocess.run(["tar", "--exclude=exports", "-czf", str(target), "-C", str(state_dir(args.session)), "."], check=True)
+        transition(args.session, "exported"); result(args.session, "export", started, "succeeded", 0, artifacts=[str(target)]); print(target); return
+    if args.command == "destroy":
+        transition(args.session, "destroying")
+        def destroy(): compose(args.session, "down", "--volumes", "--remove-orphans")
+        simple_operation(args.session, "destroy", destroy); transition(args.session, "destroyed")
+        if not args.keep_state: shutil.rmtree(state_dir(args.session)); return
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (subprocess.CalledProcessError, RuntimeError) as error:
+        print(f"sandboxctl: {error}", file=sys.stderr)
+        raise SystemExit(1)
