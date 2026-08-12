@@ -1,0 +1,26 @@
+{
+  "17": {
+    "series": "17.0",
+    "base_image_lock": "ODOO_17_BASE",
+    "dockerfile": "sandbox/images/odoo-dev/17.Dockerfile",
+    "postgres_image_lock": "POSTGRES_15",
+    "rpc_protocol": "xmlrpc",
+    "addons_path": "/mnt/extra-addons,/usr/lib/python3/dist-packages/odoo/addons"
+  },
+  "18": {
+    "series": "18.0",
+    "base_image_lock": "ODOO_18_BASE",
+    "dockerfile": "sandbox/images/odoo-dev/18.Dockerfile",
+    "postgres_image_lock": "POSTGRES_15",
+    "rpc_protocol": "xmlrpc",
+    "addons_path": "/mnt/extra-addons,/usr/lib/python3/dist-packages/odoo/addons"
+  },
+  "19": {
+    "series": "19.0",
+    "base_image_lock": "ODOO_19_BASE",
+    "dockerfile": "sandbox/images/odoo-dev/19.Dockerfile",
+    "postgres_image_lock": "POSTGRES_15",
+    "rpc_protocol": "json2",
+    "addons_path": "/mnt/extra-addons,/usr/lib/python3/dist-packages/odoo/addons"
+  }
+}

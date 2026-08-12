@@ -43,15 +43,15 @@ from a warm image cache.
 
 ## Phase 2: Odoo 17 and 18 matrix
 
-- [ ] Add Odoo 17 and 18 image definitions and digest locks.
-- [ ] Move version-specific image, protocol, dependency, and config values to
+- [x] Add Odoo 17 and 18 image definitions and digest locks.
+- [x] Move version-specific image, protocol, dependency, and config values to
   `versions.yaml`.
-- [ ] Test XML-RPC paths for 17 and 18.
-- [ ] Validate the supported Odoo 19 RPC/API path rather than relying on a
+- [x] Test XML-RPC paths for 17 and 18.
+- [x] Validate the supported Odoo 19 RPC/API path rather than relying on a
   hard-coded version assumption.
-- [ ] Add per-version fixture-module install/update/CRUD tests.
-- [ ] Add amd64/arm64 build and runtime matrix where supported.
-- [ ] LIVE TEST: run 17, 18, and 19 concurrently and complete the full fixture
+- [x] Add per-version fixture-module install/update/CRUD tests.
+- [x] Add amd64/arm64 build and runtime matrix where supported.
+- [x] LIVE TEST: run 17, 18, and 19 concurrently and complete the full fixture
   lifecycle in each.
 
 Exit gate: the same controller interface passes for all three versions.

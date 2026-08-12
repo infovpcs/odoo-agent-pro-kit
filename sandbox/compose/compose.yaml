@@ -19,7 +19,7 @@ services:
     image: ${ODOO_DEV_IMAGE}
     build:
       context: ${REPOSITORY_ROOT}
-      dockerfile: sandbox/images/odoo-dev/Dockerfile
+      dockerfile: ${ODOO_DOCKERFILE}
       args:
         ODOO_BASE_IMAGE: ${ODOO_BASE_IMAGE}
     restart: unless-stopped
@@ -27,6 +27,10 @@ services:
       db:
         condition: service_healthy
     command: ["odoo", "--config", "/etc/odoo/odoo.conf"]
+    environment:
+      ODOO_API_PASSWORD: ${ODOO_API_PASSWORD}
+      ODOO_API_KEY: ${ODOO_API_KEY:-}
+      ODOO_RPC_PROTOCOL: ${ODOO_RPC_PROTOCOL}
     volumes:
       - ${ODOO_CONFIG_FILE}:/etc/odoo/odoo.conf:ro
       - ${ADDONS_DIR}:/mnt/extra-addons:ro
@@ -34,6 +38,7 @@ services:
       - cache:/var/lib/odoo/.cache
       - ${SESSION_LOGS_DIR}:/var/log/odoo
       - ${SESSION_RESULTS_DIR}:/var/lib/odoo/results
+      - ${REPOSITORY_ROOT}/sandbox/scripts:/workspace/scripts:ro
 volumes:
   db-data:
   filestore:

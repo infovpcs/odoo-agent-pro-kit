@@ -160,6 +160,11 @@ sandboxctl export <session>
   multi-architecture image validation for amd64 and arm64 where upstream images
   permit it.
 
+Phase 2 validates dev-image construction for both amd64 and arm64 and validates
+the concurrent runtime matrix on the designated Ubuntu amd64 KVM host. Arm64
+runtime support remains unclaimed until a supported arm64 Sandbox host executes
+the same controller contract.
+
 ## Acceptance scenarios
 
 1. Create Odoo 17, 18, and 19 sessions concurrently; install a smoke module in

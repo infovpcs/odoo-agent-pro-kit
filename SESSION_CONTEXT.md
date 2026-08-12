@@ -142,6 +142,11 @@ that consumes stable Community releases instead of forking this repository.
 - [x] Passed the Phase 1 Ubuntu Sandbox LIVE TEST twice from clean session
   volumes and twice with a warm image cache, including install, update, Odoo 19
   JSON-RPC verification, restart, export, destroy, writable logs, and cleanup.
+- [x] Completed the Phase 2 data-driven Odoo 17/18/19 controller matrix with
+  pinned per-version images, XML-RPC for 17/18, JSON-2 for 19, private fixture
+  copies, and concurrent lifecycle coverage.
+- [x] Built every Phase 2 dev image for linux/amd64 and linux/arm64 as OCI
+  output and passed the concurrent amd64 LIVE TEST in an Ubuntu KVM Sandbox.
 
 ## Current state
 
@@ -159,8 +164,9 @@ that consumes stable Community releases instead of forking this repository.
 - The Oracle validation VPS is Ubuntu 24.04 x86_64 with 2 vCPU, 15 GiB RAM,
   nested KVM, and 45 GiB root disk. After Sandbox cleanup it used 5.9 GiB.
 - The Oracle VPS retains `docker-sbx` 0.38.0, its cached Codex template, Docker
-  OAuth login, balanced policy, disposable Git repository, and exported
-  `/home/ubuntu/phase0-evidence.txt`; no sandbox or published port remains.
+  OAuth login, balanced policy, disposable Git repositories including
+  `/home/ubuntu/phase2-src`, and exported `/home/ubuntu/phase0-evidence.txt`;
+  no sandbox or published port remains.
 - The reusable Oracle validation-host connection is stored locally in the
   Git-ignored `.sandbox/validation-host.env`. Source that file and connect with
   `ssh -i "$VALIDATION_SSH_KEY" "$VALIDATION_SSH_TARGET"`. Never commit or copy
@@ -169,11 +175,8 @@ that consumes stable Community releases instead of forking this repository.
   `pytest-asyncio` plugin and fails during collection.
 - Repository tests pass when external plugin auto-loading is disabled:
   `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -q tests`.
-- Phase 1 implementation is complete but not yet committed on
-  `feature/docker-sandbox-phase-1`: pinned Odoo/PostgreSQL inputs, Odoo 19 dev
-  image, inner Compose runtime, fixture addon, generated configuration,
-  `sandboxctl`, structured state/results, bounded readiness, diagnostics, and a
-  four-run lifecycle harness.
+- Phase 1 is committed as `11a8617` on
+  `feature/docker-sandbox-phase-1` (`Complete Docker Sandbox Phase 1 runtime`).
 - One disposable local lifecycle run passed on 2026-08-12 using Docker 29.7.2,
   Compose 5.3.1, and the Linux amd64 daemon: create, base initialization,
   fixture install/update, JSON-RPC version check, stop/start, export, destroy,
@@ -186,12 +189,23 @@ that consumes stable Community releases instead of forking this repository.
   repository validation stopped with `No module named pytest`. Per the approved
   platform split, clean-shell repository validation ran on the Intel workstation.
 - No branch has been pushed and no private Pro repository has been created.
+- Active branch: `feature/docker-sandbox-phase-2`.
+- Phase 2 repository validation passes with 20 tests, 18 validated skills,
+  shell/Python syntax checks, and Git whitespace validation.
+- The Intel workstation passed the concurrent warm-cache amd64 lifecycle and
+  built all three dev images for amd64 and arm64 using a temporary BuildKit
+  container builder. The builder and OCI output were removed after validation.
+- The Ubuntu 24.04 KVM LIVE TEST passed with `sbx` 0.38.0, a 2-vCPU/8-GiB
+  microVM, Docker 29.7.1, and Compose 5.4.0. Odoo 17, 18, and 19 ran
+  concurrently and passed install, data-changing update, protocol CRUD,
+  restart, export, destroy, and orphan checks. The Sandbox was removed and the
+  host returned to 5.9 GiB used.
 
 ## Blockers and risks
 
 ### Immediate
 
-- No immediate Phase 1 blocker remains. The authorized validation connection is
+- No immediate Phase 2 blocker remains. The authorized validation connection is
   available through the ignored local file documented under Current state.
 - Docker supports Sandbox on Apple Silicon macOS 14+; this host is Intel macOS.
 - Native macOS Sandbox behavior remains untested because the workstation is
@@ -209,23 +223,24 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Next task
 
-### Task ID: ODOO18/17-001 — Phase 2 Odoo 17 and 18 matrix
+### Task ID: KIT-001 — Phase 3 existing kit integration
 
-Goal: generalize the validated controller/runtime contract for Odoo 17 and 18.
+Goal: connect the validated Compose controller to the existing module manager,
+MCP startup, context hooks, and lifecycle skills while preserving local mode.
 
 Steps:
 
-- [ ] Read the Phase 2 checklist and relevant version-specific design contracts.
-- [ ] Implement and validate only Phase 2 in a fresh session.
+- [ ] Read the Phase 3 checklist and the current `manage_modules.sh`, MCP,
+  SessionStart, and lifecycle command contracts.
+- [ ] Implement and validate only Phase 3 in a fresh session.
 
-Work from a fresh session after reading this file and the Phase 1 section of
+Work from a fresh session after reading this file and the Phase 3 section of
 `docs/docker-sandbox/tasks.md`.
 
 ## Following tasks
 
-1. **ODOO18/17-001:** generalize the runtime and complete the Odoo 17/18 matrix.
-2. **KIT-001:** integrate the existing module manager and lifecycle skills.
-3. Continue in the order and gates defined by
+1. **KIT-001:** integrate the existing module manager and lifecycle skills.
+2. Continue in the order and gates defined by
    `docs/docker-sandbox/tasks.md`.
 
 ## Validation commands

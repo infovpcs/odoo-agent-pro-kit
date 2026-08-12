@@ -181,6 +181,19 @@ Highest priority first:
 4. Version configuration in `sandbox/config/versions.yaml`.
 5. safe defaults.
 
+The Phase 2 version contract is data-driven:
+
+| Series | RPC lifecycle | Odoo image definition | Database |
+| --- | --- | --- | --- |
+| 17.0 | XML-RPC `/xmlrpc/2` | pinned 17 Dockerfile/base index | PostgreSQL 15 |
+| 18.0 | XML-RPC `/xmlrpc/2` | pinned 18 Dockerfile/base index | PostgreSQL 15 |
+| 19.0 | JSON-2 `/json/2` with a short-lived API key | pinned 19 Dockerfile/base index | PostgreSQL 15 |
+
+The controller reads these values from `sandbox/config/versions.yaml`; it does
+not infer protocol behavior from hard-coded version checks. Fixture source is
+copied into session-private state and its manifest series is resolved before
+the Compose stack starts.
+
 The existing `.env` names remain supported through an adapter, but new code
 uses explicit container-safe values such as:
 

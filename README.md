@@ -58,7 +58,7 @@ sessions is in [`docs/docker-sandbox/`](docs/docker-sandbox/README.md). It
 includes requirements, architecture, source-guide corrections, release gates,
 and the full cross-version test matrix.
 
-The Odoo 19 inner runtime controller is documented in
+The Odoo 17/18/19 inner runtime controller is documented in
 [`sandbox/README.md`](sandbox/README.md). Phase gates remain authoritative in
 [`docs/docker-sandbox/tasks.md`](docs/docker-sandbox/tasks.md).
 
@@ -97,6 +97,9 @@ repository, Docker, and registry checks passed on the available Intel Mac.
 The Odoo 19 Phase 1 runtime and its four-pass cold/warm Sandbox lifecycle are
 also complete; evidence is under
 [`docs/docker-sandbox/phase-1/`](docs/docker-sandbox/phase-1/live-test.md).
+The Phase 2 version matrix, XML-RPC/JSON-2 CRUD checks, multi-architecture image
+builds, and concurrent Ubuntu Sandbox lifecycle are complete; evidence is under
+[`docs/docker-sandbox/phase-2/`](docs/docker-sandbox/phase-2/live-test.md).
 
 ## Contributing
 

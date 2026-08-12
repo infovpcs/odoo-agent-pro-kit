@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 COMPOSE = ROOT / "sandbox/compose/compose.yaml"
 LOCK = ROOT / "sandbox/config/images.lock"
 TEMPLATE = ROOT / "sandbox/config/odoo.conf.template"
+VERSIONS = ROOT / "sandbox/config/versions.yaml"
 
 
 def now():
@@ -36,11 +37,54 @@ def load_env(session):
     return values
 
 
-def compose(session, *args, capture=False, check=True):
+def compose(session, *args, capture=False, check=True, input_text=None):
     env = os.environ.copy()
     env.update(load_env(session))
     command = ["docker", "compose", "--env-file", str(state_dir(session) / "runtime.env"), "-f", str(COMPOSE), *args]
-    return subprocess.run(command, env=env, text=True, check=check, capture_output=capture)
+    return subprocess.run(command, env=env, text=True, check=check, capture_output=capture, input=input_text)
+
+
+def version_config(requested):
+    major = requested.removesuffix(".0")
+    versions = json.loads(VERSIONS.read_text())
+    if major not in versions:
+        raise SystemExit(f"unsupported Odoo version: {requested}; choose 17, 18, or 19")
+    return major, versions[major]
+
+
+def lock_values():
+    return dict(line.split("=", 1) for line in LOCK.read_text().splitlines() if line and not line.startswith("#"))
+
+
+def update_runtime_env(session, **updates):
+    values = load_env(session)
+    values.update(updates)
+    path = state_dir(session) / "runtime.env"
+    path.write_text("".join(f"{key}={value}\n" for key, value in values.items()))
+    os.chmod(path, 0o600)
+
+
+def configure_api_credentials(session, protocol, dbname):
+    script = [
+        "import datetime, os",
+        "user = env.ref('base.user_admin')",
+        "user.password = os.environ['ODOO_API_PASSWORD']",
+    ]
+    if protocol == "json2":
+        script += [
+            "key = env['res.users.apikeys'].with_user(user).sudo()._generate('rpc', 'sandbox-phase2', datetime.datetime.now() + datetime.timedelta(days=1))",
+            "print('SANDBOX_API_KEY=' + key)",
+        ]
+    script.append("env.cr.commit()")
+    proc = compose(
+        session, "run", "--rm", "-T", "odoo", "odoo", "shell", "--config", "/etc/odoo/odoo.conf",
+        "--database", dbname, "--no-http", capture=True, input_text="\n".join(script) + "\n",
+    )
+    if protocol == "json2":
+        match = re.search(r"^SANDBOX_API_KEY=([0-9a-f]+)$", proc.stdout, re.MULTILINE)
+        if not match:
+            raise RuntimeError("Odoo 19 API key generation did not return a key")
+        update_runtime_env(session, ODOO_API_KEY=match.group(1))
 
 
 def compose_json(output):
@@ -114,50 +158,60 @@ def wait_ready(session, timeout=180):
 
 
 def cmd_create(args):
-    if args.version not in ("19", "19.0"):
-        raise SystemExit("Phase 1 supports only Odoo 19.0")
+    major, version = version_config(args.version)
     if not re.fullmatch(r"[a-z][a-z0-9_]*", args.module):
         raise SystemExit("invalid module name")
-    session = args.session or f"19-{args.module.replace('_', '-')}-{secrets.token_hex(3)}"
+    session = args.session or f"{major}-{args.module.replace('_', '-')}-{secrets.token_hex(3)}"
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]{2,62}", session):
         raise SystemExit("invalid session ID")
     directory = state_dir(session)
     if directory.exists():
         raise SystemExit(f"session already exists: {session}")
-    for child in ("config", "logs", "results", "diagnostics", "exports"):
+    for child in ("config", "logs", "results", "diagnostics", "exports", "addons"):
         (directory / child).mkdir(parents=True, exist_ok=True)
     # These are container output drop zones. Their contents are non-secret and
     # the sandbox boundary is the access control; make them writable across
     # host/container UID mappings on native Linux.
     os.chmod(directory / "logs", 0o777)
     os.chmod(directory / "results", 0o777)
-    locks = dict(line.split("=", 1) for line in LOCK.read_text().splitlines() if line and not line.startswith("#"))
+    locks = lock_values()
     password = secrets.token_urlsafe(24)
     admin = secrets.token_urlsafe(24)
     dbname = "sandbox_db"
-    config = TEMPLATE.read_text().replace("__ODOO_ADMIN_PASSWORD__", admin).replace("__POSTGRES_USER__", "odoo_runtime").replace("__POSTGRES_PASSWORD__", password).replace("__DATABASE_NAME__", dbname)
+    config = TEMPLATE.read_text().replace("__ODOO_ADMIN_PASSWORD__", admin).replace("__POSTGRES_USER__", "odoo_runtime").replace("__POSTGRES_PASSWORD__", password).replace("__DATABASE_NAME__", dbname).replace("__ADDONS_PATH__", version["addons_path"])
     config_file = directory / "config/odoo.conf"
     config_file.write_text(config)
     # Linux bind mounts preserve the host UID. The non-root Odoo image must be
     # able to read this file; its containing state directory remains ignored
     # and private runtime.env (which carries the same secrets) stays 0600.
     os.chmod(config_file, 0o644)
+    fixture_target = directory / "addons" / args.module
+    fixture_source = ROOT / "sandbox/fixtures" / args.module
+    if not fixture_source.is_dir():
+        raise SystemExit(f"fixture module not found: {fixture_source}")
+    shutil.copytree(fixture_source, fixture_target)
+    fixture_manifest = fixture_target / "__manifest__.py"
+    fixture_manifest.write_text(fixture_manifest.read_text().replace('"version": "19.0.', f'"version": "{version["series"]}.'))
+    base_image = locks[version["base_image_lock"]]
     env = {
-        "COMPOSE_PROJECT_NAME": session, "REPOSITORY_ROOT": str(ROOT), "ODOO_BASE_IMAGE": locks["ODOO_19_BASE"],
-        "ODOO_DEV_IMAGE": f"odoo-agent-dev:19-{locks['ODOO_19_BASE'].split('sha256:')[1][:12]}", "POSTGRES_IMAGE": locks["POSTGRES_15"],
+        "COMPOSE_PROJECT_NAME": session, "REPOSITORY_ROOT": str(ROOT), "ODOO_BASE_IMAGE": base_image,
+        "ODOO_DOCKERFILE": version["dockerfile"],
+        "ODOO_DEV_IMAGE": f"odoo-agent-dev:{major}-{base_image.split('sha256:')[1][:12]}", "POSTGRES_IMAGE": locks[version["postgres_image_lock"]],
         "POSTGRES_USER": "odoo_runtime", "POSTGRES_PASSWORD": password, "ODOO_DB_NAME": dbname,
-        "ODOO_CONFIG_FILE": str(config_file), "ADDONS_DIR": str(ROOT / "sandbox/fixtures"),
+        "ODOO_CONFIG_FILE": str(config_file), "ADDONS_DIR": str(directory / "addons"),
         "SESSION_LOGS_DIR": str(directory / "logs"), "SESSION_RESULTS_DIR": str(directory / "results"),
+        "ODOO_API_PASSWORD": secrets.token_urlsafe(24), "ODOO_API_KEY": "", "ODOO_RPC_PROTOCOL": version["rpc_protocol"],
     }
     (directory / "runtime.env").write_text("".join(f"{key}={value}\n" for key, value in env.items()))
     os.chmod(directory / "runtime.env", 0o600)
     git_origin = subprocess.run(["git", "remote", "get-url", "origin"], cwd=ROOT, capture_output=True, text=True).stdout.strip() or None
     git_ref = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip() or None
     git_branch = subprocess.run(["git", "branch", "--show-current"], cwd=ROOT, capture_output=True, text=True).stdout.strip() or None
-    data = {"schema_version": "1.0.0", "session_id": session, "status": "requested", "odoo_version": "19.0", "module": args.module,
+    data = {"schema_version": "1.0.0", "session_id": session, "status": "requested", "odoo_version": version["series"], "module": args.module,
             "workspace": {"mode": "clone", "path": str(ROOT)}, "git": {"origin": git_origin, "ref": git_ref, "branch": git_branch},
             "runtime": {"sbx_version": os.environ.get("SBX_VERSION", "external"), "template": "inner-compose-v1", "kit": None,
-                        "odoo_image": env["ODOO_DEV_IMAGE"], "postgres_image": env["POSTGRES_IMAGE"], "compose_project": session},
+                        "odoo_image": env["ODOO_DEV_IMAGE"], "postgres_image": env["POSTGRES_IMAGE"], "compose_project": session,
+                        "rpc_protocol": version["rpc_protocol"]},
             "resources": {"cpus": 2, "memory_mib": 4096, "disk_mib": 12288}, "ports": [], "created_at": now()}
     write_manifest(data)
     started = time.time()
@@ -167,6 +221,7 @@ def cmd_create(args):
         transition(session, "starting")
         compose(session, "up", "-d", "--wait", "--wait-timeout", str(args.timeout), "db")
         compose(session, "run", "--rm", "odoo", "odoo", "--config", "/etc/odoo/odoo.conf", "--database", dbname, "--init", "base", "--stop-after-init", "--no-http")
+        configure_api_credentials(session, version["rpc_protocol"], dbname)
         compose(session, "up", "-d", "--wait", "--wait-timeout", str(args.timeout))
         wait_ready(session, args.timeout)
         transition(session, "ready")

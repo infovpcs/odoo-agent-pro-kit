@@ -1,6 +1,7 @@
 # Odoo Docker Sandbox runtime
 
-Phase 1 provides the inner Compose proof of concept for Odoo 19. Run it inside
+The inner Compose runtime supports Odoo 17, 18, and 19 through one controller.
+Run it inside
 the designated Docker Sandbox microVM (or directly against a disposable Docker
 daemon for development):
 
@@ -15,6 +16,13 @@ sandbox/bin/sandboxctl export <session-id>
 sandbox/bin/sandboxctl destroy <session-id>
 ```
 
+Version-specific image locks, Dockerfiles, addons paths, PostgreSQL dependency,
+and RPC protocol live in `config/versions.yaml` and `config/images.lock`.
+Odoo 17 and 18 lifecycle checks use the documented XML-RPC endpoints. Odoo 19
+uses its JSON-2 endpoint with a one-day, session-generated API key; the key and
+the distinct XML-RPC password remain only in the ignored mode-`0600`
+`runtime.env`.
+
 Runtime state is written under `.sandbox/sessions/<session-id>/`. Generated
 credentials are distinct from application credentials and excluded from Git.
 The private environment is mode `0600`; the generated config is mode `0644` so
@@ -28,6 +36,9 @@ host/container UID mappings; they must contain artifacts only, never secrets.
 Compose state and the last 200 service log lines under the session diagnostics
 directory, marks the manifest failed, and emits a failed operation result.
 
-The Phase 1 fixture is intentionally public and contains no Enterprise source.
-Module install/update/RPC lifecycle helpers are exercised by the live-test
-script; integration with `manage_modules.sh` remains Phase 3 work.
+The fixture is intentionally public and contains no Enterprise source. Each
+session receives a private copy whose manifest series matches the selected
+Odoo version. Run the concurrent amd64 runtime matrix with
+`sandbox/tests/lifecycle.sh`, and validate both amd64 and arm64 image builds
+with `sandbox/tests/multiarch-build.sh`. Integration with `manage_modules.sh`
+remains Phase 3 work.

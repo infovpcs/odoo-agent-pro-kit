@@ -18,6 +18,7 @@ earlier Docker Sandbox research into a versioned, test-gated product design.
 Approved session and operation-result contracts live in `sandbox/schemas/`.
 Phase 1 runtime usage is documented in [`../../sandbox/README.md`](../../sandbox/README.md),
 and its required microVM procedure is in [`phase-1/live-test.md`](phase-1/live-test.md).
+Phase 2 cross-version evidence is in [`phase-2/live-test.md`](phase-2/live-test.md).
 
 ## Recommended delivery decision
 
