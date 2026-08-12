@@ -12,6 +12,10 @@ earlier Docker Sandbox research into a versioned, test-gated product design.
 - `tasks.md` is the ordered delivery backlog with release gates.
 - `source-review.md` records the decisions made while consolidating the earlier
   setup research and prevents obsolete approaches from being reintroduced.
+- `phase-0/` records architecture, runtime, CLI capability, and LIVE TEST
+  evidence required before runtime implementation.
+
+Approved session and operation-result contracts live in `sandbox/schemas/`.
 
 ## Recommended delivery decision
 

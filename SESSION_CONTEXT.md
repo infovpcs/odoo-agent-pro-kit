@@ -26,7 +26,7 @@ Before changing files:
 - Supported Odoo versions: 17.0, 18.0, and 19.0
 - Active workstream: public Docker Sandbox foundation and open-core commercial
   planning
-- Active branch: `feature/docker-sandbox-planning-foundation`
+- Active branch: `feature/docker-sandbox-phase-0`
 - Branch base: `main` at commit `192f6c9`
 - Last context update: 2026-08-12 (Asia/Kolkata)
 
@@ -108,21 +108,59 @@ that consumes stable Community releases instead of forking this repository.
   validation passed.
 - [x] Completed FOUNDATION-001 and received user approval to create the focused
   planning-foundation commit on a dedicated branch.
+- [x] Added repository-wide phase workflow rules in `AGENTS.md`: one phase per
+  session, mandatory checklist/LIVE TEST/documentation/context/validation, and
+  one focused commit before the next phase.
+- [x] Accepted ADR-0001 for the outer Sandbox/inner Compose boundary, clone-mode
+  default, local-mode compatibility, and Community/Pro interface.
+- [x] Selected `postgres:15-bookworm` for the initial Odoo 17/18/19 matrix and
+  recorded initial resource and retention defaults.
+- [x] Verified the official Odoo 17.0, 18.0, and 19.0 registry indexes contain
+  Linux amd64 and arm64/v8 manifests on 2026-08-12.
+- [x] Defined the public Community and separately licensed Enterprise addon
+  boundary.
+- [x] Added version 1.0.0 session and operation-result JSON schemas plus schema
+  contract tests; the repository suite now has 9 passing tests.
+- [x] Installed official `docker-sbx` 0.38.0 and Git on the authorized Oracle
+  Cloud Ubuntu 24.04 validation VPS; added `ubuntu` to the `kvm` group and
+  initialized Docker's balanced local Sandbox policy.
+- [x] Authenticated `sbx` through Docker's device OAuth flow without recording
+  credentials in the repository; all 9 diagnostic checks passed.
+- [x] Captured template, kit, secret, policy, ports, shared-skills, SSH, clone,
+  CPU, memory, and publish command capabilities. Kits, skills, SSH, and custom
+  secrets identify themselves as experimental in 0.38.0.
+- [x] Passed the Ubuntu Phase 0 LIVE TEST: stock clone-mode Codex sandbox,
+  private Docker 29.7.1, Compose 5.4.0, nginx HTTP, ephemeral loopback port,
+  stop/start persistence, evidence copy, sandbox removal, and port cleanup.
+- [x] User approved the platform validation policy: use the available Intel Mac
+  for repository/Docker/registry checks and the Ubuntu 24.04 KVM VPS for all
+  Docker Sandbox microVM and runtime LIVE TESTS.
+- [x] Completed the Phase 0 checklist and platform-adjusted exit gate.
 
 ## Current state
 
-- FOUNDATION-001 planning-foundation changes are included in the baseline
-  commit on `feature/docker-sandbox-planning-foundation`.
+- FOUNDATION-001 is committed as `2c2b6d6` on
+  `feature/docker-sandbox-planning-foundation`.
+- Phase 0 is complete and committed on `feature/docker-sandbox-phase-0` with
+  subject `Complete Docker Sandbox Phase 0 validation`.
 - Docker CLI and daemon are available.
 - Docker version observed: `29.7.2`.
 - Docker daemon reported Linux `x86_64` containers on this host.
-- Docker Sandbox CLI (`sbx`) is not installed.
+- Docker Sandbox CLI (`sbx`) is not installed. The official Homebrew cask was
+  trusted but installation rejected this Intel Mac because it requires arm64.
+- The accessible VPS is Ubuntu 20.04 x86_64 with Docker 27.3.1, 256 GiB free,
+  and no `/dev/kvm`; it was inspected read-only and is unsupported for `sbx`.
+- The Oracle validation VPS is Ubuntu 24.04 x86_64 with 2 vCPU, 15 GiB RAM,
+  nested KVM, and 45 GiB root disk. After Sandbox cleanup it used 5.9 GiB.
+- The Oracle VPS retains `docker-sbx` 0.38.0, its cached Codex template, Docker
+  OAuth login, balanced policy, disposable Git repository, and exported
+  `/home/ubuntu/phase0-evidence.txt`; no sandbox or published port remains.
 - The global Conda pytest environment auto-loads an incompatible
   `pytest-asyncio` plugin and fails during collection.
 - Repository tests pass when external plugin auto-loading is disabled:
   `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -q tests`.
-- No branch has been pushed, no commit has been created for this work, and no
-  private Pro repository has been created.
+- The working tree is clean. No branch has been pushed and no private Pro
+  repository has been created.
 
 ## Blockers and risks
 
@@ -130,8 +168,12 @@ that consumes stable Community releases instead of forking this repository.
 
 - Phase 0 cannot validate Docker Sandbox capabilities until `sbx` is installed
   and authenticated.
-- Installing and authenticating the Docker Sandbox CLI for FOUNDATION-002
-  requires explicit user authorization.
+- Docker supports Sandbox on Apple Silicon macOS 14+; this host is Intel macOS.
+- Docker supports Linux Sandbox on Ubuntu 24.04+ with KVM; the accessible VPS is
+  Ubuntu 20.04 and nested virtualization is unavailable (`/dev/kvm` missing).
+- Native macOS Sandbox behavior remains untested because the workstation is
+  Intel. It is not required by the approved validation policy unless a future
+  task claims native macOS Sandbox support.
 
 ### Tracked design risks
 
@@ -144,32 +186,31 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Next task
 
-### Task ID: FOUNDATION-002 — Docker Sandbox CLI capability baseline
+### Task ID: ODOO19-001 — Phase 1 Odoo 19 runtime proof of concept
 
-Goal: install and authenticate the Docker Sandbox CLI, then document the exact
-supported CLI and capability matrix before relying on it in implementation.
+Goal: implement and validate the public Odoo 19 inner Compose runtime through
+the stable controller contract on the Ubuntu Sandbox validation host.
 
 Steps:
 
-- [ ] Obtain explicit authorization to install external Sandbox tooling.
-- [ ] Install `sbx` using the supported official installation path.
-- [ ] Authenticate if required without recording credentials in the repository.
-- [ ] Capture version and diagnostics evidence.
-- [ ] Verify template, kit, secret, policy, ports, skills, and SSH commands.
-- [ ] Record supported, experimental, unavailable, and version-gated behavior.
-- [ ] LIVE TEST: run the documented diagnostics/capability command sequence from
-  a clean shell and confirm the recorded matrix matches the installed CLI.
+- [ ] Add healthy PostgreSQL and Odoo 19 Compose services with pinned inputs.
+- [ ] Add generated container-safe configuration and distinct credentials.
+- [ ] Add a fixture addon and session-private DB, filestore, cache, logs, and
+  results paths.
+- [ ] Add bounded readiness checks and failure diagnostics.
+- [ ] Implement basic `sandboxctl` lifecycle commands and structured session,
+  event, and operation-result output.
+- [ ] LIVE TEST: install, update, RPC-test, restart, export, and destroy an Odoo
+  19 fixture module twice cold and twice warm with no orphaned volumes.
 
-Do not install software or initiate authentication without explicit user
-authorization.
+Work from a fresh session after reading this file and the Phase 1 section of
+`docs/docker-sandbox/tasks.md`.
 
 ## Following tasks
 
-1. **FOUNDATION-003:** write the architecture decision record and approve image,
-   PostgreSQL, resource, retention, and Community/Enterprise boundaries.
-2. **FOUNDATION-004:** perform the Phase 0 stock-sandbox LIVE TEST.
-3. **ODOO19-001:** implement the public Odoo 19 inner Compose proof of concept.
-4. Continue in the order and gates defined by
+1. **ODOO18/17-001:** generalize the runtime and complete the Odoo 17/18 matrix.
+2. **KIT-001:** integrate the existing module manager and lifecycle skills.
+3. Continue in the order and gates defined by
    `docs/docker-sandbox/tasks.md`.
 
 ## Validation commands
@@ -186,9 +227,9 @@ Clean-shell LIVE TEST command:
 env -i PATH="$PATH" /bin/bash --noprofile --norc ./scripts/validate.sh
 ```
 
-Results on 2026-08-12:
+Results on 2026-08-12 after Phase 0 completion:
 
-- Repository tests: `7 passed in 0.23s`.
+- Repository tests: `9 passed in 0.44s`.
 - Skills: `18 skill file(s) validated, no issues found`.
 - Shell syntax: passed.
 - Git whitespace validation: passed.

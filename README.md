@@ -77,6 +77,20 @@ clone:
 The entrypoint isolates pytest from unrelated globally installed plugins, then
 runs the tests, skill validator, shell syntax checks, and Git whitespace check.
 
+## Delivery workflow
+
+Docker Sandbox development proceeds one phase per session. Every phase must
+finish its checklist and LIVE TEST, update the implementation and documentation
+together, pass `./scripts/validate.sh`, update `SESSION_CONTEXT.md`, and receive
+a focused commit before the next phase starts. Unsupported or failed live tests
+remain explicit blockers and are never marked complete.
+
+Phase 0 is complete. Its architecture, runtime baseline, image
+architecture evidence, edition boundary, resource defaults, and JSON contracts
+are recorded under [`docs/docker-sandbox/phase-0/`](docs/docker-sandbox/phase-0/).
+The stock-sandbox LIVE TEST passed on the designated Ubuntu 24.04 KVM host;
+repository, Docker, and registry checks passed on the available Intel Mac.
+
 ## Contributing
 
 Fork this repo, keep your fork's `main` synced with upstream, and open a pull

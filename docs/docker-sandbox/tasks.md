@@ -3,22 +3,25 @@
 Legend: `[ ]` pending, `[x]` complete. A phase cannot start until the prior
 phase exit gate passes.
 
-## Phase 0: Validate product assumptions
+## Phase 0: Validate product assumptions — complete
 
-- [ ] Record the supported `sbx` version range and capture `sbx version`,
+- [x] Record the supported `sbx` version range and capture `sbx version`,
   diagnostics, template, kit, secret, policy, ports, skills, and SSH capabilities.
-- [ ] Create an architecture decision record for outer microVM plus inner
+- [x] Create an architecture decision record for outer microVM plus inner
   Compose, clone-mode default, and local-mode compatibility.
-- [ ] Select and document PostgreSQL versions for Odoo 17/18/19.
-- [ ] Prove official Odoo image availability for amd64 and arm64 and record any
+- [x] Select and document PostgreSQL versions for Odoo 17/18/19.
+- [x] Prove official Odoo image availability for amd64 and arm64 and record any
   platform exceptions.
-- [ ] Define Community and separately licensed Enterprise addon handling.
-- [ ] Approve session/result JSON schemas and resource/retention defaults.
-- [ ] LIVE TEST: manually create a stock Codex sandbox, run an inner Compose
+- [x] Define Community and separately licensed Enterprise addon handling.
+- [x] Approve session/result JSON schemas and resource/retention defaults.
+- [x] LIVE TEST (Ubuntu 24.04 amd64): manually create a stock Codex sandbox, run an inner Compose
   hello-world service, publish a port, stop/start, export state, and remove it.
 
-Exit gate: commands and experimental features used by the design are verified
-against the pinned `sbx` version on at least macOS and Ubuntu.
+Exit gate: repository, Docker daemon, and registry checks pass on the available
+macOS workstation; commands and experimental features used by the Sandbox
+design are verified against pinned `sbx` on the designated Ubuntu 24.04+ KVM
+validation host. An Apple Silicon macOS Sandbox run is required only for a task
+that claims native macOS Sandbox support.
 
 ## Phase 1: Runtime proof of concept (Odoo 19)
 
