@@ -51,6 +51,32 @@ reads it natively). See `integrations/codex/INSTALL.md`.
 | Generic agent context templates | `context-templates/` |
 | Six agent/IDE integrations | `integrations/` |
 
+## Docker Sandbox roadmap
+
+The implementation-ready plan for isolated, concurrent Odoo 17/18/19 agent
+sessions is in [`docs/docker-sandbox/`](docs/docker-sandbox/README.md). It
+includes requirements, architecture, source-guide corrections, release gates,
+and the full cross-version test matrix.
+
+## Commercial/open-core roadmap
+
+VPerfectCS's plan for keeping this repository useful and open source while
+building separately licensed Partner, Enterprise, Upgrade Factory, and managed
+offerings is in [`docs/commercial/`](docs/commercial/README.md). It includes the
+recommended public/private repository boundary and staged go-to-market plan.
+
+## Validation
+
+Run the complete repository validation suite from any directory inside the
+clone:
+
+```bash
+./scripts/validate.sh
+```
+
+The entrypoint isolates pytest from unrelated globally installed plugins, then
+runs the tests, skill validator, shell syntax checks, and Git whitespace check.
+
 ## Contributing
 
 Fork this repo, keep your fork's `main` synced with upstream, and open a pull

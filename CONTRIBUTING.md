@@ -15,9 +15,9 @@ scoped to that.
    git checkout main && git merge upstream/main
    ```
 3. Create a feature branch for your proposal: `git checkout -b my-proposal`.
-4. Make your change. If you're touching `plugin/skills/`, run the validator:
+4. Make your change, then run the repository validation entrypoint:
    ```bash
-   python3 scripts/validate_skills.py plugin/skills
+   ./scripts/validate.sh
    ```
 5. Open a pull request against `infovpcs/odoo-agent-pro-kit:main` using the PR
    template — fill in Summary, Motivation, Odoo version(s) affected,
@@ -25,9 +25,9 @@ scoped to that.
 
 ## Review process
 
-CI runs `scripts/validate_skills.py` on every PR to catch broken skill
-frontmatter or leaked private strings automatically. A maintainer will review
-the PR; if the [Claude GitHub App](https://github.com/apps/claude) is
+The validation entrypoint runs the repository tests, checks shell syntax and
+Git whitespace, and catches broken skill frontmatter or leaked private strings.
+A maintainer will review the PR; if the [Claude GitHub App](https://github.com/apps/claude) is
 installed on this repository, it may leave an automated first-pass review
 comment — that's assistance for the human reviewer, not an automatic merge.
 A human maintainer makes the final merge decision.
