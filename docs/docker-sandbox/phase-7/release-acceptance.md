@@ -66,7 +66,8 @@ plus a volume-preserving full-stack teardown to keep the modified database
 inaccessible. An unsuccessful restore leaves a persistent integrity block that
 generic recovery cannot clear; only a successful explicit restore clears it.
 Direct session start and module install/update/test enforce the same integrity
-block.
+block, as do database backup and arbitrary Odoo-service execution. Status,
+logs, diagnostics, explicit restore, and cleanup remain available.
 Migration names must match the controller's Odoo
 technical-name contract and its conservative 52-character generated-session limit before a
 target path is constructed.

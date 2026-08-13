@@ -322,6 +322,9 @@ that consumes stable Community releases instead of forking this repository.
   marker, closing alternate lifecycle paths to a partially restored database.
 - Module install, update, and test dispatch also enforces the marker before it
   can mutate the database or relabel the failed session as recoverable.
+- Database backup and arbitrary service execution enforce the marker so partial
+  restore data cannot be published or accessed. Status, logs, diagnostics,
+  explicit restore, and cleanup remain available to operators.
 - Fleet provisioning cleanup now runs after every outer creation attempt,
   including when the creation subprocess returns nonzero after partial success,
   preventing a partially created Sandbox from being orphaned.

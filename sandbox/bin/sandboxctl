@@ -539,6 +539,7 @@ def main():
     if args.command == "status":
         data = manifest(args.session); proc = compose(args.session, "ps", "--format", "json", capture=True, check=False); data["services"] = compose_json(proc.stdout); print(json.dumps(data, indent=2)); return
     if args.command == "exec":
+        require_restore_integrity(args.session, "exec")
         command = args.remainder[1:] if args.remainder[:1] == ["--"] else args.remainder
         if not command: raise SystemExit("exec requires a command after --")
         raise SystemExit(compose(args.session, "exec", "-T", "odoo", *command, check=False).returncode)
@@ -548,7 +549,9 @@ def main():
     if args.command == "logs":
         raise SystemExit(print_logs(args.session, args.service, args.follow, args.since))
     if args.command == "diagnose": print(diagnostics(args.session, args.reason, args.policy_file)); return
-    if args.command == "backup": database_backup(args.session); return
+    if args.command == "backup":
+        require_restore_integrity(args.session, "backup")
+        database_backup(args.session); return
     if args.command == "restore": database_restore(args.session, args.backup); return
     if args.command == "recover": recover(args.session, args.timeout); return
     if args.command == "stop":

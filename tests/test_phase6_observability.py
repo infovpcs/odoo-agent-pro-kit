@@ -197,6 +197,8 @@ def test_restore_integrity_guard_blocks_direct_start(tmp_path):
 def test_module_dispatch_enforces_restore_integrity():
     controller = (ROOT / "sandbox/bin/sandboxctl").read_text()
     assert 'require_restore_integrity(args.session, f"module {args.operation}")' in controller
+    assert 'require_restore_integrity(args.session, "exec")' in controller
+    assert 'require_restore_integrity(args.session, "backup")' in controller
 
 
 def test_failure_scenarios_have_bundle_and_recovery_contract():
