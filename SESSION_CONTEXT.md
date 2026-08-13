@@ -310,7 +310,7 @@ that consumes stable Community releases instead of forking this repository.
 - A third review identified three additional valid edge cases. Failed fleet
   provisioning now removes the inner runtime and outer Sandbox while recording
   cleanup failures; restore failure state is persisted before quarantine and
-  survives quarantine/diagnostic errors; migration names are capped at 53
+  survives quarantine/diagnostic errors; migration names are capped at 52
   characters so generated controller session IDs remain valid.
 - The Phase 5 KVM host used a documented 1-vCPU/2-GiB validation override per
   microVM because the designated host has 2 vCPU/15 GiB. The shipped default

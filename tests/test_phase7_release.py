@@ -66,8 +66,8 @@ def test_migration_rejects_name_that_breaks_generated_session_id(tmp_path):
     subprocess.run(["git", "init", "-q"], cwd=source, check=True)
     proc = subprocess.run(
         ["python3", "sandbox/scripts/migrate-local.py", "--source", str(source),
-         "--version", "19", "--name", "a" * 54],
+         "--version", "19", "--name", "a" * 53],
         cwd=ROOT, text=True, capture_output=True,
     )
     assert proc.returncode != 0
-    assert "at most 53 characters" in proc.stderr
+    assert "at most 52 characters" in proc.stderr

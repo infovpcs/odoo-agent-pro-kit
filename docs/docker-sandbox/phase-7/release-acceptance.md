@@ -60,5 +60,5 @@ marks a fleet session ready and removes the provisioned outer Sandbox. Failed
 database restore records failed state before quarantine, preserves that state
 even if quarantine or diagnostics also fail, and uses force-removal fallback
 to keep Odoo stopped. Migration names must match the controller's Odoo
-technical-name contract and its 53-character generated-session limit before a
+technical-name contract and its conservative 52-character generated-session limit before a
 target path is constructed.

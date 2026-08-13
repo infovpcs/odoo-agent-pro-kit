@@ -439,8 +439,8 @@ def database_restore(session, source):
     if not source.is_file(): raise RuntimeError(f"backup not found: {source}")
     if state_dir(session).resolve() not in source.parents: raise RuntimeError("restore accepts only this session's backup artifacts")
     started = time.time(); env = load_env(session)
-    ensure_odoo_stopped(session)
     try:
+        ensure_odoo_stopped(session)
         with source.open("rb") as stream:
             proc = subprocess.run(["docker", "compose", "--env-file", str(state_dir(session) / "runtime.env"), "-f", str(COMPOSE), "exec", "-T", "db", "pg_restore", "--clean", "--if-exists", "--no-owner", "-U", env["POSTGRES_USER"], "-d", env["ODOO_DB_NAME"]], stdin=stream)
         if proc.returncode: raise RuntimeError("database restore failed")
@@ -462,7 +462,11 @@ def database_restore(session, source):
         except Exception as diagnostic_exc:
             failure["diagnostic_error"] = str(diagnostic_exc)
         transition(session, "failed", failure=failure)
-        result(session, "restore", started, "failed", 1, str(exc), {"code": "restore_failed", **failure}, [str(source)])
+        result(session, "restore", started, "failed", 1, str(exc), {
+            "code": "restore_failed",
+            "summary": failure["summary"],
+            "diagnostic_bundle": failure.get("diagnostic_bundle"),
+        }, [str(source)])
         raise
     else:
         transition(session, "ready", failure=None)

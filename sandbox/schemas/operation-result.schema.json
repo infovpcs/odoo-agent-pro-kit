@@ -13,7 +13,7 @@
     "schema_version": {"const": "1.0.0"},
     "session_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,62}$"},
     "operation_id": {"type": "string", "minLength": 1},
-    "operation": {"enum": ["create", "start", "stop", "install", "update", "test", "export", "destroy"]},
+    "operation": {"enum": ["create", "start", "stop", "install", "update", "test", "export", "destroy", "backup", "restore", "recover"]},
     "module": {"type": ["string", "null"], "pattern": "^[a-z][a-z0-9_]*$"},
     "attempt": {"type": "integer", "minimum": 1},
     "status": {"enum": ["running", "succeeded", "failed", "cancelled", "timed_out"]},

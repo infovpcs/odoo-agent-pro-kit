@@ -134,15 +134,11 @@ def test_restore_quarantine_failure_still_persists_failed_state(monkeypatch, tmp
     backup = directory / "backups/failed.dump"
     backup.parent.mkdir()
     backup.write_bytes(b"not-a-valid-dump")
-    quarantine_calls = 0
     transitions = []
     results = []
 
     def fake_quarantine(_session):
-        nonlocal quarantine_calls
-        quarantine_calls += 1
-        if quarantine_calls == 2:
-            raise RuntimeError("container remains running")
+        raise RuntimeError("container remains running")
 
     monkeypatch.setattr(controller, "ensure_odoo_stopped", fake_quarantine)
     monkeypatch.setattr(controller.subprocess, "run", lambda *args, **kwargs: subprocess.CompletedProcess(args, 1))
@@ -153,7 +149,7 @@ def test_restore_quarantine_failure_still_persists_failed_state(monkeypatch, tmp
     try:
         controller.database_restore(session, backup)
     except RuntimeError as error:
-        assert "restore failed" in str(error)
+        assert "container remains running" in str(error)
     else:
         raise AssertionError("invalid restore unexpectedly succeeded")
 
