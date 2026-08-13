@@ -67,3 +67,8 @@ stable JUnit/coverage/browser paths, opt-in JSONL telemetry, bounded recovery,
 and explicit `pg_dump`/`pg_restore` snapshots. See
 `docs/docker-sandbox/phase-6/observability-recovery.md` for commands, retention
 boundaries, and the failure-injection contract.
+
+Phase 7 adds CI, pinned release verification, dependency inventory, benchmark
+recording, guarded local migration, platform runbooks, and rollback rules. See
+`docs/docker-sandbox/phase-7/operator-runbooks.md` and load the
+`DockerSandboxOperations` skill for agent-led setup.

@@ -1,0 +1,51 @@
+name: Docker Sandbox release
+
+on:
+  pull_request:
+  push:
+    branches: [main, feature/docker-sandbox-phase-7]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install pytest jsonschema
+      - run: ./scripts/validate.sh
+      - run: sandbox/scripts/validate-compose.sh
+      - run: python sandbox/scripts/release-acceptance.py verify
+      - run: python sandbox/scripts/dependency-inventory.py --output .sandbox/release/dependencies.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dependency-license-inventory
+          path: .sandbox/release/dependencies.json
+
+  image-build:
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        version: [17, 18, 19]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - run: docker buildx build --platform linux/amd64 --file sandbox/images/odoo-dev/${{ matrix.version }}.Dockerfile --build-arg ODOO_BASE_IMAGE="$(sed -n "s/^ODOO_${{ matrix.version }}_BASE=//p" sandbox/config/images.lock)" --output type=cacheonly .
+
+  compose-smoke:
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        version: [17, 18, 19]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sandbox/tests/ci-smoke.sh "${{ matrix.version }}"

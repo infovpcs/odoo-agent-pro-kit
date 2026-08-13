@@ -135,19 +135,19 @@ Exit gate: one failed session does not change or stop any sibling session.
 Exit gate: every failure scenario produces a redacted diagnostic bundle and a
 deterministic terminal or recoverable state.
 
-## Phase 7: Release hardening
+## Phase 7: Release hardening — complete
 
-- [ ] Add CI for shell/Python tests, Compose validation, kit validation, image
+- [x] Add CI for shell/Python tests, Compose validation, kit validation, image
   builds, dependency/license inventory, and version smoke tests.
-- [ ] Add macOS Apple Silicon, Windows 11, and Ubuntu operator runbooks.
-- [ ] Add upgrade/rollback tests for template, kit, Odoo image, Postgres image,
+- [x] Add macOS Apple Silicon, Windows 11, and Ubuntu operator runbooks.
+- [x] Add upgrade/rollback tests for template, kit, Odoo image, Postgres image,
   and session schema versions.
-- [ ] Measure cold/warm startup, disk growth, memory, and six-session load.
-- [ ] Document capacity recommendations from measured results.
-- [ ] Add local-to-sandbox migration and compatibility documentation.
-- [ ] Publish tested platform runbooks generated from the validated controller,
+- [x] Measure cold/warm startup, disk growth, memory, and six-session load.
+- [x] Document capacity recommendations from measured results.
+- [x] Add local-to-sandbox migration and compatibility documentation.
+- [x] Publish tested platform runbooks generated from the validated controller,
   Compose, template, and kit versions.
-- [ ] LIVE TEST: execute the release acceptance matrix from a clean host setup.
+- [x] LIVE TEST: execute the release acceptance matrix from a clean host setup.
 
 Exit gate: all requirements acceptance scenarios pass, artifacts are pinned,
 and rollback plus cleanup are demonstrated.

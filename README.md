@@ -75,6 +75,15 @@ and explicit development-database backup/restore use the Phase 6 controller
 contract documented in
 [`docs/docker-sandbox/phase-6/observability-recovery.md`](docs/docker-sandbox/phase-6/observability-recovery.md).
 
+Phase 7 release automation, platform setup, upgrade/rollback, benchmarks,
+capacity guidance, and local migration are under
+[`docs/docker-sandbox/phase-7/`](docs/docker-sandbox/phase-7/operator-runbooks.md).
+AI agents should load `plugin/skills/DockerSandboxOperations/SKILL.md` when
+configuring or releasing the Sandbox runtime.
+The Ubuntu KVM release matrix and measured capacity limits are recorded in
+[`phase-7/live-test.md`](docs/docker-sandbox/phase-7/live-test.md); Apple Silicon
+and Windows procedures remain unclaimed candidate runbooks until executed.
+
 The Odoo 17/18/19 inner runtime controller is documented in
 [`sandbox/README.md`](sandbox/README.md). Phase gates remain authoritative in
 [`docs/docker-sandbox/tasks.md`](docs/docker-sandbox/tasks.md).
@@ -96,7 +105,8 @@ clone:
 ```
 
 The entrypoint isolates pytest from unrelated globally installed plugins, then
-runs the tests, skill validator, shell syntax checks, and Git whitespace check.
+runs tests, skill/artifact/release checks, Compose validation when Docker is
+available, syntax checks, and Git whitespace validation.
 
 ## Delivery workflow
 

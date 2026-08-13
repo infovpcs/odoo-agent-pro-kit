@@ -120,3 +120,9 @@ once the plugin is installed:
 | `excalidraw-diagram-skill` | Architecture diagram generation |
 | `PRD-Writing` | Requirements/design/tasks PRD authoring |
 | `CommandingSystem` | The slash-command router documented above |
+| `DockerSandboxOperations` | Sandbox setup, migration, lifecycle, release, benchmark, upgrade, and rollback workflow |
+
+When configuring or releasing Docker Sandbox, first load
+`DockerSandboxOperations/SKILL.md`, then follow the platform runbook it names.
+Do not claim support for a platform until its clean-host acceptance matrix has
+been executed and recorded.

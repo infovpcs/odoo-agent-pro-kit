@@ -10,6 +10,9 @@ earlier Docker Sandbox research into a versioned, test-gated product design.
 - `design.md` defines the target architecture, session lifecycle, interfaces,
   security model, logging, and testing strategy.
 - `tasks.md` is the ordered delivery backlog with release gates.
+- `phase-7/operator-runbooks.md` configures supported and candidate host platforms.
+- `phase-7/release-acceptance.md` defines CI, clean-host, upgrade, and rollback gates.
+- `phase-7/migration-capacity.md` covers local migration and measured capacity evidence.
 - `source-review.md` records the decisions made while consolidating the earlier
   setup research and prevents obsolete approaches from being reintroduced.
 - `phase-0/` records architecture, runtime, CLI capability, and LIVE TEST

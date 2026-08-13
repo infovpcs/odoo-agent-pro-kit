@@ -26,7 +26,7 @@ Before changing files:
 - Supported Odoo versions: 17.0, 18.0, and 19.0
 - Active workstream: public Docker Sandbox foundation and open-core commercial
   planning
-- Active branch: `feature/docker-sandbox-phase-6`
+- Active branch: `feature/docker-sandbox-phase-7`
 - Branch base: `main` at commit `192f6c9`
 - Last context update: 2026-08-13 (Asia/Kolkata)
 
@@ -186,8 +186,16 @@ that consumes stable Community releases instead of forking this repository.
 - [x] Passed the Phase 6 Ubuntu KVM LIVE TEST with Odoo/PostgreSQL crashes,
   denied network, bounded disk pressure, invalid module, interrupted operation,
   controller restart, backup/restore, telemetry, redaction, and sibling health.
+- [x] Started Phase 7 on `feature/docker-sandbox-phase-7`; added release CI,
+  pinned-contract and dependency inventory tools, a benchmark recorder, guarded
+  local migration, cross-platform operator runbooks, and the agent-facing
+  `DockerSandboxOperations` skill.
 
 ## Current state
+
+- Phase 7 is complete. The sole next task is to open a reviewed release pull
+  request from `feature/docker-sandbox-phase-7`; do not merge, tag, or publish
+  without explicit user authorization.
 
 - FOUNDATION-001 is committed as `2c2b6d6` on
   `feature/docker-sandbox-planning-foundation`.
@@ -228,7 +236,7 @@ that consumes stable Community releases instead of forking this repository.
   repository validation stopped with `No module named pytest`. Per the approved
   platform split, clean-shell repository validation ran on the Intel workstation.
 - No branch has been pushed and no private Pro repository has been created.
-- Active branch: `feature/docker-sandbox-phase-5`.
+- Active branch: `feature/docker-sandbox-phase-7`.
 - Phase 2 repository validation passes with 20 tests, 18 validated skills,
   shell/Python syntax checks, and Git whitespace validation.
 - The Intel workstation passed the concurrent warm-cache amd64 lifecycle and
@@ -258,6 +266,35 @@ that consumes stable Community releases instead of forking this repository.
 - Final Phase 5 clean-shell validation passed on 2026-08-13 with 37 tests, 18
   skill validations, artifact structure/locks, shell/Python syntax, and Git
   whitespace checks.
+- Phase 7 targeted checks passed on the Intel macOS workstation on 2026-08-13:
+  release pin verification, 19-skill validation, 3 Phase 7 tests, shell syntax,
+  and Compose configuration. Compose initially failed without generated runtime
+  variables; `sandbox/scripts/validate-compose.sh` now supplies non-secret
+  validation-only values and passed.
+- Phase 7 clean-shell `./scripts/validate.sh` passed on 2026-08-13 with 45
+  tests, 19 skills, artifact/release contract checks, Compose validation,
+  shell/Python syntax, and Git whitespace validation. `sbx` kit parsing was
+  skipped locally because `sbx` remains unavailable on Intel macOS; it must be
+  repeated on the Ubuntu KVM validation host.
+- Authorized GitHub Actions run `31701912811` passed: validation/inventory,
+  Odoo 17/18/19 amd64 image builds, and all three Compose smoke lifecycles.
+  GitHub emitted only a non-blocking Node 20-to-24 action-runtime annotation.
+- Phase 7 Ubuntu release acceptance passed for cold/warm Odoo 17/18/19
+  lifecycle, 42-second warm Odoo 19 readiness, recovery/backup/restore,
+  redaction, staged upgrade/rollback contracts, local migration, real kit
+  packing, and dependency inventory. Full cold/warm matrices took 435.525 and
+  118.385 seconds; recovery took 73.201 seconds.
+- Six concurrent 1-CPU/2-GiB outer Sandboxes created in 134 seconds, but six
+  simultaneous cold inner builds exceeded the 2-vCPU/15-GiB host: load average
+  reached ~82, minimum available memory was 289,169,408 bytes, SSH starved, and
+  disk temporarily grew from 7.5 to 13 GiB used. This host is now recommended
+  for one cold provision at a time and at most two constrained active sessions.
+- The overloaded load test was interrupted and recovered. A daemon restart
+  invalidated OAuth; the user completed device authentication. All six outer
+  Sandboxes were removed; final host state was no Sandboxes, 14 GiB available
+  RAM, 7.5 GiB disk used, and no published Sandbox ports.
+- Phase 7 is committed on `feature/docker-sandbox-phase-7` with subject
+  `Complete Docker Sandbox Phase 7 hardening` and pushed for review.
 - The Phase 5 KVM host used a documented 1-vCPU/2-GiB validation override per
   microVM because the designated host has 2 vCPU/15 GiB. The shipped default
   remains 2 vCPU/8 GiB and the outer 40 GiB disk target is advisory in sbx

@@ -172,6 +172,12 @@ the concurrent runtime matrix on the designated Ubuntu amd64 KVM host. Arm64
 runtime support remains unclaimed until a supported arm64 Sandbox host executes
 the same controller contract.
 
+Phase 7 publishes setup runbooks for Ubuntu, Apple Silicon macOS, Intel macOS,
+and Windows 11/WSL2. A published runbook is not a platform support claim: each
+platform must complete the clean-host release matrix before support is marked
+validated. CI verifies pinned contracts and amd64 Compose smoke behavior; the
+Ubuntu KVM host remains authoritative for Sandbox microVM acceptance.
+
 ## Acceptance scenarios
 
 1. Create Odoo 17, 18, and 19 sessions concurrently; install a smoke module in

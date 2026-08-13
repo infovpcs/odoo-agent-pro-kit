@@ -368,6 +368,12 @@ Existing local workspaces are never silently moved or mounted read-write into
 fleet sessions. A migration command imports a selected custom-addons Git repo,
 generates non-secret configuration, and reports unsupported assumptions.
 
+The Phase 7 migration implementation requires a clean Git source and creates a
+secret-filtered copy under ignored staging state. Release upgrades compare lock
+contracts and rebuild disposable sessions. Rollback restores prior tested lock
+files and, where data is required, an explicit compatible database backup into
+a new session; persisted database or schema state is never downgraded in place.
+
 ## Major risks
 
 - Docker Sandbox kits and SSH are evolving: isolate them behind version checks
