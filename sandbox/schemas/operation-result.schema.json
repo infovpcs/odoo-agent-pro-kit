@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/infovpcs/odoo-agent-pro-kit/schemas/operation-result.schema.json",
+  "title": "Odoo Sandbox Operation Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "session_id", "operation_id", "operation", "module",
+    "attempt", "status", "started_at", "finished_at", "duration_ms",
+    "exit_code", "logs", "artifacts"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "session_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,62}$"},
+    "operation_id": {"type": "string", "minLength": 1},
+    "operation": {"enum": ["create", "start", "stop", "install", "update", "test", "export", "destroy", "backup", "restore", "recover"]},
+    "module": {"type": ["string", "null"], "pattern": "^[a-z][a-z0-9_]*$"},
+    "attempt": {"type": "integer", "minimum": 1},
+    "status": {"enum": ["running", "succeeded", "failed", "cancelled", "timed_out"]},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": ["string", "null"], "format": "date-time"},
+    "duration_ms": {"type": ["integer", "null"], "minimum": 0},
+    "exit_code": {"type": ["integer", "null"]},
+    "message": {"type": ["string", "null"]},
+    "logs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "artifacts": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "error": {
+      "type": ["object", "null"],
+      "properties": {
+        "code": {"type": "string"},
+        "summary": {"type": "string"},
+        "diagnostic_bundle": {"type": ["string", "null"]}
+      },
+      "required": ["code", "summary"],
+      "additionalProperties": false
+    }
+  }
+}

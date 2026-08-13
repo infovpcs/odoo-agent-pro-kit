@@ -1,0 +1,49 @@
+name: ${COMPOSE_PROJECT_NAME}
+services:
+  db:
+    image: ${POSTGRES_IMAGE}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${ODOO_DB_NAME}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ${SESSION_LOGS_DIR}:/session-logs
+    mem_limit: ${POSTGRES_MEMORY_LIMIT:-2g}
+    cpus: ${POSTGRES_CPU_LIMIT:-1.0}
+  odoo:
+    image: ${ODOO_DEV_IMAGE}
+    build:
+      context: ${REPOSITORY_ROOT}
+      dockerfile: ${ODOO_DOCKERFILE}
+      args:
+        ODOO_BASE_IMAGE: ${ODOO_BASE_IMAGE}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["odoo", "--config", "/etc/odoo/odoo.conf"]
+    environment:
+      ODOO_API_PASSWORD: ${ODOO_API_PASSWORD}
+      ODOO_API_KEY: ${ODOO_API_KEY:-}
+      ODOO_RPC_PROTOCOL: ${ODOO_RPC_PROTOCOL}
+    volumes:
+      - ${ODOO_CONFIG_FILE}:/etc/odoo/odoo.conf:ro
+      - ${ADDONS_DIR}:/mnt/extra-addons:ro
+      - filestore:/var/lib/odoo
+      - cache:/var/lib/odoo/.cache
+      - ${SESSION_LOGS_DIR}:/var/log/odoo
+      - ${SESSION_RESULTS_DIR}:/var/lib/odoo/results
+      - ${REPOSITORY_ROOT}/sandbox/scripts:/workspace/scripts:ro
+    mem_limit: ${ODOO_MEMORY_LIMIT:-3g}
+    cpus: ${ODOO_CPU_LIMIT:-1.5}
+volumes:
+  db-data:
+  filestore:
+  cache:

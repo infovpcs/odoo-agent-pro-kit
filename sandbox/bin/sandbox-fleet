@@ -1,0 +1,283 @@
+#!/usr/bin/env python3
+"""Bounded, single-host Community coordinator for Docker Sandbox sessions."""
+
+import argparse
+import datetime as dt
+import fcntl
+import json
+import os
+import re
+import signal
+import subprocess
+import sys
+import time
+from contextlib import contextmanager
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+STATE = ROOT / ".sandbox/fleet"
+SESSIONS = STATE / "sessions"
+LOCK = STATE / "controller.lock"
+POLICY = ROOT / "sandbox/config/concurrency.json"
+AGENT = ROOT / "sandbox/bin/sandbox-agent"
+
+
+def now():
+    return dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def parse_time(value):
+    return dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def policy():
+    return json.loads(POLICY.read_text())
+
+
+@contextmanager
+def controller_lock():
+    STATE.mkdir(parents=True, exist_ok=True)
+    with LOCK.open("a+") as stream:
+        fcntl.flock(stream, fcntl.LOCK_EX)
+        yield
+
+
+def normalize(value):
+    value = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+    return value[:40] or "module"
+
+
+def session_name(version, module, token=None):
+    token = token or os.urandom(3).hex()
+    return f"odoo-{version.removesuffix('.0')}-{normalize(module)}-{token}"
+
+
+def branch_name(name):
+    return f"sandbox/{name}"
+
+
+def session_path(name):
+    return SESSIONS / f"{name}.json"
+
+
+def read_sessions():
+    if not SESSIONS.exists():
+        return []
+    values = []
+    for path in sorted(SESSIONS.glob("*.json")):
+        try:
+            values.append(json.loads(path.read_text()))
+        except (OSError, json.JSONDecodeError):
+            continue
+    return values
+
+
+def write_session(data):
+    SESSIONS.mkdir(parents=True, exist_ok=True)
+    data["updated_at"] = now()
+    target = session_path(data["session_id"])
+    temporary = target.with_suffix(".tmp")
+    temporary.write_text(json.dumps(data, indent=2) + "\n")
+    temporary.replace(target)
+
+
+def run(command, *, check=True, capture=False):
+    return subprocess.run(command, check=check, text=True, capture_output=capture)
+
+
+def active_count(sessions):
+    # Failed sessions retain their microVM for diagnosis and still consume
+    # capacity until stopped, cancelled, or destroyed. Failed provisioning that
+    # already removed its outer Sandbox does not consume a runtime slot.
+    return sum(
+        item["status"] in {"provisioning", "ready", "active", "failed", "destroying"}
+        and not (item["status"] == "failed" and item.get("cleanup", {}).get("outer_removed"))
+        for item in sessions
+    )
+
+
+def require_capacity(sessions):
+    maximum = policy()["max_active_sessions"]
+    if active_count(sessions) >= maximum:
+        raise RuntimeError(f"Community concurrency limit reached ({maximum})")
+
+
+def parse_port(output):
+    matches = re.findall(r"127\.0\.0\.1:(\d+)", output)
+    return int(matches[-1]) if matches else None
+
+
+def cmd_create(args):
+    if args.version.removesuffix(".0") not in {"17", "18", "19"}:
+        raise RuntimeError("version must be 17, 18, or 19")
+    if not re.fullmatch(r"[a-z][a-z0-9_]*", args.module):
+        raise RuntimeError("module must be a valid Odoo technical name")
+    outer_creation_attempted = False
+    data = None
+    try:
+        with controller_lock():
+            sessions = read_sessions()
+            require_capacity(sessions)
+            name = session_name(args.version, args.module)
+            config = policy()
+            data = {
+                "schema_version": "1.0.0", "session_id": name, "module": args.module,
+                "odoo_version": f"{args.version.removesuffix('.0')}.0", "agent": args.agent,
+                "status": "provisioning", "branch": branch_name(name), "created_at": now(),
+                "last_activity_at": now(), "ports": [],
+                "resources": {"cpus": config["cpus_per_session"], "memory_gib": config["memory_gib_per_session"], "disk_gib": config["disk_gib_per_session"]},
+                "result": None, "cleanup_guard": {"commit": False, "push": False, "patch_export": False},
+            }
+            write_session(data)
+        outer_creation_attempted = True
+        run([str(AGENT), "create", args.agent, name, str(ROOT), str(config["cpus_per_session"]), f"{config['memory_gib_per_session']}g"])
+        run(["sbx", "exec", name, "--", "git", "switch", "-c", data["branch"]])
+        container_cpu = str(min(1.0, float(config["cpus_per_session"])))
+        run(["sbx", "exec", name, "--", "env", f"ODOO_CPU_LIMIT={container_cpu}", f"POSTGRES_CPU_LIMIT={container_cpu}", "sandbox/bin/sandboxctl", "create", "--version", args.version, "--module", args.module, "--session", name])
+        port_result = run(["sbx", "ports", name, "--publish", "8069"], check=False, capture=True)
+        host_port = parse_port(port_result.stdout + port_result.stderr)
+        if port_result.returncode != 0 or not host_port:
+            detail = (port_result.stderr or port_result.stdout or "no published port returned").strip()
+            raise RuntimeError(f"required Odoo port publication failed: {detail}")
+        data["ports"] = [{"service": "odoo", "container_port": 8069, "host_port": host_port, "host_ip": "127.0.0.1"}]
+        data.update(status="ready", last_activity_at=now(), result={"status": "succeeded", "operation": "create"})
+        write_session(data)
+        print(name)
+    except (subprocess.CalledProcessError, RuntimeError, KeyboardInterrupt) as error:
+        if data is None:
+            raise
+        cleanup_errors = []
+        previous_sigint = signal.signal(signal.SIGINT, signal.SIG_IGN)
+        try:
+            if outer_creation_attempted:
+                inner = run(
+                    ["sbx", "exec", name, "--", "sandbox/bin/sandboxctl", "destroy", name, "--allow-unexported"],
+                    check=False, capture=True,
+                )
+                if inner.returncode:
+                    cleanup_errors.append("inner runtime cleanup failed")
+                outer = run(["sbx", "rm", "--force", name], check=False, capture=True)
+                if outer.returncode:
+                    cleanup_errors.append("outer Sandbox cleanup failed")
+            result_data = {"status": "failed", "operation": "create", "message": str(error)}
+            if cleanup_errors:
+                result_data["cleanup_errors"] = cleanup_errors
+            data.update(status="failed", result=result_data, cleanup={
+                "outer_creation_attempted": outer_creation_attempted,
+                "outer_removed": not outer_creation_attempted or "outer Sandbox cleanup failed" not in cleanup_errors,
+            })
+            write_session(data)
+        finally:
+            signal.signal(signal.SIGINT, previous_sigint)
+        raise
+
+
+def get_session(name):
+    path = session_path(name)
+    if not path.exists():
+        raise RuntimeError(f"unknown fleet session: {name}")
+    return json.loads(path.read_text())
+
+
+def cmd_status(args):
+    sessions = read_sessions()
+    if args.session:
+        sessions = [get_session(args.session)]
+    # Aggregation reads coordinator-owned manifests only; it never enters a
+    # sibling workspace or exposes another session's write surface.
+    print(json.dumps({"sessions": sessions, "counts": {status: sum(s["status"] == status for s in sessions) for status in sorted({s["status"] for s in sessions})}}, indent=2))
+
+
+def cmd_cancel(args):
+    data = get_session(args.session)
+    if data["status"] in {"cancelled", "destroyed"}:
+        return
+    proc = run(["sbx", "exec", args.session, "--", "sandbox/bin/sandboxctl", "stop", args.session], check=False)
+    status = "cancelled" if proc.returncode == 0 else "failed"
+    data.update(status=status, last_activity_at=now(), result={"status": status, "operation": "cancel", "exit_code": proc.returncode})
+    write_session(data)
+    if proc.returncode:
+        raise RuntimeError(f"cancellation failed in {args.session}; sibling sessions were not changed")
+
+
+def cmd_run(args):
+    data = get_session(args.session)
+    command = ["sbx", "exec", args.session, "--", "sandbox/bin/sandboxctl", "module", args.session, args.operation, args.module]
+    proc = run(command, check=False)
+    status = "succeeded" if proc.returncode == 0 else "failed"
+    data.update(status="ready" if proc.returncode == 0 else "failed", last_activity_at=now(), result={"status": status, "operation": args.operation, "module": args.module, "exit_code": proc.returncode})
+    write_session(data)
+    if proc.returncode:
+        raise RuntimeError(f"{args.operation} failed in {args.session}; sibling sessions were not changed")
+
+
+def cmd_protect(args):
+    data = get_session(args.session)
+    data["cleanup_guard"][args.method] = True
+    write_session(data)
+
+
+def cmd_destroy(args):
+    data = get_session(args.session)
+    if data["status"] == "destroyed":
+        return
+    if not args.force and not any(data["cleanup_guard"].values()):
+        raise RuntimeError("destructive cleanup refused: record commit, push, or patch_export first (or use --force)")
+    inner = run(["sbx", "exec", args.session, "--", "sandbox/bin/sandboxctl", "destroy", args.session, "--allow-unexported"], check=False)
+    if inner.returncode:
+        data.update(status="failed", result={"status": "failed", "operation": "destroy", "exit_code": inner.returncode})
+        write_session(data)
+        raise RuntimeError(f"inner cleanup failed for {args.session}; outer Sandbox retained")
+    # The coordinator's explicit cleanup guard replaces sbx's interactive
+    # confirmation, so non-interactive fleet cleanup may safely use --force.
+    proc = run(["sbx", "rm", "--force", args.session], check=False)
+    data.update(status="destroyed" if proc.returncode == 0 else "failed", result={"status": "succeeded" if proc.returncode == 0 else "failed", "operation": "destroy", "exit_code": proc.returncode})
+    write_session(data)
+    if proc.returncode:
+        raise RuntimeError(f"failed to remove Sandbox {args.session}")
+
+
+def cmd_maintain(_args):
+    config = policy()
+    current = dt.datetime.now(dt.timezone.utc)
+    outcomes = []
+    for data in read_sessions():
+        age = current - parse_time(data["last_activity_at"])
+        if data["status"] in {"ready", "active"} and age >= dt.timedelta(minutes=config["idle_stop_minutes"]):
+            proc = run(["sbx", "exec", data["session_id"], "--", "sandbox/bin/sandboxctl", "stop", data["session_id"]], check=False)
+            if proc.returncode == 0:
+                data["status"] = "stopped"
+                write_session(data)
+            outcomes.append({"session_id": data["session_id"], "action": "idle_stop", "exit_code": proc.returncode})
+        elif data["status"] == "stopped" and age >= dt.timedelta(days=config["stopped_retention_days"]):
+            outcomes.append({"session_id": data["session_id"], "action": "retention_due", "exit_code": None})
+    print(json.dumps({"outcomes": outcomes}, indent=2))
+
+
+def parser():
+    value = argparse.ArgumentParser()
+    commands = value.add_subparsers(dest="command", required=True)
+    create = commands.add_parser("create"); create.add_argument("--version", required=True); create.add_argument("--module", required=True); create.add_argument("--agent", choices=("codex", "claude", "copilot"), default="codex")
+    status = commands.add_parser("status"); status.add_argument("session", nargs="?")
+    cancel = commands.add_parser("cancel"); cancel.add_argument("session")
+    execute = commands.add_parser("run"); execute.add_argument("session"); execute.add_argument("operation", choices=("install", "update", "test")); execute.add_argument("module")
+    protect = commands.add_parser("protect"); protect.add_argument("session"); protect.add_argument("method", choices=("commit", "push", "patch_export"))
+    destroy = commands.add_parser("destroy"); destroy.add_argument("session"); destroy.add_argument("--force", action="store_true")
+    commands.add_parser("maintain")
+    return value
+
+
+def main():
+    args = parser().parse_args()
+    return globals()[f"cmd_{args.command}"](args)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (RuntimeError, subprocess.CalledProcessError, KeyboardInterrupt) as error:
+        if isinstance(error, KeyboardInterrupt):
+            print("sandbox-fleet: cancelled; sibling sessions were left running", file=sys.stderr)
+            raise SystemExit(130)
+        print(f"sandbox-fleet: {error}", file=sys.stderr)
+        raise SystemExit(1)

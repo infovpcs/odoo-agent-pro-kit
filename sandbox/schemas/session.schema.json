@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/infovpcs/odoo-agent-pro-kit/schemas/session.schema.json",
+  "title": "Odoo Sandbox Session",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "session_id", "status", "odoo_version", "module",
+    "workspace", "git", "runtime", "resources", "ports", "created_at"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "session_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,62}$"},
+    "status": {"enum": ["requested", "provisioning", "starting", "ready", "active", "stopping", "stopped", "failed", "destroying", "exported", "destroyed"]},
+    "odoo_version": {"enum": ["17.0", "18.0", "19.0"]},
+    "module": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+    "workspace": {
+      "type": "object", "additionalProperties": false,
+      "required": ["mode", "path"],
+      "properties": {
+        "mode": {"enum": ["clone", "direct", "copy"]},
+        "path": {"type": "string", "minLength": 1}
+      }
+    },
+    "git": {
+      "type": "object", "additionalProperties": false,
+      "required": ["origin", "ref", "branch"],
+      "properties": {
+        "origin": {"type": ["string", "null"]},
+        "ref": {"type": ["string", "null"]},
+        "branch": {"type": ["string", "null"]}
+      }
+    },
+    "runtime": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sbx_version", "template", "kit", "odoo_image", "postgres_image", "compose_project"],
+      "properties": {
+        "sbx_version": {"type": "string"},
+        "template": {"type": "string"},
+        "kit": {"type": ["string", "null"]},
+        "odoo_image": {"type": "string"},
+        "postgres_image": {"type": "string"},
+        "compose_project": {"type": "string"}
+      }
+    },
+    "resources": {
+      "type": "object", "additionalProperties": false,
+      "required": ["cpus", "memory_mib", "disk_mib"],
+      "properties": {
+        "cpus": {"type": "number", "exclusiveMinimum": 0},
+        "memory_mib": {"type": "integer", "minimum": 512},
+        "disk_mib": {"type": "integer", "minimum": 1024}
+      }
+    },
+    "ports": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["service", "container_port", "host_port", "host_ip"],
+        "properties": {
+          "service": {"type": "string"},
+          "container_port": {"type": "integer", "minimum": 1, "maximum": 65535},
+          "host_port": {"type": "integer", "minimum": 1, "maximum": 65535},
+          "host_ip": {"const": "127.0.0.1"}
+        }
+      }
+    },
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"},
+    "failure": {"type": ["object", "null"]}
+  }
+}

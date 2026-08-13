@@ -1,0 +1,598 @@
+#!/usr/bin/env python3
+"""Stable local controller for the inner Odoo Compose runtime."""
+
+import argparse
+import datetime as dt
+import fcntl
+import json
+import os
+import re
+import secrets
+import shutil
+import subprocess
+import sys
+import tarfile
+import tempfile
+import time
+import xml.etree.ElementTree as ET
+from pathlib import Path
+from contextlib import contextmanager
+
+ROOT = Path(__file__).resolve().parents[2]
+COMPOSE = ROOT / "sandbox/compose/compose.yaml"
+LOCK = ROOT / "sandbox/config/images.lock"
+TEMPLATE = ROOT / "sandbox/config/odoo.conf.template"
+VERSIONS = ROOT / "sandbox/config/versions.yaml"
+MANAGE_MODULES = ROOT / "odoo_local_setup/manage_modules.sh"
+SECRET_KEY = re.compile(r"(?i)(password|secret|token|api[_-]?key|authorization)")
+SECRET_VALUE = re.compile(r"(?i)(bearer\s+)[^\s]+|((?:password|secret|token|api[_-]?key)\s*[=:]\s*)[^\s,;]+")
+
+
+def now():
+    return dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def state_dir(session):
+    return ROOT / ".sandbox/sessions" / session
+
+
+@contextmanager
+def session_lock(session, create=False):
+    directory = state_dir(session)
+    if create:
+        directory.mkdir(parents=True, exist_ok=True)
+    elif not directory.is_dir():
+        raise RuntimeError(f"unknown session: {session}")
+    lock_path = directory / ".controller.lock"
+    with lock_path.open("a+") as stream:
+        fcntl.flock(stream, fcntl.LOCK_EX)
+        yield
+
+
+def load_env(session):
+    values = {}
+    for line in (state_dir(session) / "runtime.env").read_text().splitlines():
+        if line and not line.startswith("#"):
+            key, value = line.split("=", 1)
+            values[key] = value
+    return values
+
+
+def compose(session, *args, capture=False, check=True, input_text=None):
+    env = os.environ.copy()
+    env.update(load_env(session))
+    command = ["docker", "compose", "--env-file", str(state_dir(session) / "runtime.env"), "-f", str(COMPOSE), *args]
+    return subprocess.run(command, env=env, text=True, check=check, capture_output=capture, input=input_text)
+
+
+def version_config(requested):
+    major = requested.removesuffix(".0")
+    versions = json.loads(VERSIONS.read_text())
+    if major not in versions:
+        raise SystemExit(f"unsupported Odoo version: {requested}; choose 17, 18, or 19")
+    return major, versions[major]
+
+
+def lock_values():
+    return dict(line.split("=", 1) for line in LOCK.read_text().splitlines() if line and not line.startswith("#"))
+
+
+def update_runtime_env(session, **updates):
+    values = load_env(session)
+    values.update(updates)
+    path = state_dir(session) / "runtime.env"
+    path.write_text("".join(f"{key}={value}\n" for key, value in values.items()))
+    os.chmod(path, 0o600)
+
+
+def configure_api_credentials(session, protocol, dbname):
+    script = [
+        "import datetime, os",
+        "user = env.ref('base.user_admin')",
+        "user.password = os.environ['ODOO_API_PASSWORD']",
+    ]
+    if protocol == "json2":
+        script += [
+            "key = env['res.users.apikeys'].with_user(user).sudo()._generate('rpc', 'sandbox-phase2', datetime.datetime.now() + datetime.timedelta(days=1))",
+            "print('SANDBOX_API_KEY=' + key)",
+        ]
+    script.append("env.cr.commit()")
+    proc = compose(
+        session, "run", "--rm", "-T", "odoo", "odoo", "shell", "--config", "/etc/odoo/odoo.conf",
+        "--database", dbname, "--no-http", capture=True, input_text="\n".join(script) + "\n",
+    )
+    if protocol == "json2":
+        match = re.search(r"^SANDBOX_API_KEY=([0-9a-f]+)$", proc.stdout, re.MULTILINE)
+        if not match:
+            raise RuntimeError("Odoo 19 API key generation did not return a key")
+        update_runtime_env(session, ODOO_API_KEY=match.group(1))
+
+
+def compose_json(output):
+    """Accept Compose releases that emit either a JSON array or JSONL."""
+    output = output.strip()
+    if not output:
+        return []
+    try:
+        value = json.loads(output)
+        return value if isinstance(value, list) else [value]
+    except json.JSONDecodeError:
+        return [json.loads(line) for line in output.splitlines() if line.strip()]
+
+
+def manifest(session):
+    return json.loads((state_dir(session) / "session.json").read_text())
+
+
+def write_manifest(data):
+    data["updated_at"] = now()
+    path = state_dir(data["session_id"]) / "session.json"
+    path.write_text(json.dumps(data, indent=2) + "\n")
+    # Session-local consumers (hooks, MCP, and lifecycle skills) use one stable
+    # active-session path; the controller's canonical history remains under
+    # .sandbox/sessions/<session-id>/.
+    active = ROOT / ".sandbox/session.json"
+    active.parent.mkdir(parents=True, exist_ok=True)
+    active.write_text(json.dumps(data, indent=2) + "\n")
+
+
+def transition(session, status, **extra):
+    data = manifest(session)
+    data["status"] = status
+    data.update(extra)
+    write_manifest(data)
+    event = {"timestamp": now(), "session_id": session, "status": status}
+    with (state_dir(session) / "events.jsonl").open("a") as stream:
+        stream.write(json.dumps(event) + "\n")
+
+
+def result(session, operation, started, status, exit_code, message=None, error=None, artifacts=None):
+    finished = time.time()
+    op_id = f"{operation}-{int(started * 1000)}"
+    data = {
+        "schema_version": "1.0.0", "session_id": session, "operation_id": op_id,
+        "operation": operation, "module": manifest(session)["module"], "attempt": 1,
+        "status": status, "started_at": dt.datetime.fromtimestamp(started, dt.timezone.utc).isoformat().replace("+00:00", "Z"),
+        "finished_at": now(), "duration_ms": int((finished - started) * 1000), "exit_code": exit_code,
+        "message": message, "logs": [str(state_dir(session) / "logs")], "artifacts": artifacts or [], "error": error,
+    }
+    target = state_dir(session) / "results" / f"{op_id}.json"
+    target.write_text(json.dumps(data, indent=2) + "\n")
+    emit_telemetry(session, "operation", {"operation": operation, "status": status, "exit_code": exit_code})
+    return target
+
+
+def redact(session, text):
+    for key, value in load_env(session).items():
+        if SECRET_KEY.search(key) and value:
+            text = text.replace(value, "[REDACTED]")
+    return SECRET_VALUE.sub(lambda match: (match.group(1) or match.group(2)) + "[REDACTED]", text)
+
+
+def capture(command, target, session):
+    proc = subprocess.run(command, text=True, capture_output=True, check=False)
+    target.write_text(redact(session, proc.stdout + proc.stderr))
+    return proc.returncode
+
+
+def emit_telemetry(session, event, attributes):
+    endpoint = os.environ.get("SANDBOX_OTEL_LOG_ENDPOINT") or load_env(session).get("SANDBOX_OTEL_LOG_ENDPOINT", "")
+    if not endpoint:
+        return
+    record = {"timestamp": now(), "session_id": session, "event": event, "attributes": attributes}
+    if endpoint == "stdout":
+        print(json.dumps(record), file=sys.stderr)
+    elif endpoint.startswith("file://"):
+        target = Path(endpoint.removeprefix("file://"))
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with target.open("a") as stream:
+            stream.write(json.dumps(record) + "\n")
+    else:
+        raise RuntimeError("SANDBOX_OTEL_LOG_ENDPOINT must be stdout or file://PATH")
+
+
+def diagnostics(session, reason="failure", policy_file=None):
+    directory = state_dir(session)
+    stamp = f"{int(time.time() * 1000)}-{re.sub(r'[^a-z0-9-]+', '-', reason.lower()).strip('-')}"
+    target = directory / "diagnostics" / f"{stamp}.tar.gz"
+    with tempfile.TemporaryDirectory(prefix="sandbox-diagnostics-") as temporary:
+        evidence = Path(temporary)
+        base = ["docker", "compose", "--env-file", str(directory / "runtime.env"), "-f", str(COMPOSE)]
+        capture([*base, "ps", "-a", "--format", "json"], evidence / "compose-state.json", session)
+        capture([*base, "logs", "--no-color", "--timestamps", "--tail", "200"], evidence / "service-logs.log", session)
+        capture([*base, "top"], evidence / "compose-processes.log", session)
+        capture(["docker", "stats", "--no-stream", "--format", "{{json .}}"], evidence / "resources.jsonl", session)
+        (evidence / "session.json").write_text(redact(session, json.dumps(manifest(session), indent=2) + "\n"))
+        (evidence / "events.jsonl").write_text(redact(session, (directory / "events.jsonl").read_text()))
+        results = evidence / "results"; shutil.copytree(directory / "results", results)
+        policy = {"reason": reason, "source": None, "diagnostics": "not supplied"}
+        if policy_file:
+            source = Path(policy_file)
+            policy = {"reason": reason, "source": source.name, "diagnostics": redact(session, source.read_text())}
+        (evidence / "policy.json").write_text(json.dumps(policy, indent=2) + "\n")
+        metadata = {"schema_version": "1.0.0", "session_id": session, "created_at": now(), "reason": reason, "redacted": True}
+        (evidence / "bundle.json").write_text(json.dumps(metadata, indent=2) + "\n")
+        for path in results.glob("*.json"):
+            path.write_text(redact(session, path.read_text()))
+        with tarfile.open(target, "w:gz") as archive:
+            for path in sorted(evidence.rglob("*")):
+                if path.is_file(): archive.add(path, arcname=path.relative_to(evidence))
+    emit_telemetry(session, "diagnostic_bundle", {"reason": reason, "path": str(target)})
+    return str(target)
+
+
+def wait_ready(session, timeout=180):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        proc = compose(session, "ps", "--format", "json", capture=True, check=False)
+        try:
+            rows = compose_json(proc.stdout)
+        except json.JSONDecodeError:
+            rows = []
+        if rows and len(rows) == 2 and all(row.get("Health") == "healthy" for row in rows):
+            return
+        time.sleep(3)
+    bundle = diagnostics(session, "readiness-timeout")
+    raise RuntimeError(f"services did not become healthy within {timeout}s; diagnostics: {bundle}")
+
+
+def cmd_create(args):
+    major, version = version_config(args.version)
+    if not re.fullmatch(r"[a-z][a-z0-9_]{0,51}", args.module):
+        raise SystemExit("invalid module name: use an Odoo technical name of at most 52 characters")
+    session = args.session or f"{major}-{args.module.replace('_', '-')}-{secrets.token_hex(3)}"
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]{2,62}", session):
+        raise SystemExit("invalid session ID")
+    directory = state_dir(session)
+    directory.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        directory.mkdir()
+    except FileExistsError:
+        existing = directory / "session.json"
+        if existing.exists() and json.loads(existing.read_text()).get("status") in {"ready", "active"}:
+            print(session)
+            return
+        raise SystemExit(f"session already exists: {session}")
+    for child in ("config", "logs", "results", "diagnostics", "exports", "backups", "addons", "tests/junit", "tests/coverage", "tests/browser/screenshots"):
+        (directory / child).mkdir(parents=True)
+    # These are container output drop zones. Their contents are non-secret and
+    # the sandbox boundary is the access control; make them writable across
+    # host/container UID mappings on native Linux.
+    os.chmod(directory / "logs", 0o777)
+    os.chmod(directory / "results", 0o777)
+    locks = lock_values()
+    password = secrets.token_urlsafe(24)
+    admin = secrets.token_urlsafe(24)
+    dbname = "sandbox_db"
+    config = TEMPLATE.read_text().replace("__ODOO_ADMIN_PASSWORD__", admin).replace("__POSTGRES_USER__", "odoo_runtime").replace("__POSTGRES_PASSWORD__", password).replace("__DATABASE_NAME__", dbname).replace("__ADDONS_PATH__", version["addons_path"])
+    config_file = directory / "config/odoo.conf"
+    config_file.write_text(config)
+    # Linux bind mounts preserve the host UID. The non-root Odoo image must be
+    # able to read this file; its containing state directory remains ignored
+    # and private runtime.env (which carries the same secrets) stays 0600.
+    os.chmod(config_file, 0o644)
+    fixture_target = directory / "addons" / args.module
+    fixture_source = ROOT / "sandbox/fixtures" / args.module
+    if not fixture_source.is_dir():
+        raise SystemExit(f"fixture module not found: {fixture_source}")
+    shutil.copytree(fixture_source, fixture_target)
+    fixture_manifest = fixture_target / "__manifest__.py"
+    fixture_manifest.write_text(fixture_manifest.read_text().replace('"version": "19.0.', f'"version": "{version["series"]}.'))
+    base_image = locks[version["base_image_lock"]]
+    env = {
+        "COMPOSE_PROJECT_NAME": session, "REPOSITORY_ROOT": str(ROOT), "ODOO_BASE_IMAGE": base_image,
+        "ODOO_DOCKERFILE": version["dockerfile"],
+        "ODOO_DEV_IMAGE": f"odoo-agent-dev:{major}-{base_image.split('sha256:')[1][:12]}", "POSTGRES_IMAGE": locks[version["postgres_image_lock"]],
+        "POSTGRES_USER": "odoo_runtime", "POSTGRES_PASSWORD": password, "ODOO_DB_NAME": dbname,
+        "ODOO_CONFIG_FILE": str(config_file), "ADDONS_DIR": str(directory / "addons"),
+        "SESSION_LOGS_DIR": str(directory / "logs"), "SESSION_RESULTS_DIR": str(directory / "results"),
+        "ODOO_API_PASSWORD": secrets.token_urlsafe(24), "ODOO_API_KEY": "", "ODOO_RPC_PROTOCOL": version["rpc_protocol"],
+        "ODOO_MEMORY_LIMIT": os.environ.get("ODOO_MEMORY_LIMIT", "3g"), "ODOO_CPU_LIMIT": os.environ.get("ODOO_CPU_LIMIT", "1.5"),
+        "POSTGRES_MEMORY_LIMIT": os.environ.get("POSTGRES_MEMORY_LIMIT", "2g"), "POSTGRES_CPU_LIMIT": os.environ.get("POSTGRES_CPU_LIMIT", "1.0"),
+        "SANDBOX_OTEL_LOG_ENDPOINT": os.environ.get("SANDBOX_OTEL_LOG_ENDPOINT", ""),
+    }
+    (directory / "runtime.env").write_text("".join(f"{key}={value}\n" for key, value in env.items()))
+    os.chmod(directory / "runtime.env", 0o600)
+    git_origin = subprocess.run(["git", "remote", "get-url", "origin"], cwd=ROOT, capture_output=True, text=True).stdout.strip() or None
+    git_ref = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip() or None
+    git_branch = subprocess.run(["git", "branch", "--show-current"], cwd=ROOT, capture_output=True, text=True).stdout.strip() or None
+    data = {"schema_version": "1.0.0", "session_id": session, "status": "requested", "odoo_version": version["series"], "module": args.module,
+            "workspace": {"mode": "clone", "path": str(ROOT)}, "git": {"origin": git_origin, "ref": git_ref, "branch": git_branch},
+            "runtime": {"sbx_version": os.environ.get("SBX_VERSION", "external"), "template": "inner-compose-v1", "kit": None,
+                        "odoo_image": env["ODOO_DEV_IMAGE"], "postgres_image": env["POSTGRES_IMAGE"], "compose_project": session,
+                        "rpc_protocol": version["rpc_protocol"]},
+            "resources": {"cpus": 2, "memory_mib": 4096, "disk_mib": 12288}, "ports": [], "created_at": now()}
+    write_manifest(data)
+    started = time.time()
+    try:
+        transition(session, "provisioning")
+        compose(session, "build", "--pull", "odoo")
+        transition(session, "starting")
+        compose(session, "up", "-d", "--wait", "--wait-timeout", str(args.timeout), "db")
+        compose(session, "run", "--rm", "odoo", "odoo", "--config", "/etc/odoo/odoo.conf", "--database", dbname, "--init", "base", "--stop-after-init", "--no-http")
+        configure_api_credentials(session, version["rpc_protocol"], dbname)
+        compose(session, "up", "-d", "--wait", "--wait-timeout", str(args.timeout))
+        wait_ready(session, args.timeout)
+        transition(session, "ready")
+        result(session, "create", started, "succeeded", 0, "Odoo and PostgreSQL are healthy")
+    except Exception as exc:
+        bundle = diagnostics(session, "create-failed")
+        transition(session, "failed", failure={"summary": str(exc), "diagnostic_bundle": bundle})
+        result(session, "create", started, "failed", 1, str(exc), {"code": "readiness_failed", "summary": str(exc), "diagnostic_bundle": bundle})
+        raise
+    print(session)
+
+
+def simple_operation(session, operation, action):
+    started = time.time()
+    try:
+        action()
+        result(session, operation, started, "succeeded", 0)
+    except Exception as exc:
+        bundle = diagnostics(session, f"{operation}-failed")
+        result(session, operation, started, "failed", 1, str(exc), {"code": f"{operation}_failed", "summary": str(exc), "diagnostic_bundle": bundle})
+        raise
+
+
+def module_operation(session, operation, module_name):
+    data = manifest(session)
+    started = time.time()
+    module_path = state_dir(session) / "addons" / module_name
+    if not re.fullmatch(r"[a-z][a-z0-9_]*", module_name) or not (module_path / "__manifest__.py").is_file():
+        summary = f"module is not present in this session: {module_name}"
+        bundle = diagnostics(session, "invalid-module")
+        transition(session, "recoverable", failure={"summary": summary, "diagnostic_bundle": bundle})
+        result(session, operation, started, "failed", 2, summary, {"code": "invalid_module", "summary": summary, "diagnostic_bundle": bundle})
+        return 2
+    env = os.environ.copy()
+    env.update(load_env(session))
+    env.update({
+        "ODOO_EXECUTOR": "compose",
+        "ODOO_VERSION": data["odoo_version"].split(".")[0],
+        "ODOO_DB_NAME": env["ODOO_DB_NAME"],
+        "ODOO_EXEC_CONFIG_FILE": "/etc/odoo/odoo.conf",
+        "ODOO_CUSTOM_ADDONS": "/mnt/extra-addons",
+        "ODOO_LOG_DIR": str(state_dir(session) / "logs"),
+        "ODOO_LOG_FILE": str(state_dir(session) / "logs/odoo.log"),
+        "ODOO_RESULTS_DIR": str(state_dir(session) / "results"),
+        "ODOO_PROGRESS_FILE": str(state_dir(session) / "module-progress.json"),
+        "SESSION_ID": session,
+        "COMPOSE_FILE": str(COMPOSE),
+        "COMPOSE_ENV_FILE": str(state_dir(session) / "runtime.env"),
+    })
+    try:
+        proc = subprocess.run(["bash", str(MANAGE_MODULES), operation, module_name], env=env, cwd=ROOT)
+    except KeyboardInterrupt:
+        bundle = diagnostics(session, "interrupted-operation")
+        transition(session, "recoverable", failure={"summary": f"{operation} interrupted", "diagnostic_bundle": bundle})
+        result(session, operation, time.time(), "cancelled", 130, "operation interrupted", {"code": "interrupted", "summary": "operation interrupted", "diagnostic_bundle": bundle})
+        return 130
+    if operation == "test":
+        write_test_artifacts(session, module_name, proc.returncode)
+    if proc.returncode:
+        bundle = diagnostics(session, f"module-{operation}-failed")
+        transition(session, "recoverable", failure={"summary": f"{operation} failed for {module_name}", "diagnostic_bundle": bundle})
+    return proc.returncode
+
+
+def write_test_artifacts(session, module_name, exit_code):
+    directory = state_dir(session) / "tests"
+    case = ET.Element("testcase", classname=f"odoo.{module_name}", name="module_test")
+    if exit_code:
+        ET.SubElement(case, "failure", message="Odoo module test failed")
+    suite = ET.Element("testsuite", name=module_name, tests="1", failures=str(int(bool(exit_code))))
+    suite.append(case)
+    ET.ElementTree(suite).write(directory / "junit/junit.xml", encoding="utf-8", xml_declaration=True)
+    coverage = ET.Element("coverage", {"version": "sandbox", "lines-valid": "0", "lines-covered": "0", "line-rate": "0", "branches-valid": "0", "branches-covered": "0", "branch-rate": "0"})
+    ET.SubElement(coverage, "sources")
+    ET.SubElement(coverage, "packages")
+    ET.ElementTree(coverage).write(directory / "coverage/coverage.xml", encoding="utf-8", xml_declaration=True)
+    browser = {"schema_version": "1.0.0", "status": "not_run", "reason": "no browser suite requested", "screenshots": []}
+    (directory / "browser/result.json").write_text(json.dumps(browser, indent=2) + "\n")
+
+
+def print_logs(session, service=None, follow=False, since=None):
+    services = [service] if service else ["db", "odoo"]
+    command = ["logs", "--no-color", "--timestamps"]
+    if follow: command.append("--follow")
+    if since: command += ["--since", since]
+    env = os.environ.copy(); env.update(load_env(session))
+    invocation = ["docker", "compose", "--env-file", str(state_dir(session) / "runtime.env"), "-f", str(COMPOSE), *command, *services]
+    proc = subprocess.Popen(invocation, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    for line in proc.stdout:
+        line = line.rstrip("\n")
+        detected = next((name for name in services if re.match(rf"^{re.escape(name)}[-_ |]", line)), service or "compose")
+        print(f"[{session}/{manifest(session)['odoo_version']}/{manifest(session)['module']}/{detected}] {redact(session, line)}", flush=True)
+    proc.wait()
+    if not follow:
+        for name in ("odoo", "controller", "agent", "mcp"):
+            path = state_dir(session) / "logs" / f"{name}.log"
+            if path.is_file() and (service in (None, name)):
+                for line in path.read_text(errors="replace").splitlines():
+                    print(f"[{session}/{manifest(session)['odoo_version']}/{manifest(session)['module']}/{name}] {redact(session, line)}")
+    return proc.returncode
+
+
+def database_backup(session):
+    started = time.time(); target = state_dir(session) / "backups" / f"{session}-{int(started)}.dump"
+    env = load_env(session)
+    with target.open("wb") as stream:
+        proc = subprocess.run(["docker", "compose", "--env-file", str(state_dir(session) / "runtime.env"), "-f", str(COMPOSE), "exec", "-T", "db", "pg_dump", "-Fc", "-U", env["POSTGRES_USER"], "-d", env["ODOO_DB_NAME"]], stdout=stream)
+    if proc.returncode: target.unlink(missing_ok=True); raise RuntimeError("database backup failed")
+    result(session, "backup", started, "succeeded", 0, artifacts=[str(target)]); print(target)
+
+
+def ensure_odoo_stopped(session):
+    """Quarantine Odoo before/after a restore; force-remove if stop fails."""
+    compose(session, "stop", "odoo", check=False)
+    running = compose(session, "ps", "-q", "odoo", capture=True, check=False)
+    container_ids = running.stdout.split() if running.stdout else []
+    if container_ids:
+        subprocess.run(["docker", "rm", "--force", *container_ids], check=True)
+    remaining = compose(session, "ps", "-q", "odoo", capture=True, check=False)
+    if remaining.stdout and remaining.stdout.strip():
+        raise RuntimeError("failed to quarantine Odoo after database restore")
+
+
+def ensure_stack_stopped(session):
+    """Fail closed by removing all stack containers while preserving volumes."""
+    compose(session, "down", "--remove-orphans", check=False)
+    running = compose(session, "ps", "-q", capture=True, check=False)
+    container_ids = running.stdout.split() if running.stdout else []
+    if container_ids:
+        subprocess.run(["docker", "rm", "--force", *container_ids], check=True)
+    remaining = compose(session, "ps", "-q", capture=True, check=False)
+    if remaining.stdout and remaining.stdout.strip():
+        raise RuntimeError("failed to quarantine the Compose stack after database restore")
+
+
+def require_restore_integrity(session, operation):
+    if (state_dir(session) / "restore-blocked.json").exists():
+        raise RuntimeError(
+            f"{operation} blocked after unsuccessful database restore; complete an explicit restore first"
+        )
+
+
+def database_restore(session, source):
+    source = Path(source).resolve()
+    if not source.is_file(): raise RuntimeError(f"backup not found: {source}")
+    if state_dir(session).resolve() not in source.parents: raise RuntimeError("restore accepts only this session's backup artifacts")
+    started = time.time(); env = load_env(session)
+    restore_block = state_dir(session) / "restore-blocked.json"
+    restore_block.write_text(json.dumps({
+        "blocked_at": now(), "backup": str(source),
+        "reason": "restore has not completed successfully",
+    }, indent=2) + "\n")
+    try:
+        ensure_odoo_stopped(session)
+        # Full-stack quarantine may have removed the DB container. An explicit
+        # restore retry is the only operation allowed to recreate it.
+        compose(session, "up", "-d", "--wait", "--wait-timeout", "180", "db")
+        with source.open("rb") as stream:
+            proc = subprocess.run(["docker", "compose", "--env-file", str(state_dir(session) / "runtime.env"), "-f", str(COMPOSE), "exec", "-T", "db", "pg_restore", "--clean", "--if-exists", "--no-owner", "-U", env["POSTGRES_USER"], "-d", env["ODOO_DB_NAME"]], stdin=stream)
+        if proc.returncode: raise RuntimeError("database restore failed")
+        compose(session, "start", "odoo"); wait_ready(session)
+    except (Exception, KeyboardInterrupt) as exc:
+        # Keep Odoo stopped so a partially restored database is never exposed as
+        # ready. Recovery requires another explicit restore or operator action.
+        failure = {"summary": str(exc), "quarantine": "pending"}
+        transition(session, "failed", failure=failure)
+        try:
+            ensure_odoo_stopped(session)
+        except (Exception, KeyboardInterrupt) as quarantine_exc:
+            failure["quarantine_error"] = str(quarantine_exc)
+            try:
+                ensure_stack_stopped(session)
+            except (Exception, KeyboardInterrupt) as stack_exc:
+                failure["quarantine"] = "failed"
+                failure["stack_quarantine_error"] = str(stack_exc)
+            else:
+                failure["quarantine"] = "stack_stopped"
+        else:
+            failure["quarantine"] = "succeeded"
+        try:
+            failure["diagnostic_bundle"] = diagnostics(session, "database-restore-failed")
+        except (Exception, KeyboardInterrupt) as diagnostic_exc:
+            failure["diagnostic_error"] = str(diagnostic_exc)
+        transition(session, "failed", failure=failure)
+        result(session, "restore", started, "failed", 1, str(exc), {
+            "code": "restore_failed",
+            "summary": failure["summary"],
+            "diagnostic_bundle": failure.get("diagnostic_bundle"),
+        }, [str(source)])
+        raise
+    else:
+        restore_block.unlink(missing_ok=True)
+        transition(session, "ready", failure=None)
+        result(session, "restore", started, "succeeded", 0, artifacts=[str(source)])
+
+
+def recover(session, timeout):
+    started = time.time()
+    try:
+        require_restore_integrity(session, "recovery")
+        compose(session, "up", "-d", "--wait", "--wait-timeout", str(timeout))
+        wait_ready(session, timeout)
+        transition(session, "ready", failure=None)
+        result(session, "recover", started, "succeeded", 0, "services recovered")
+    except Exception as exc:
+        bundle = diagnostics(session, "recovery-failed")
+        transition(session, "failed", failure={"summary": str(exc), "diagnostic_bundle": bundle})
+        result(session, "recover", started, "failed", 1, str(exc), {"code": "recovery_failed", "summary": str(exc), "diagnostic_bundle": bundle})
+        raise
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    sub = parser.add_subparsers(dest="command", required=True)
+    create = sub.add_parser("create")
+    create.add_argument("--version", required=True); create.add_argument("--module", required=True); create.add_argument("--session"); create.add_argument("--timeout", type=int, default=180)
+    for name in ("status", "logs", "stop", "start", "destroy", "export", "diagnose", "backup", "recover"):
+        item = sub.add_parser(name); item.add_argument("session")
+        if name == "logs": item.add_argument("--service", choices=("odoo", "db", "controller", "agent", "mcp")); item.add_argument("--follow", action="store_true"); item.add_argument("--since")
+        if name == "destroy": item.add_argument("--keep-state", action="store_true"); item.add_argument("--allow-unexported", action="store_true")
+        if name == "diagnose": item.add_argument("--reason", default="manual"); item.add_argument("--policy-file")
+        if name == "recover": item.add_argument("--timeout", type=int, default=180)
+    restore = sub.add_parser("restore"); restore.add_argument("session"); restore.add_argument("backup")
+    execute = sub.add_parser("exec"); execute.add_argument("session"); execute.add_argument("remainder", nargs=argparse.REMAINDER)
+    module = sub.add_parser("module"); module.add_argument("session"); module.add_argument("operation", choices=("install", "update", "test")); module.add_argument("module")
+    args = parser.parse_args()
+    if args.command == "create": return cmd_create(args)
+    if not state_dir(args.session).is_dir(): raise SystemExit(f"unknown session: {args.session}")
+    if args.command == "status":
+        data = manifest(args.session); proc = compose(args.session, "ps", "--format", "json", capture=True, check=False); data["services"] = compose_json(proc.stdout); print(json.dumps(data, indent=2)); return
+    if args.command == "exec":
+        require_restore_integrity(args.session, "exec")
+        command = args.remainder[1:] if args.remainder[:1] == ["--"] else args.remainder
+        if not command: raise SystemExit("exec requires a command after --")
+        raise SystemExit(compose(args.session, "exec", "-T", "odoo", *command, check=False).returncode)
+    if args.command == "module":
+        require_restore_integrity(args.session, f"module {args.operation}")
+        raise SystemExit(module_operation(args.session, args.operation, args.module))
+    if args.command == "logs":
+        raise SystemExit(print_logs(args.session, args.service, args.follow, args.since))
+    if args.command == "diagnose": print(diagnostics(args.session, args.reason, args.policy_file)); return
+    if args.command == "backup":
+        require_restore_integrity(args.session, "backup")
+        database_backup(args.session); return
+    if args.command == "restore": database_restore(args.session, args.backup); return
+    if args.command == "recover": recover(args.session, args.timeout); return
+    if args.command == "stop":
+        if manifest(args.session)["status"] == "stopped": return
+        transition(args.session, "stopping"); simple_operation(args.session, "stop", lambda: compose(args.session, "stop")); transition(args.session, "stopped"); return
+    if args.command == "start":
+        if manifest(args.session)["status"] in {"ready", "active"}: return
+        require_restore_integrity(args.session, "start")
+        transition(args.session, "starting")
+        def start(): compose(args.session, "start"); wait_ready(args.session)
+        simple_operation(args.session, "start", start); transition(args.session, "ready"); return
+    if args.command == "export":
+        started = time.time(); target = state_dir(args.session) / "exports" / f"{args.session}-{int(started)}.tar.gz"
+        subprocess.run(["tar", "--exclude=exports", "-czf", str(target), "-C", str(state_dir(args.session)), "."], check=True)
+        transition(args.session, "exported"); result(args.session, "export", started, "succeeded", 0, artifacts=[str(target)]); print(target); return
+    if args.command == "destroy":
+        if manifest(args.session)["status"] == "destroyed": return
+        exports = list((state_dir(args.session) / "exports").glob("*.tar.gz"))
+        if not args.allow_unexported and not exports:
+            raise SystemExit("destroy refused: export, commit/push externally, or pass --allow-unexported")
+        transition(args.session, "destroying")
+        def destroy(): compose(args.session, "down", "--volumes", "--remove-orphans")
+        simple_operation(args.session, "destroy", destroy); transition(args.session, "destroyed")
+        active = ROOT / ".sandbox/session.json"
+        if active.exists() and json.loads(active.read_text()).get("session_id") == args.session:
+            active.unlink()
+        if not args.keep_state: shutil.rmtree(state_dir(args.session)); return
+
+
+if __name__ == "__main__":
+    try:
+        # Every mutating command is serialized per session. Creation uses an
+        # atomic directory claim before its manifest exists.
+        if len(sys.argv) > 2 and sys.argv[1] in {"stop", "start", "destroy", "export", "module", "backup", "restore", "diagnose", "recover"}:
+            with session_lock(sys.argv[2]):
+                main()
+        else:
+            main()
+    except (subprocess.CalledProcessError, RuntimeError) as error:
+        print(f"sandboxctl: {error}", file=sys.stderr)
+        raise SystemExit(1)

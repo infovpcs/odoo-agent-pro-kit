@@ -15,6 +15,13 @@ Define frontend/UI test approach for Odoo customizations (views, JS, OWL), combi
 - JS/OWL components and client actions (unit tests).
 - Basic cross-browser sanity (Chromium/Firefox) if applicable.
 
+## Sandbox execution
+
+When `.sandbox/session.json` exists, run `sandbox/bin/sandboxctl module
+<session> update <module>` before browser testing and require its result JSON
+to report `succeeded`. Do not call `odoo-bin`; retain `bash manage_modules.sh`
+for local mode.
+
 ## Primary Approach: Browser-Based Testing with Playwright/Chrome DevTools
 
 ### Why Browser Testing?

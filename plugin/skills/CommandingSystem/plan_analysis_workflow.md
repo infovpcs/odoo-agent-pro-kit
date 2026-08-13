@@ -61,6 +61,11 @@ Load each skill in order and confirm it is read before proceeding:
 
 ## STEP 3: MCP Model Discovery
 
+If `.sandbox/session.json` exists, read it before discovery. Use its Odoo
+version and the Compose service target `http://odoo:8069`; do not select a
+fixed host-global MCP/Odoo port. Record the discovery result reference in the
+session context handoff.
+
 Start MCP server for the target version if not already running:
 
 ```bash

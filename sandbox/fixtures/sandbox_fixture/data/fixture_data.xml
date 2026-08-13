@@ -1,0 +1,6 @@
+<odoo noupdate="0">
+  <record id="fixture_record" model="sandbox.fixture">
+    <field name="name">Phase 2 fixture</field>
+    <field name="lifecycle_marker">installed</field>
+  </record>
+</odoo>

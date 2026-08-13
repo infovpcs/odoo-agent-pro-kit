@@ -1,0 +1,162 @@
+# Docker Sandbox Delivery Tasks
+
+Legend: `[ ]` pending, `[x]` complete. A phase cannot start until the prior
+phase exit gate passes.
+
+## Phase 0: Validate product assumptions — complete
+
+- [x] Record the supported `sbx` version range and capture `sbx version`,
+  diagnostics, template, kit, secret, policy, ports, skills, and SSH capabilities.
+- [x] Create an architecture decision record for outer microVM plus inner
+  Compose, clone-mode default, and local-mode compatibility.
+- [x] Select and document PostgreSQL versions for Odoo 17/18/19.
+- [x] Prove official Odoo image availability for amd64 and arm64 and record any
+  platform exceptions.
+- [x] Define Community and separately licensed Enterprise addon handling.
+- [x] Approve session/result JSON schemas and resource/retention defaults.
+- [x] LIVE TEST (Ubuntu 24.04 amd64): manually create a stock Codex sandbox, run an inner Compose
+  hello-world service, publish a port, stop/start, export state, and remove it.
+
+Exit gate: repository, Docker daemon, and registry checks pass on the available
+macOS workstation; commands and experimental features used by the Sandbox
+design are verified against pinned `sbx` on the designated Ubuntu 24.04+ KVM
+validation host. An Apple Silicon macOS Sandbox run is required only for a task
+that claims native macOS Sandbox support.
+
+## Phase 1: Runtime proof of concept (Odoo 19)
+
+- [x] Add `sandbox/compose/compose.yaml` with healthy PostgreSQL and Odoo.
+- [x] Add the Odoo 19 dev image with pinned inputs and lock manifest.
+- [x] Add generated config with container-safe paths and distinct DB/application
+  credentials.
+- [x] Bind-mount one fixture addon from the session workspace.
+- [x] Add session-private DB, filestore, cache, logs, and results volumes/paths.
+- [x] Add Odoo and database readiness checks with bounded timeouts.
+- [x] Add basic `sandboxctl create/status/exec/logs/stop/start/destroy` commands.
+- [x] Emit `session.json`, `events.jsonl`, and operation result JSON.
+- [x] Add automatic diagnostic collection on failed readiness.
+- [x] LIVE TEST: install, update, RPC-test, restart, export, and destroy an Odoo
+  19 fixture module with no orphaned volumes.
+
+Exit gate: a fresh Odoo 19 session passes twice from a clean state and twice
+from a warm image cache.
+
+## Phase 2: Odoo 17 and 18 matrix
+
+- [x] Add Odoo 17 and 18 image definitions and digest locks.
+- [x] Move version-specific image, protocol, dependency, and config values to
+  `versions.yaml`.
+- [x] Test XML-RPC paths for 17 and 18.
+- [x] Validate the supported Odoo 19 RPC/API path rather than relying on a
+  hard-coded version assumption.
+- [x] Add per-version fixture-module install/update/CRUD tests.
+- [x] Add amd64/arm64 build and runtime matrix where supported.
+- [x] LIVE TEST: run 17, 18, and 19 concurrently and complete the full fixture
+  lifecycle in each.
+
+Exit gate: the same controller interface passes for all three versions.
+
+## Phase 3: Existing kit integration — complete
+
+- [x] Refactor `manage_modules.sh` into environment resolution, executor, and
+  operation layers while retaining local mode.
+- [x] Add the `compose` executor and machine-readable exit/result contract.
+- [x] Update install/update decision logic to query the session database and
+  isolated progress state.
+- [x] Update MCP configuration for Compose service discovery and session-scoped
+  endpoints.
+- [x] Update SessionStart and context handoff to read `session.json`.
+- [x] Update backend/frontend testing skills with sandbox command examples.
+- [x] Update `/plan-analysis`, `/start-coding`, and `/testing` gates to record
+  session operation results.
+- [x] Add `.sandbox/` ignore rules while preserving user-authored docs/context.
+- [x] LIVE TEST: execute all three lifecycle commands in an Odoo 19 Codex
+  sandbox and verify install/update/log gates.
+
+Exit gate: existing local-mode tests still pass and sandbox mode completes one
+real module lifecycle without raw `odoo-bin` calls from skills.
+
+## Phase 4: Agent templates, kits, and IDE adapters — complete
+
+- [x] Create and validate a minimal Odoo mixin kit.
+- [x] Create Codex, Claude Code, and Copilot-compatible templates/kits only where
+  agent-specific packaging is required.
+- [x] Add Docker Sandbox shared-skills import/setup documentation and fallback.
+- [x] Add scoped secret/OAuth setup without secret-bearing `.env` files.
+- [x] Add minimal network policy and policy preflight checks.
+- [x] Add SSH setup and VS Code/Cursor attach documentation.
+- [x] Add launch wrappers/tasks for current project integrations.
+- [x] Pin kit/template artifact versions and add release packaging checks.
+- [x] LIVE TEST: Codex CLI plus one SSH-attached IDE—or the explicitly approved
+  `sbx exec` terminal fallback after a recorded experimental SSH probe
+  failure—edit the fixture, run module tests, and retrieve correlated logs.
+
+Platform fallback (approved 2026-08-13): Codex CLI, the fixture lifecycle,
+module test, correlated logs, kit/policy preflight, and cleanup passed on the
+Ubuntu KVM host. The
+experimental 0.38.0 SSH endpoint completed protocol negotiation but closed at
+authentication with exit 255. After a fresh login and retry reproduced it, the
+user explicitly approved the validated `sbx exec` IDE-equivalent terminal
+adapter. OpenCode also passed the same edit/test/log contract. See
+`phase-4/live-test.md`.
+
+Exit gate: platform differences are confined to launch/attach adapters.
+
+## Phase 5: Local concurrency
+
+- [x] Replace the Community `/fleet` subprocess/thread allocation with one local
+  sandbox session per module task; keep shared/remote fleet scheduling in Pro.
+- [x] Add normalized unique session naming and branch creation.
+- [x] Add controller locks and idempotent lifecycle transitions.
+- [x] Add dynamic port allocation and manifest recording.
+- [x] Add maximum concurrency, CPU/memory/disk budgets, idle stop, and retention.
+- [x] Aggregate status/results without granting cross-session write access.
+- [x] Require commit, push, or patch export before destructive cleanup.
+- [x] Add graceful cancellation and partial-failure reporting.
+- [x] LIVE TEST: run six sessions (two each for 17/18/19), including two copies
+  of the same module, and prove source/database/log isolation.
+
+Exit gate: one failed session does not change or stop any sibling session.
+
+## Phase 6: Observability and recovery
+
+- [x] Implement unified service log streaming and filtering.
+- [x] Implement redacted diagnostic bundles with Compose state, health, events,
+  resources, policy diagnostics, and operation results.
+- [x] Emit JUnit/coverage/browser artifacts in stable locations.
+- [x] Add optional OpenTelemetry log export interface.
+- [x] Add crash, denied-network, disk-pressure, invalid-module, interrupted
+  operation, and controller-restart tests.
+- [x] Add backup/restore for session development databases when explicitly
+  requested.
+- [x] LIVE TEST: inject each supported failure and confirm actionable logs,
+  bounded retry, recovery/cleanup, and sibling health.
+
+Exit gate: every failure scenario produces a redacted diagnostic bundle and a
+deterministic terminal or recoverable state.
+
+## Phase 7: Release hardening — complete
+
+- [x] Add CI for shell/Python tests, Compose validation, kit validation, image
+  builds, dependency/license inventory, and version smoke tests.
+- [x] Add macOS Apple Silicon, Windows 11, and Ubuntu operator runbooks.
+- [x] Add upgrade/rollback tests for template, kit, Odoo image, Postgres image,
+  and session schema versions.
+- [x] Measure cold/warm startup, disk growth, memory, and six-session load.
+- [x] Document capacity recommendations from measured results.
+- [x] Add local-to-sandbox migration and compatibility documentation.
+- [x] Publish tested platform runbooks generated from the validated controller,
+  Compose, template, and kit versions.
+- [x] LIVE TEST: execute the release acceptance matrix from a clean host setup.
+
+Exit gate: all requirements acceptance scenarios pass, artifacts are pinned,
+and rollback plus cleanup are demonstrated.
+
+## Definition of done for every implementation task
+
+- Code/config and user documentation are updated together.
+- Static validation and the narrowest relevant integration test pass.
+- No secret is added to Git, logs, images, templates, or fixtures.
+- Both success and failure emit a machine-readable operation result.
+- Any experimental Docker Sandbox dependency is capability-checked and pinned.
+- The task ends with a LIVE TEST appropriate to its scope.

@@ -151,6 +151,17 @@ When using JSON-2, tests should switch to HTTP `requests` calls and bearer API k
 
 ## Executing Tests (recommended agent workflow)
 
+When `.sandbox/session.json` exists, use the controller contract:
+
+```bash
+SESSION_ID=$(python3 -c 'import json; print(json.load(open(".sandbox/session.json"))["session_id"])')
+sandbox/bin/sandboxctl module "$SESSION_ID" install <module>
+sandbox/bin/sandboxctl module "$SESSION_ID" test <module>
+```
+
+The newest result JSON must report `succeeded`. Do not run raw `odoo-bin`;
+local mode continues to use `bash manage_modules.sh`.
+
 1. Ensure Odoo is running and port ready (see port readiness section below).
 2. Run the module's xmlrpc or json2 script from the module `scripts/` folder using the AgentSkills venv Python:
 

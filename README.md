@@ -13,6 +13,16 @@ version-aware `/plan-analysis` → `/start-coding` → `/testing` workflow, a li
 MCP server for real-time model discovery, and coding-standard/testing skills
 for Odoo 17.0, 18.0, and 19.0 — without building any of it from scratch.
 
+Docker Sandbox sessions use `sandbox/bin/sandboxctl module` as the single
+install/update/test entrypoint. It delegates to `manage_modules.sh`, preserves
+local execution, and records machine-readable lifecycle-gate results.
+Codex, Claude, Copilot, VS Code, and Cursor share the same versioned Odoo mixin
+and thin launch/SSH adapters documented in
+[`docs/docker-sandbox/phase-4/agent-adapters.md`](docs/docker-sandbox/phase-4/agent-adapters.md).
+On pinned platforms where experimental Sandbox SSH fails its authentication
+probe, the documented `sbx exec` terminal adapter provides the same controller
+contract without exposing an additional network port.
+
 ## Quickstart
 
 ```bash
@@ -50,6 +60,80 @@ reads it natively). See `integrations/codex/INSTALL.md`.
 | Local Odoo workspace bootstrap/management scripts | `odoo_local_setup/` |
 | Generic agent context templates | `context-templates/` |
 | Six agent/IDE integrations | `integrations/` |
+
+## Docker Sandbox roadmap
+
+The implementation-ready plan for isolated, concurrent Odoo 17/18/19 agent
+sessions is in [`docs/docker-sandbox/`](docs/docker-sandbox/README.md). It
+includes requirements, architecture, source-guide corrections, release gates,
+and the full cross-version test matrix.
+
+Community `/fleet` allocates one local Docker Sandbox per module task through
+`sandbox/bin/sandbox-fleet`; shared and remote fleet scheduling remain Pro.
+Session logs, redacted diagnostics, stable test artifacts, bounded recovery,
+and explicit development-database backup/restore use the Phase 6 controller
+contract documented in
+[`docs/docker-sandbox/phase-6/observability-recovery.md`](docs/docker-sandbox/phase-6/observability-recovery.md).
+
+Phase 7 release automation, platform setup, upgrade/rollback, benchmarks,
+capacity guidance, and local migration are under
+[`docs/docker-sandbox/phase-7/`](docs/docker-sandbox/phase-7/operator-runbooks.md).
+AI agents should load `plugin/skills/DockerSandboxOperations/SKILL.md` when
+configuring or releasing the Sandbox runtime.
+The Ubuntu KVM release matrix and measured capacity limits are recorded in
+[`phase-7/live-test.md`](docs/docker-sandbox/phase-7/live-test.md); Apple Silicon
+and Windows procedures remain unclaimed candidate runbooks until executed.
+Community members with that hardware can follow the
+[`platform validation guide`](docs/docker-sandbox/community-platform-validation.md),
+report results or bugs through the dedicated issue template, and propose tested
+runbook or compatibility fixes by pull request.
+
+The Odoo 17/18/19 inner runtime controller is documented in
+[`sandbox/README.md`](sandbox/README.md). Phase gates remain authoritative in
+[`docs/docker-sandbox/tasks.md`](docs/docker-sandbox/tasks.md).
+
+## Commercial/open-core roadmap
+
+VPerfectCS's plan for keeping this repository useful and open source while
+building separately licensed Partner, Enterprise, Upgrade Factory, and managed
+offerings is in [`docs/commercial/`](docs/commercial/README.md). It includes the
+recommended public/private repository boundary and staged go-to-market plan.
+
+## Validation
+
+Run the complete repository validation suite from any directory inside the
+clone:
+
+```bash
+./scripts/validate.sh
+```
+
+The entrypoint isolates pytest from unrelated globally installed plugins, then
+runs tests, skill/artifact/release checks, Compose validation when Docker is
+available, syntax checks, and Git whitespace validation.
+
+## Delivery workflow
+
+Docker Sandbox development proceeds one phase per session. Every phase must
+finish its checklist and LIVE TEST, update the implementation and documentation
+together, pass `./scripts/validate.sh`, update `SESSION_CONTEXT.md`, and receive
+a focused commit before the next phase starts. Unsupported or failed live tests
+remain explicit blockers and are never marked complete.
+
+Phase 0 is complete. Its architecture, runtime baseline, image
+architecture evidence, edition boundary, resource defaults, and JSON contracts
+are recorded under [`docs/docker-sandbox/phase-0/`](docs/docker-sandbox/phase-0/).
+The stock-sandbox LIVE TEST passed on the designated Ubuntu 24.04 KVM host;
+repository, Docker, and registry checks passed on the available Intel Mac.
+The Odoo 19 Phase 1 runtime and its four-pass cold/warm Sandbox lifecycle are
+also complete; evidence is under
+[`docs/docker-sandbox/phase-1/`](docs/docker-sandbox/phase-1/live-test.md).
+The Phase 2 version matrix, XML-RPC/JSON-2 CRUD checks, multi-architecture image
+builds, and concurrent Ubuntu Sandbox lifecycle are complete; evidence is under
+[`docs/docker-sandbox/phase-2/`](docs/docker-sandbox/phase-2/live-test.md).
+Phase 3 integrates the existing lifecycle skills and module manager with the
+Compose executor; its evidence is under
+[`docs/docker-sandbox/phase-3/`](docs/docker-sandbox/phase-3/live-test.md).
 
 ## Contributing
 
