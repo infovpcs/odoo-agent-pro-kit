@@ -182,6 +182,18 @@ def test_recover_refuses_unsuccessful_restore(monkeypatch, tmp_path):
     assert compose_calls == []
 
 
+def test_restore_integrity_guard_blocks_direct_start(tmp_path):
+    controller = load_controller()
+    session, directory = fake_session(controller, tmp_path)
+    (directory / "restore-blocked.json").write_text("{}\n")
+    try:
+        controller.require_restore_integrity(session, "start")
+    except RuntimeError as error:
+        assert "start blocked" in str(error)
+    else:
+        raise AssertionError("direct start bypassed the failed-restore integrity block")
+
+
 def test_failure_scenarios_have_bundle_and_recovery_contract():
     controller = (ROOT / "sandbox/bin/sandboxctl").read_text()
     for scenario in ("create-failed", "readiness-timeout", "module-{operation}-failed", "{operation}-failed"):

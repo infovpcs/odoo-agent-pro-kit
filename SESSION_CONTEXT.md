@@ -318,6 +318,8 @@ that consumes stable Community releases instead of forking this repository.
 - Unsuccessful restores now persist an integrity-block marker. Generic recovery
   refuses to start the stack while it exists; only a successful explicit
   restore clears the marker and permits the session to return to ready.
+- Both generic recovery and direct session start enforce the restore-integrity
+  marker, closing alternate lifecycle paths to a partially restored database.
 - Fleet provisioning cleanup now runs after every outer creation attempt,
   including when the creation subprocess returns nonzero after partial success,
   preventing a partially created Sandbox from being orphaned.

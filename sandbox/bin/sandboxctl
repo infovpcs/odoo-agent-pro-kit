@@ -446,6 +446,13 @@ def ensure_stack_stopped(session):
         raise RuntimeError("failed to quarantine the Compose stack after database restore")
 
 
+def require_restore_integrity(session, operation):
+    if (state_dir(session) / "restore-blocked.json").exists():
+        raise RuntimeError(
+            f"{operation} blocked after unsuccessful database restore; complete an explicit restore first"
+        )
+
+
 def database_restore(session, source):
     source = Path(source).resolve()
     if not source.is_file(): raise RuntimeError(f"backup not found: {source}")
@@ -500,9 +507,7 @@ def database_restore(session, source):
 def recover(session, timeout):
     started = time.time()
     try:
-        restore_block = state_dir(session) / "restore-blocked.json"
-        if restore_block.exists():
-            raise RuntimeError("recovery blocked after unsuccessful database restore; complete an explicit restore first")
+        require_restore_integrity(session, "recovery")
         compose(session, "up", "-d", "--wait", "--wait-timeout", str(timeout))
         wait_ready(session, timeout)
         transition(session, "ready", failure=None)
@@ -550,6 +555,7 @@ def main():
         transition(args.session, "stopping"); simple_operation(args.session, "stop", lambda: compose(args.session, "stop")); transition(args.session, "stopped"); return
     if args.command == "start":
         if manifest(args.session)["status"] in {"ready", "active"}: return
+        require_restore_integrity(args.session, "start")
         transition(args.session, "starting")
         def start(): compose(args.session, "start"); wait_ready(args.session)
         simple_operation(args.session, "start", start); transition(args.session, "ready"); return
