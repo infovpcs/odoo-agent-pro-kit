@@ -434,6 +434,18 @@ def ensure_odoo_stopped(session):
         raise RuntimeError("failed to quarantine Odoo after database restore")
 
 
+def ensure_stack_stopped(session):
+    """Fail closed by removing all stack containers while preserving volumes."""
+    compose(session, "down", "--remove-orphans", check=False)
+    running = compose(session, "ps", "-q", capture=True, check=False)
+    container_ids = running.stdout.split() if running.stdout else []
+    if container_ids:
+        subprocess.run(["docker", "rm", "--force", *container_ids], check=True)
+    remaining = compose(session, "ps", "-q", capture=True, check=False)
+    if remaining.stdout and remaining.stdout.strip():
+        raise RuntimeError("failed to quarantine the Compose stack after database restore")
+
+
 def database_restore(session, source):
     source = Path(source).resolve()
     if not source.is_file(): raise RuntimeError(f"backup not found: {source}")
@@ -453,8 +465,14 @@ def database_restore(session, source):
         try:
             ensure_odoo_stopped(session)
         except Exception as quarantine_exc:
-            failure["quarantine"] = "failed"
             failure["quarantine_error"] = str(quarantine_exc)
+            try:
+                ensure_stack_stopped(session)
+            except Exception as stack_exc:
+                failure["quarantine"] = "failed"
+                failure["stack_quarantine_error"] = str(stack_exc)
+            else:
+                failure["quarantine"] = "stack_stopped"
         else:
             failure["quarantine"] = "succeeded"
         try:

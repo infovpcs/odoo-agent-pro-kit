@@ -136,11 +136,13 @@ def test_restore_quarantine_failure_still_persists_failed_state(monkeypatch, tmp
     backup.write_bytes(b"not-a-valid-dump")
     transitions = []
     results = []
+    stack_quarantines = []
 
     def fake_quarantine(_session):
         raise RuntimeError("container remains running")
 
     monkeypatch.setattr(controller, "ensure_odoo_stopped", fake_quarantine)
+    monkeypatch.setattr(controller, "ensure_stack_stopped", lambda session: stack_quarantines.append(session))
     monkeypatch.setattr(controller.subprocess, "run", lambda *args, **kwargs: subprocess.CompletedProcess(args, 1))
     monkeypatch.setattr(controller, "diagnostics", lambda *args, **kwargs: "diagnostics.tar.gz")
     monkeypatch.setattr(controller, "transition", lambda *args, **kwargs: transitions.append((args, kwargs)))
@@ -154,8 +156,9 @@ def test_restore_quarantine_failure_still_persists_failed_state(monkeypatch, tmp
         raise AssertionError("invalid restore unexpectedly succeeded")
 
     assert transitions[0][0][1] == "failed"
-    assert transitions[-1][1]["failure"]["quarantine"] == "failed"
+    assert transitions[-1][1]["failure"]["quarantine"] == "stack_stopped"
     assert "container remains running" in transitions[-1][1]["failure"]["quarantine_error"]
+    assert stack_quarantines == [session]
     assert results[-1][0][3] == "failed"
 
 

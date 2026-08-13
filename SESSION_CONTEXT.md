@@ -312,6 +312,9 @@ that consumes stable Community releases instead of forking this repository.
   cleanup failures; restore failure state is persisted before quarantine and
   survives quarantine/diagnostic errors; migration names are capped at 52
   characters so generated controller session IDs remain valid.
+- Final review hardening adds a volume-preserving full Compose-stack teardown
+  and verification when service-level Odoo quarantine cannot be guaranteed, so
+  a surviving application cannot continue accessing a modified restore target.
 - The Phase 5 KVM host used a documented 1-vCPU/2-GiB validation override per
   microVM because the designated host has 2 vCPU/15 GiB. The shipped default
   remains 2 vCPU/8 GiB and the outer 40 GiB disk target is advisory in sbx
