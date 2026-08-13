@@ -26,7 +26,7 @@ Before changing files:
 - Supported Odoo versions: 17.0, 18.0, and 19.0
 - Active workstream: public Docker Sandbox foundation and open-core commercial
   planning
-- Active branch: `feature/docker-sandbox-phase-1`
+- Active branch: `feature/docker-sandbox-phase-4`
 - Branch base: `main` at commit `192f6c9`
 - Last context update: 2026-08-13 (Asia/Kolkata)
 
@@ -156,6 +156,19 @@ that consumes stable Community releases instead of forking this repository.
 - [x] Passed the literal Phase 3 Codex LIVE TEST after OAuth restoration:
   `/plan-analysis`, `/start-coding`, and `/testing` recorded successful
   install/update/test/JSON-2/log gates without raw `odoo-bin` skill calls.
+- [x] Implemented the Phase 4 agent-neutral Odoo mixin 0.4.0, pinned artifact
+  lock, `sbx` 0.38.x capability/policy/package validation, Codex/Claude/Copilot
+  launcher, scoped secret/shared-skills guidance, and VS Code/Cursor SSH tasks.
+- [x] Validated the mixin with the real `sbx` 0.38.0 parser and passed the Phase
+  4 Codex/Odoo partial live test: clone-mode launch, OAuth, edited fixture copy,
+  Odoo 19 create/install/test results, 35,990-byte correlated log retrieval, and
+  complete inner/outer cleanup.
+- [x] User explicitly approved `sbx exec` as the Ubuntu IDE-equivalent fallback
+  after the pinned experimental SSH authentication failure remained
+  reproducible following fresh login, daemon restart, setup, and sandbox retry.
+- [x] Completed the Phase 4 LIVE TEST and exit gate with Codex plus the approved
+  terminal adapter; supplemental OpenCode 1.18.13 also passed the same isolated
+  edit, Odoo 19 module-test, correlated-log, and cleanup contract.
 
 ## Current state
 
@@ -198,7 +211,7 @@ that consumes stable Community releases instead of forking this repository.
   repository validation stopped with `No module named pytest`. Per the approved
   platform split, clean-shell repository validation ran on the Intel workstation.
 - No branch has been pushed and no private Pro repository has been created.
-- Active branch: `feature/docker-sandbox-phase-3`.
+- Active branch: `feature/docker-sandbox-phase-4`.
 - Phase 2 repository validation passes with 20 tests, 18 validated skills,
   shell/Python syntax checks, and Git whitespace validation.
 - The Intel workstation passed the concurrent warm-cache amd64 lifecycle and
@@ -221,13 +234,50 @@ that consumes stable Community releases instead of forking this repository.
 - The Phase 3 KVM runtime run produced succeeded install/update/test results,
   verified Odoo 19 JSON-2 CRUD, and retrieved 61,597 bytes through the Odoo log
   gate. The active inner and outer sessions were fully removed.
+- Phase 4 implementation tests pass locally: 29 repository tests, 18 skill
+  validations, artifact locking, shell/Python syntax, and whitespace checks.
+  The Ubuntu host validated, packed, and inspected `odoo-mixin` 0.4.0 with
+  `sbx` 0.38.0; the temporary ZIP was removed after the check.
+- The Phase 4 LIVE TEST used Codex CLI 0.146.0 in
+  `odoo-phase4-codex`. Odoo session `19-sandbox-fixture-107d14` emitted
+  succeeded create/install/test results, preserved the candidate fixture edit,
+  and returned 35,990 bytes of correlated Odoo logs. Inner volumes and the
+  outer sandbox were removed; no sandbox remains.
+- Supplemental Phase 4 validation passed with Docker's built-in OpenCode
+  template and OpenCode 1.18.13. The same mixin propagated its environment and
+  runtime instructions; an isolated fixture edit plus Odoo 19 create/install/
+  test passed, and correlated log retrieval returned 34,455 bytes. Session
+  `19-sandbox-fixture-f43943` and outer sandbox `odoo-phase4-opencode` were
+  fully removed. The approved `sbx exec` fallback, rather than this supplemental
+  agent run, satisfies the IDE-adapter gate.
+- Final clean-shell `./scripts/validate.sh` passed on 2026-08-13: 29 tests, 18
+  skill validations, artifact locking, shell/Python syntax, and Git whitespace
+  checks all passed. The workstation Docker daemon was 29.7.2 linux/amd64 with
+  Compose 5.3.1; unrelated running containers were not changed.
+- Phase 4 is complete and committed with subject
+  `Complete Docker Sandbox Phase 4 adapters`.
+- Phase 5 local concurrency is the sole next task and must begin in a fresh
+  session with this context and the authoritative checklist reread.
 
 ## Blockers and risks
 
 ### Immediate
 
-- No immediate Phase 3 blocker remains. OpenAI OAuth is configured in the
-  Docker Sandbox host secret store; no credential was added to the repository.
+- No immediate Phase 4 blocker remains. `ssh odoo-phase4-codex.sbx -- id` negotiated
+  the managed server and host key but closed during authentication with
+  `Connection closed by UNKNOWN port 65535` and exit 255. The failure repeated
+  with the sandbox running, after workspace trust, after `sbx setup ssh`, and
+  after `sbx daemon restart`. The daemon recorded HTTP 101 SSH upgrades while
+  `sbx exec`, Codex OAuth, policy, kit, inner Odoo, tests, and logs passed. See
+  `docs/docker-sandbox/phase-4/live-test.md`.
+- The user completed a full `sbx logout` plus device-code `sbx login` on
+  2026-08-13. Authentication diagnostics passed afterward, but a newly created
+  running Codex sandbox failed SSH identically. Apt reports 0.38.0 as both the
+  installed and newest candidate. The retry sandbox was removed. The user
+  explicitly approved the validated `sbx exec` terminal fallback; SSH remains a
+  tracked experimental platform limitation rather than an exit-gate blocker.
+- OpenAI OAuth remains configured only in the Docker Sandbox host secret store;
+  no credential was added to the repository.
 - Docker supports Sandbox on Apple Silicon macOS 14+; this host is Intel macOS.
 - Native macOS Sandbox behavior remains untested because the workstation is
   Intel. It is not required by the approved validation policy unless a future

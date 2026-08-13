@@ -349,8 +349,10 @@ For each of 17, 18, and 19:
 
 - Codex CLI end-to-end lifecycle.
 - One additional CLI agent end-to-end.
-- VS Code SSH attach, edit, test, and log view.
-- Cursor SSH attach or documented supported equivalent.
+- VS Code SSH attach, edit, test, and log view when the pinned SSH probe passes;
+  otherwise the documented `sbx exec` terminal adapter after recording the
+  experimental endpoint failure.
+- Cursor SSH attach or the same documented `sbx exec` equivalent.
 - CI runtime-only Compose matrix on amd64, plus arm64 where available.
 
 ## Compatibility and migration

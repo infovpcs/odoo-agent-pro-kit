@@ -1,0 +1,30 @@
+schemaVersion: "2"
+kind: mixin
+name: odoo-agent-pro-kit
+version: 0.4.0
+displayName: Odoo Agent Pro Kit
+description: Agent-neutral Odoo 17, 18, and 19 Docker Sandbox lifecycle contract
+sourceURL: https://github.com/infovpcs/odoo-agent-pro-kit
+licenses:
+  - Apache-2.0
+
+permissions:
+  network:
+    allow:
+      - auth.docker.io
+      - registry-1.docker.io
+      - production.cloudflare.docker.com
+      - github.com
+      - raw.githubusercontent.com
+
+environment:
+  variables:
+    ODOO_AGENT_RUNTIME: sandbox
+
+agentInstructions:
+  content: |
+    Use sandbox/bin/sandboxctl as the stable Odoo runtime controller.
+    Use `sandboxctl module <session> install|update|test <module>` for module
+    operations; do not invoke raw odoo-bin or odoo commands for lifecycle work.
+    Read .sandbox/session.json for the active session contract and keep secrets
+    out of repository files, generated environment files, logs, and prompts.

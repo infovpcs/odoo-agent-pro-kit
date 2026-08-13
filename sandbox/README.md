@@ -46,3 +46,11 @@ Phase 3 adds `sandboxctl module <session> install|update|test <module>`. The
 controller delegates to `manage_modules.sh`, which selects local or Compose
 execution, queries session database state, waits for health, and writes result
 JSON plus isolated progress. See `docs/docker-sandbox/phase-3/live-test.md`.
+
+Phase 4 layers the agent-neutral `sandbox/kits/odoo-mixin` onto Docker's
+built-in Codex, Claude, or Copilot agents. `sandbox/bin/sandbox-agent` performs
+the pinned CLI, kit, and policy preflight and provides thin create, SSH attach,
+test, and log adapters. Artifact versions and the kit digest are pinned in
+`config/artifacts.lock`; run `scripts/validate-artifacts.sh` before packaging.
+Shared-skills, scoped secret/OAuth, policy, VS Code, and Cursor setup are in
+`docs/docker-sandbox/phase-4/agent-adapters.md`.

@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+KIT_DIR="$REPO_ROOT/sandbox/kits/odoo-mixin"
+SUPPORTED_SBX_PREFIX="v0.38."
+
+usage() {
+  cat <<'EOF'
+Usage:
+  sandbox-agent preflight
+  sandbox-agent create <codex|claude|copilot> <name> [workspace]
+  sandbox-agent attach <name>
+  sandbox-agent test <name> <session> <module>
+  sandbox-agent logs <name> <session> [odoo|db|mcp|agent]
+
+The create command uses clone mode, the versioned Odoo mixin, 2 CPUs, and 8 GiB.
+Credentials must be configured with `sbx secret`; this wrapper never accepts them.
+EOF
+}
+
+require_sbx() {
+  command -v sbx >/dev/null 2>&1 || { echo "ERROR: sbx is required" >&2; exit 1; }
+  case "$(sbx version 2>&1)" in
+    *"$SUPPORTED_SBX_PREFIX"*) ;;
+    *) echo "ERROR: supported sbx version is 0.38.x" >&2; exit 1 ;;
+  esac
+}
+
+preflight() {
+  require_sbx
+  sbx kit validate "$KIT_DIR"
+  sbx policy ls >/dev/null
+  for host in auth.docker.io registry-1.docker.io github.com; do
+    if ! sbx policy check network "$host:443" >/dev/null; then
+      echo "ERROR: network policy denies $host:443" >&2
+      exit 1
+    fi
+  done
+  echo "OK: sbx, kit, and minimal network policy preflight passed."
+}
+
+command_name="${1:-}"
+case "$command_name" in
+  preflight)
+    preflight
+    ;;
+  create)
+    require_sbx
+    agent="${2:-}"
+    name="${3:-}"
+    workspace="${4:-$REPO_ROOT}"
+    case "$agent" in codex|claude|copilot) ;; *) usage >&2; exit 2 ;; esac
+    [[ -n "$name" ]] || { usage >&2; exit 2; }
+    preflight
+    exec sbx create --clone --name "$name" --cpus 2 --memory 8g --kit "$KIT_DIR" "$agent" "$workspace"
+    ;;
+  attach)
+    require_sbx
+    [[ -n "${2:-}" ]] || { usage >&2; exit 2; }
+    sbx setup ssh
+    exec ssh "${2}.sbx"
+    ;;
+  test)
+    require_sbx
+    [[ -n "${2:-}" && -n "${3:-}" && -n "${4:-}" ]] || { usage >&2; exit 2; }
+    exec sbx exec "$2" -- sandbox/bin/sandboxctl module "$3" test "$4"
+    ;;
+  logs)
+    require_sbx
+    [[ -n "${2:-}" && -n "${3:-}" ]] || { usage >&2; exit 2; }
+    if [[ -n "${4:-}" ]]; then
+      exec sbx exec "$2" -- sandbox/bin/sandboxctl logs "$3" --service "$4"
+    fi
+    exec sbx exec "$2" -- sandbox/bin/sandboxctl logs "$3"
+    ;;
+  *) usage; [[ -z "$command_name" ]] || exit 2 ;;
+esac

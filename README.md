@@ -16,6 +16,12 @@ for Odoo 17.0, 18.0, and 19.0 — without building any of it from scratch.
 Docker Sandbox sessions use `sandbox/bin/sandboxctl module` as the single
 install/update/test entrypoint. It delegates to `manage_modules.sh`, preserves
 local execution, and records machine-readable lifecycle-gate results.
+Codex, Claude, Copilot, VS Code, and Cursor share the same versioned Odoo mixin
+and thin launch/SSH adapters documented in
+[`docs/docker-sandbox/phase-4/agent-adapters.md`](docs/docker-sandbox/phase-4/agent-adapters.md).
+On pinned platforms where experimental Sandbox SSH fails its authentication
+probe, the documented `sbx exec` terminal adapter provides the same controller
+contract without exposing an additional network port.
 
 ## Quickstart
 
@@ -104,6 +110,9 @@ also complete; evidence is under
 The Phase 2 version matrix, XML-RPC/JSON-2 CRUD checks, multi-architecture image
 builds, and concurrent Ubuntu Sandbox lifecycle are complete; evidence is under
 [`docs/docker-sandbox/phase-2/`](docs/docker-sandbox/phase-2/live-test.md).
+Phase 3 integrates the existing lifecycle skills and module manager with the
+Compose executor; its evidence is under
+[`docs/docker-sandbox/phase-3/`](docs/docker-sandbox/phase-3/live-test.md).
 
 ## Contributing
 

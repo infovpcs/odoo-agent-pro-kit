@@ -76,19 +76,29 @@ Exit gate: the same controller interface passes for all three versions.
 Exit gate: existing local-mode tests still pass and sandbox mode completes one
 real module lifecycle without raw `odoo-bin` calls from skills.
 
-## Phase 4: Agent templates, kits, and IDE adapters
+## Phase 4: Agent templates, kits, and IDE adapters — complete
 
-- [ ] Create and validate a minimal Odoo mixin kit.
-- [ ] Create Codex, Claude Code, and Copilot-compatible templates/kits only where
+- [x] Create and validate a minimal Odoo mixin kit.
+- [x] Create Codex, Claude Code, and Copilot-compatible templates/kits only where
   agent-specific packaging is required.
-- [ ] Add Docker Sandbox shared-skills import/setup documentation and fallback.
-- [ ] Add scoped secret/OAuth setup without secret-bearing `.env` files.
-- [ ] Add minimal network policy and policy preflight checks.
-- [ ] Add SSH setup and VS Code/Cursor attach documentation.
-- [ ] Add launch wrappers/tasks for current project integrations.
-- [ ] Pin kit/template artifact versions and add release packaging checks.
-- [ ] LIVE TEST: Codex CLI plus one SSH-attached IDE edit the fixture, run module
-  tests, and retrieve correlated logs.
+- [x] Add Docker Sandbox shared-skills import/setup documentation and fallback.
+- [x] Add scoped secret/OAuth setup without secret-bearing `.env` files.
+- [x] Add minimal network policy and policy preflight checks.
+- [x] Add SSH setup and VS Code/Cursor attach documentation.
+- [x] Add launch wrappers/tasks for current project integrations.
+- [x] Pin kit/template artifact versions and add release packaging checks.
+- [x] LIVE TEST: Codex CLI plus one SSH-attached IDE—or the explicitly approved
+  `sbx exec` terminal fallback after a recorded experimental SSH probe
+  failure—edit the fixture, run module tests, and retrieve correlated logs.
+
+Platform fallback (approved 2026-08-13): Codex CLI, the fixture lifecycle,
+module test, correlated logs, kit/policy preflight, and cleanup passed on the
+Ubuntu KVM host. The
+experimental 0.38.0 SSH endpoint completed protocol negotiation but closed at
+authentication with exit 255. After a fresh login and retry reproduced it, the
+user explicitly approved the validated `sbx exec` IDE-equivalent terminal
+adapter. OpenCode also passed the same edit/test/log contract. See
+`phase-4/live-test.md`.
 
 Exit gate: platform differences are confined to launch/attach adapters.
 

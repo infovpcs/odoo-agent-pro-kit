@@ -141,7 +141,9 @@ their existing commands and defaults.
 
 - CLI agents launch through Docker Sandbox kits/templates.
 - VS Code and Cursor attach through the supported Sandbox SSH endpoint when
-  available; direct host editing remains an opt-in compatibility mode.
+  its capability and authentication probe pass. On a pinned platform where the
+  experimental endpoint fails that probe, `sbx exec` is the documented
+  IDE-equivalent terminal fallback; direct host editing remains opt-in.
 - GitHub Copilot and other CLI agents use the same `sandboxctl` and Compose
   contracts even when their agent-specific template differs.
 - Platform adapters may translate launch/attach commands but must not define a
@@ -184,5 +186,7 @@ the same controller contract.
    volumes are removed when requested.
 6. Attempt disallowed network and filesystem access; verify it is blocked and
    appears in policy diagnostics without exposing credentials.
-7. Run `/plan-analysis`, `/start-coding`, and `/testing` through at least Codex
-   and one SSH-attached IDE against the same runtime contract.
+7. Run `/plan-analysis`, `/start-coding`, and `/testing` through Codex and one
+   IDE adapter against the same runtime contract. Prefer SSH attach; accept the
+   documented `sbx exec` terminal adapter only after recording a reproducible
+   failure of the pinned experimental SSH authentication probe.
