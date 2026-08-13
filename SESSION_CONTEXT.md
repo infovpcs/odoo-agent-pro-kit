@@ -193,9 +193,10 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Current state
 
-- Phase 7 is complete. The sole next task is to open a reviewed release pull
-  request from `feature/docker-sandbox-phase-7`; do not merge, tag, or publish
-  without explicit user authorization.
+- Phase 7 is complete and release PR #2 is the reviewed integration vehicle.
+  The user authorized pushing the branch and merging after validation/review.
+  Apple Silicon macOS and Windows 11 remain community-validation candidates,
+  not release claims.
 
 - FOUNDATION-001 is committed as `2c2b6d6` on
   `feature/docker-sandbox-planning-foundation`.
@@ -306,6 +307,11 @@ that consumes stable Community releases instead of forking this repository.
 - Follow-up review required verified quarantine when graceful Odoo stop itself
   fails during restore recovery. The controller now checks running container
   IDs, force-removes any survivor, verifies absence, and tests that fallback.
+- A third review identified three additional valid edge cases. Failed fleet
+  provisioning now removes the inner runtime and outer Sandbox while recording
+  cleanup failures; restore failure state is persisted before quarantine and
+  survives quarantine/diagnostic errors; migration names are capped at 53
+  characters so generated controller session IDs remain valid.
 - The Phase 5 KVM host used a documented 1-vCPU/2-GiB validation override per
   microVM because the designated host has 2 vCPU/15 GiB. The shipped default
   remains 2 vCPU/8 GiB and the outer 40 GiB disk target is advisory in sbx
@@ -391,25 +397,15 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Next task
 
-### Task ID: RELEASE-001 — Phase 7 release hardening
-
-Goal: add the CI, platform runbooks, upgrade/rollback matrix, measurements,
-capacity guidance, migration documentation, and clean-host release acceptance
-defined by Phase 7.
-
-Steps:
-
-- [ ] Start Phase 7 only in a fresh session after the Phase 6 focused commit.
-- [ ] Read the Phase 7 checklist and linked release-hardening contracts.
-
-Work from a fresh session after reading this file and the Phase 6 section of
-`docs/docker-sandbox/tasks.md`.
+Complete PR #2 review and merge only after all required checks pass. After
+merge, triage community Apple Silicon macOS and Windows 11 validation reports,
+bugs, and linked fix proposals individually; do not mark either platform tested
+without reproducible evidence.
 
 ## Following tasks
 
-1. **RELEASE-001:** implement Phase 7 release hardening.
-2. Continue in the order and gates defined by
-   `docs/docker-sandbox/tasks.md`.
+1. Review community platform evidence and fix proposals as they arrive.
+2. Plan the next roadmap phase in a fresh session before implementation.
 
 ## Validation commands
 

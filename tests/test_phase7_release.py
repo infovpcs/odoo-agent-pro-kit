@@ -58,3 +58,16 @@ def test_migration_rejects_invalid_module_name(tmp_path):
     assert proc.returncode != 0
     assert "valid Odoo technical module name" in proc.stderr
     assert not (tmp_path / "escaped").exists()
+
+
+def test_migration_rejects_name_that_breaks_generated_session_id(tmp_path):
+    source = tmp_path / "source"
+    source.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=source, check=True)
+    proc = subprocess.run(
+        ["python3", "sandbox/scripts/migrate-local.py", "--source", str(source),
+         "--version", "19", "--name", "a" * 54],
+        cwd=ROOT, text=True, capture_output=True,
+    )
+    assert proc.returncode != 0
+    assert "at most 53 characters" in proc.stderr

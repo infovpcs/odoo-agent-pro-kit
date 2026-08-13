@@ -127,6 +127,42 @@ def test_restore_quarantine_force_removes_running_odoo(monkeypatch):
     assert removed == [["docker", "rm", "--force", "odoo-container"]]
 
 
+def test_restore_quarantine_failure_still_persists_failed_state(monkeypatch, tmp_path):
+    controller = load_controller()
+    session, directory = fake_session(controller, tmp_path)
+    (directory / "runtime.env").write_text("POSTGRES_USER=odoo\nODOO_DB_NAME=sandbox_db\n")
+    backup = directory / "backups/failed.dump"
+    backup.parent.mkdir()
+    backup.write_bytes(b"not-a-valid-dump")
+    quarantine_calls = 0
+    transitions = []
+    results = []
+
+    def fake_quarantine(_session):
+        nonlocal quarantine_calls
+        quarantine_calls += 1
+        if quarantine_calls == 2:
+            raise RuntimeError("container remains running")
+
+    monkeypatch.setattr(controller, "ensure_odoo_stopped", fake_quarantine)
+    monkeypatch.setattr(controller.subprocess, "run", lambda *args, **kwargs: subprocess.CompletedProcess(args, 1))
+    monkeypatch.setattr(controller, "diagnostics", lambda *args, **kwargs: "diagnostics.tar.gz")
+    monkeypatch.setattr(controller, "transition", lambda *args, **kwargs: transitions.append((args, kwargs)))
+    monkeypatch.setattr(controller, "result", lambda *args, **kwargs: results.append((args, kwargs)))
+
+    try:
+        controller.database_restore(session, backup)
+    except RuntimeError as error:
+        assert "restore failed" in str(error)
+    else:
+        raise AssertionError("invalid restore unexpectedly succeeded")
+
+    assert transitions[0][0][1] == "failed"
+    assert transitions[-1][1]["failure"]["quarantine"] == "failed"
+    assert "container remains running" in transitions[-1][1]["failure"]["quarantine_error"]
+    assert results[-1][0][3] == "failed"
+
+
 def test_failure_scenarios_have_bundle_and_recovery_contract():
     controller = (ROOT / "sandbox/bin/sandboxctl").read_text()
     for scenario in ("create-failed", "readiness-timeout", "module-{operation}-failed", "{operation}-failed"):

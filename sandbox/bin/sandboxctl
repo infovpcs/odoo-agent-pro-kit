@@ -448,10 +448,21 @@ def database_restore(session, source):
     except Exception as exc:
         # Keep Odoo stopped so a partially restored database is never exposed as
         # ready. Recovery requires another explicit restore or operator action.
-        ensure_odoo_stopped(session)
-        bundle = diagnostics(session, "database-restore-failed")
-        transition(session, "failed", failure={"summary": str(exc), "diagnostic_bundle": bundle})
-        result(session, "restore", started, "failed", 1, str(exc), {"code": "restore_failed", "summary": str(exc), "diagnostic_bundle": bundle}, [str(source)])
+        failure = {"summary": str(exc), "quarantine": "pending"}
+        transition(session, "failed", failure=failure)
+        try:
+            ensure_odoo_stopped(session)
+        except Exception as quarantine_exc:
+            failure["quarantine"] = "failed"
+            failure["quarantine_error"] = str(quarantine_exc)
+        else:
+            failure["quarantine"] = "succeeded"
+        try:
+            failure["diagnostic_bundle"] = diagnostics(session, "database-restore-failed")
+        except Exception as diagnostic_exc:
+            failure["diagnostic_error"] = str(diagnostic_exc)
+        transition(session, "failed", failure=failure)
+        result(session, "restore", started, "failed", 1, str(exc), {"code": "restore_failed", **failure}, [str(source)])
         raise
     else:
         transition(session, "ready", failure=None)

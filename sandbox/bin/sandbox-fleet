@@ -87,8 +87,13 @@ def run(command, *, check=True, capture=False):
 
 def active_count(sessions):
     # Failed sessions retain their microVM for diagnosis and still consume
-    # capacity until stopped, cancelled, or destroyed.
-    return sum(item["status"] in {"provisioning", "ready", "active", "failed", "destroying"} for item in sessions)
+    # capacity until stopped, cancelled, or destroyed. Failed provisioning that
+    # already removed its outer Sandbox does not consume a runtime slot.
+    return sum(
+        item["status"] in {"provisioning", "ready", "active", "failed", "destroying"}
+        and not (item["status"] == "failed" and item.get("cleanup", {}).get("outer_removed"))
+        for item in sessions
+    )
 
 
 def require_capacity(sessions):
@@ -121,8 +126,10 @@ def cmd_create(args):
             "result": None, "cleanup_guard": {"commit": False, "push": False, "patch_export": False},
         }
         write_session(data)
+    outer_created = False
     try:
         run([str(AGENT), "create", args.agent, name, str(ROOT), str(config["cpus_per_session"]), f"{config['memory_gib_per_session']}g"])
+        outer_created = True
         run(["sbx", "exec", name, "--", "git", "switch", "-c", data["branch"]])
         container_cpu = str(min(1.0, float(config["cpus_per_session"])))
         run(["sbx", "exec", name, "--", "env", f"ODOO_CPU_LIMIT={container_cpu}", f"POSTGRES_CPU_LIMIT={container_cpu}", "sandbox/bin/sandboxctl", "create", "--version", args.version, "--module", args.module, "--session", name])
@@ -136,7 +143,24 @@ def cmd_create(args):
         write_session(data)
         print(name)
     except (subprocess.CalledProcessError, RuntimeError) as error:
-        data.update(status="failed", result={"status": "failed", "operation": "create", "message": str(error)})
+        cleanup_errors = []
+        if outer_created:
+            inner = run(
+                ["sbx", "exec", name, "--", "sandbox/bin/sandboxctl", "destroy", name, "--allow-unexported"],
+                check=False, capture=True,
+            )
+            if inner.returncode:
+                cleanup_errors.append("inner runtime cleanup failed")
+            outer = run(["sbx", "rm", "--force", name], check=False, capture=True)
+            if outer.returncode:
+                cleanup_errors.append("outer Sandbox cleanup failed")
+        result_data = {"status": "failed", "operation": "create", "message": str(error)}
+        if cleanup_errors:
+            result_data["cleanup_errors"] = cleanup_errors
+        data.update(status="failed", result=result_data, cleanup={
+            "outer_created": outer_created,
+            "outer_removed": outer_created and "outer Sandbox cleanup failed" not in cleanup_errors,
+        })
         write_session(data)
         raise
 

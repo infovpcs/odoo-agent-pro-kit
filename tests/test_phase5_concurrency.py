@@ -50,6 +50,8 @@ def test_create_requires_successful_port_publication():
     fleet = (ROOT / "sandbox/bin/sandbox-fleet").read_text()
     assert 'if port_result.returncode != 0 or not host_port:' in fleet
     assert 'raise RuntimeError(f"required Odoo port publication failed:' in fleet
+    assert '["sbx", "rm", "--force", name]' in fleet
+    assert '"outer_removed": outer_created and' in fleet
 
 
 def test_capacity_counts_retained_failures(monkeypatch):
@@ -64,6 +66,8 @@ def test_capacity_counts_retained_failures(monkeypatch):
         assert "limit" in str(error)
     else:
         raise AssertionError("active-session limit was not enforced")
+    sessions[1]["cleanup"] = {"outer_removed": True}
+    fleet.require_capacity(sessions)
 
 
 def test_cleanup_guard_requires_recoverable_work(monkeypatch, tmp_path):

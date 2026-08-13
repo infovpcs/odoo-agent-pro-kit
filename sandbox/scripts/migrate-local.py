@@ -14,8 +14,8 @@ parser.add_argument("--version", required=True, choices=["17", "18", "19"])
 parser.add_argument("--name", required=True)
 parser.add_argument("--output-root", default=".sandbox/imports")
 args = parser.parse_args()
-if not re.fullmatch(r"[a-z][a-z0-9_]*", args.name):
-    raise SystemExit("name must be a valid Odoo technical module name")
+if not re.fullmatch(r"[a-z][a-z0-9_]{0,52}", args.name):
+    raise SystemExit("name must be a valid Odoo technical module name of at most 53 characters")
 source = Path(args.source).resolve()
 if not source.is_dir() or not (source / ".git").exists():
     raise SystemExit("source must be the root of a Git repository")
