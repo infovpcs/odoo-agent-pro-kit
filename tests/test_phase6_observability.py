@@ -160,6 +160,26 @@ def test_restore_quarantine_failure_still_persists_failed_state(monkeypatch, tmp
     assert "container remains running" in transitions[-1][1]["failure"]["quarantine_error"]
     assert stack_quarantines == [session]
     assert results[-1][0][3] == "failed"
+    assert (directory / "restore-blocked.json").is_file()
+
+
+def test_recover_refuses_unsuccessful_restore(monkeypatch, tmp_path):
+    controller = load_controller()
+    session, directory = fake_session(controller, tmp_path)
+    (directory / "restore-blocked.json").write_text("{}\n")
+    compose_calls = []
+    monkeypatch.setattr(controller, "compose", lambda *args, **kwargs: compose_calls.append(args))
+    monkeypatch.setattr(controller, "diagnostics", lambda *args, **kwargs: "diagnostics.tar.gz")
+    monkeypatch.setattr(controller, "transition", lambda *args, **kwargs: None)
+    monkeypatch.setattr(controller, "result", lambda *args, **kwargs: None)
+
+    try:
+        controller.recover(session, 30)
+    except RuntimeError as error:
+        assert "complete an explicit restore first" in str(error)
+    else:
+        raise AssertionError("recovery bypassed the failed-restore integrity block")
+    assert compose_calls == []
 
 
 def test_failure_scenarios_have_bundle_and_recovery_contract():

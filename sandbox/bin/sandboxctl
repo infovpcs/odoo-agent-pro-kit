@@ -451,6 +451,11 @@ def database_restore(session, source):
     if not source.is_file(): raise RuntimeError(f"backup not found: {source}")
     if state_dir(session).resolve() not in source.parents: raise RuntimeError("restore accepts only this session's backup artifacts")
     started = time.time(); env = load_env(session)
+    restore_block = state_dir(session) / "restore-blocked.json"
+    restore_block.write_text(json.dumps({
+        "blocked_at": now(), "backup": str(source),
+        "reason": "restore has not completed successfully",
+    }, indent=2) + "\n")
     try:
         ensure_odoo_stopped(session)
         with source.open("rb") as stream:
@@ -487,6 +492,7 @@ def database_restore(session, source):
         }, [str(source)])
         raise
     else:
+        restore_block.unlink(missing_ok=True)
         transition(session, "ready", failure=None)
         result(session, "restore", started, "succeeded", 0, artifacts=[str(source)])
 
@@ -494,6 +500,9 @@ def database_restore(session, source):
 def recover(session, timeout):
     started = time.time()
     try:
+        restore_block = state_dir(session) / "restore-blocked.json"
+        if restore_block.exists():
+            raise RuntimeError("recovery blocked after unsuccessful database restore; complete an explicit restore first")
         compose(session, "up", "-d", "--wait", "--wait-timeout", str(timeout))
         wait_ready(session, timeout)
         transition(session, "ready", failure=None)
