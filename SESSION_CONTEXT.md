@@ -318,6 +318,9 @@ that consumes stable Community releases instead of forking this repository.
 - Unsuccessful restores now persist an integrity-block marker. Generic recovery
   refuses to start the stack while it exists; only a successful explicit
   restore clears the marker and permits the session to return to ready.
+- Fleet provisioning cleanup now runs after every outer creation attempt,
+  including when the creation subprocess returns nonzero after partial success,
+  preventing a partially created Sandbox from being orphaned.
 - The Phase 5 KVM host used a documented 1-vCPU/2-GiB validation override per
   microVM because the designated host has 2 vCPU/15 GiB. The shipped default
   remains 2 vCPU/8 GiB and the outer 40 GiB disk target is advisory in sbx

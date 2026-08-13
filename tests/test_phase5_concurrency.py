@@ -51,7 +51,8 @@ def test_create_requires_successful_port_publication():
     assert 'if port_result.returncode != 0 or not host_port:' in fleet
     assert 'raise RuntimeError(f"required Odoo port publication failed:' in fleet
     assert '["sbx", "rm", "--force", name]' in fleet
-    assert '"outer_removed": outer_created and' in fleet
+    assert "outer_creation_attempted = True" in fleet
+    assert '"outer_removed": outer_creation_attempted and' in fleet
 
 
 def test_capacity_counts_retained_failures(monkeypatch):
