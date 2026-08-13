@@ -329,6 +329,9 @@ that consumes stable Community releases instead of forking this repository.
   module-name limit required by generated controller session IDs.
 - Keyboard interruption during restore now enters the same durable failed-state,
   quarantine, diagnostic, and integrity-block path as other restore failures.
+- Repeated interruption during restore quarantine, full-stack fallback, or
+  diagnostics is caught and recorded so subsequent cleanup and terminal result
+  persistence still run.
 - Fleet provisioning cleanup now runs after every outer creation attempt,
   including when the creation subprocess returns nonzero after partial success,
   preventing a partially created Sandbox from being orphaned.

@@ -476,11 +476,11 @@ def database_restore(session, source):
         transition(session, "failed", failure=failure)
         try:
             ensure_odoo_stopped(session)
-        except Exception as quarantine_exc:
+        except (Exception, KeyboardInterrupt) as quarantine_exc:
             failure["quarantine_error"] = str(quarantine_exc)
             try:
                 ensure_stack_stopped(session)
-            except Exception as stack_exc:
+            except (Exception, KeyboardInterrupt) as stack_exc:
                 failure["quarantine"] = "failed"
                 failure["stack_quarantine_error"] = str(stack_exc)
             else:
@@ -489,7 +489,7 @@ def database_restore(session, source):
             failure["quarantine"] = "succeeded"
         try:
             failure["diagnostic_bundle"] = diagnostics(session, "database-restore-failed")
-        except Exception as diagnostic_exc:
+        except (Exception, KeyboardInterrupt) as diagnostic_exc:
             failure["diagnostic_error"] = str(diagnostic_exc)
         transition(session, "failed", failure=failure)
         result(session, "restore", started, "failed", 1, str(exc), {

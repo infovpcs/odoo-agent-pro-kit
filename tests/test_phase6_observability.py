@@ -205,6 +205,9 @@ def test_restore_interruption_uses_failure_quarantine_path():
     controller = (ROOT / "sandbox/bin/sandboxctl").read_text()
     restore_section = controller.split("def database_restore", 1)[1].split("def recover", 1)[0]
     assert "except (Exception, KeyboardInterrupt) as exc:" in restore_section
+    assert "except (Exception, KeyboardInterrupt) as quarantine_exc:" in restore_section
+    assert "except (Exception, KeyboardInterrupt) as stack_exc:" in restore_section
+    assert "except (Exception, KeyboardInterrupt) as diagnostic_exc:" in restore_section
 
 
 def test_failure_scenarios_have_bundle_and_recovery_contract():
