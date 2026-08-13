@@ -60,6 +60,7 @@ marks a fleet session ready and cleanup runs after every outer creation attempt,
 including a creation command that fails after partial success. Failed
 provisioning interruption follows the same cleanup and terminal-state path.
 Repeated SIGINT is ignored until cleanup and terminal-state persistence finish.
+Initial provisioning-state persistence is inside the same guarded lifecycle.
 Failed database restore records failed state before quarantine, preserves that state
 even if quarantine or diagnostics also fail, and uses force-removal fallback
 plus a volume-preserving full-stack teardown to keep the modified database

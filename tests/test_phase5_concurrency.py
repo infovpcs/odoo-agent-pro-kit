@@ -56,6 +56,8 @@ def test_create_requires_successful_port_publication():
     assert "RuntimeError, KeyboardInterrupt" in fleet
     assert "signal.signal(signal.SIGINT, signal.SIG_IGN)" in fleet
     assert "signal.signal(signal.SIGINT, previous_sigint)" in fleet
+    assert "data = None\n    try:\n        with controller_lock():" in fleet
+    assert "if data is None:\n            raise" in fleet
 
 
 def test_capacity_counts_retained_failures(monkeypatch):

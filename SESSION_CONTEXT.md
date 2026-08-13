@@ -338,6 +338,9 @@ that consumes stable Community releases instead of forking this repository.
 - Provisioning cleanup temporarily ignores repeated SIGINT and writes terminal
   state before restoring normal signal handling, so a second Ctrl-C cannot skip
   outer removal or leave the manifest in provisioning.
+- Allocation and initial provisioning-manifest persistence now occur inside the
+  same interruption handler, eliminating the window between writing
+  `provisioning` and entering guarded cleanup.
 - The Phase 5 KVM host used a documented 1-vCPU/2-GiB validation override per
   microVM because the designated host has 2 vCPU/15 GiB. The shipped default
   remains 2 vCPU/8 GiB and the outer 40 GiB disk target is advisory in sbx

@@ -112,22 +112,23 @@ def cmd_create(args):
         raise RuntimeError("version must be 17, 18, or 19")
     if not re.fullmatch(r"[a-z][a-z0-9_]*", args.module):
         raise RuntimeError("module must be a valid Odoo technical name")
-    with controller_lock():
-        sessions = read_sessions()
-        require_capacity(sessions)
-        name = session_name(args.version, args.module)
-        config = policy()
-        data = {
-            "schema_version": "1.0.0", "session_id": name, "module": args.module,
-            "odoo_version": f"{args.version.removesuffix('.0')}.0", "agent": args.agent,
-            "status": "provisioning", "branch": branch_name(name), "created_at": now(),
-            "last_activity_at": now(), "ports": [],
-            "resources": {"cpus": config["cpus_per_session"], "memory_gib": config["memory_gib_per_session"], "disk_gib": config["disk_gib_per_session"]},
-            "result": None, "cleanup_guard": {"commit": False, "push": False, "patch_export": False},
-        }
-        write_session(data)
     outer_creation_attempted = False
+    data = None
     try:
+        with controller_lock():
+            sessions = read_sessions()
+            require_capacity(sessions)
+            name = session_name(args.version, args.module)
+            config = policy()
+            data = {
+                "schema_version": "1.0.0", "session_id": name, "module": args.module,
+                "odoo_version": f"{args.version.removesuffix('.0')}.0", "agent": args.agent,
+                "status": "provisioning", "branch": branch_name(name), "created_at": now(),
+                "last_activity_at": now(), "ports": [],
+                "resources": {"cpus": config["cpus_per_session"], "memory_gib": config["memory_gib_per_session"], "disk_gib": config["disk_gib_per_session"]},
+                "result": None, "cleanup_guard": {"commit": False, "push": False, "patch_export": False},
+            }
+            write_session(data)
         outer_creation_attempted = True
         run([str(AGENT), "create", args.agent, name, str(ROOT), str(config["cpus_per_session"]), f"{config['memory_gib_per_session']}g"])
         run(["sbx", "exec", name, "--", "git", "switch", "-c", data["branch"]])
@@ -143,6 +144,8 @@ def cmd_create(args):
         write_session(data)
         print(name)
     except (subprocess.CalledProcessError, RuntimeError, KeyboardInterrupt) as error:
+        if data is None:
+            raise
         cleanup_errors = []
         previous_sigint = signal.signal(signal.SIGINT, signal.SIG_IGN)
         try:
