@@ -194,6 +194,11 @@ def test_restore_integrity_guard_blocks_direct_start(tmp_path):
         raise AssertionError("direct start bypassed the failed-restore integrity block")
 
 
+def test_module_dispatch_enforces_restore_integrity():
+    controller = (ROOT / "sandbox/bin/sandboxctl").read_text()
+    assert 'require_restore_integrity(args.session, f"module {args.operation}")' in controller
+
+
 def test_failure_scenarios_have_bundle_and_recovery_contract():
     controller = (ROOT / "sandbox/bin/sandboxctl").read_text()
     for scenario in ("create-failed", "readiness-timeout", "module-{operation}-failed", "{operation}-failed"):

@@ -64,7 +64,8 @@ even if quarantine or diagnostics also fail, and uses force-removal fallback
 plus a volume-preserving full-stack teardown to keep the modified database
 inaccessible. An unsuccessful restore leaves a persistent integrity block that
 generic recovery cannot clear; only a successful explicit restore clears it.
-Direct session start enforces the same integrity block.
+Direct session start and module install/update/test enforce the same integrity
+block.
 Migration names must match the controller's Odoo
 technical-name contract and its conservative 52-character generated-session limit before a
 target path is constructed.

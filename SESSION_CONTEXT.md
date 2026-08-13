@@ -320,6 +320,8 @@ that consumes stable Community releases instead of forking this repository.
   restore clears the marker and permits the session to return to ready.
 - Both generic recovery and direct session start enforce the restore-integrity
   marker, closing alternate lifecycle paths to a partially restored database.
+- Module install, update, and test dispatch also enforces the marker before it
+  can mutate the database or relabel the failed session as recoverable.
 - Fleet provisioning cleanup now runs after every outer creation attempt,
   including when the creation subprocess returns nonzero after partial success,
   preventing a partially created Sandbox from being orphaned.

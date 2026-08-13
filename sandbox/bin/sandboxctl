@@ -543,6 +543,7 @@ def main():
         if not command: raise SystemExit("exec requires a command after --")
         raise SystemExit(compose(args.session, "exec", "-T", "odoo", *command, check=False).returncode)
     if args.command == "module":
+        require_restore_integrity(args.session, f"module {args.operation}")
         raise SystemExit(module_operation(args.session, args.operation, args.module))
     if args.command == "logs":
         raise SystemExit(print_logs(args.session, args.service, args.follow, args.since))
