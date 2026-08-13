@@ -87,7 +87,11 @@ def test_failed_restore_keeps_odoo_stopped_and_marks_session_failed(monkeypatch,
     transitions = []
     results = []
 
-    monkeypatch.setattr(controller, "compose", lambda _session, *args, **kwargs: compose_calls.append(args))
+    def fake_compose(_session, *args, **kwargs):
+        compose_calls.append(args)
+        return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(controller, "compose", fake_compose)
     monkeypatch.setattr(controller.subprocess, "run", lambda *args, **kwargs: subprocess.CompletedProcess(args, 1))
     monkeypatch.setattr(controller, "diagnostics", lambda *args, **kwargs: "diagnostics.tar.gz")
     monkeypatch.setattr(controller, "transition", lambda *args, **kwargs: transitions.append((args, kwargs)))
@@ -100,9 +104,27 @@ def test_failed_restore_keeps_odoo_stopped_and_marks_session_failed(monkeypatch,
     else:
         raise AssertionError("invalid restore unexpectedly succeeded")
 
-    assert compose_calls == [("stop", "odoo"), ("stop", "odoo")]
+    assert compose_calls == [
+        ("stop", "odoo"), ("ps", "-q", "odoo"), ("ps", "-q", "odoo"),
+        ("stop", "odoo"), ("ps", "-q", "odoo"), ("ps", "-q", "odoo"),
+    ]
     assert transitions[-1][0][1] == "failed"
     assert results[-1][0][3] == "failed"
+
+
+def test_restore_quarantine_force_removes_running_odoo(monkeypatch):
+    controller = load_controller()
+    outputs = iter(["odoo-container\n", ""])
+    removed = []
+
+    def fake_compose(_session, *args, **kwargs):
+        stdout = next(outputs) if args[:3] == ("ps", "-q", "odoo") else ""
+        return subprocess.CompletedProcess(args, 1 if args[0] == "stop" else 0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(controller, "compose", fake_compose)
+    monkeypatch.setattr(controller.subprocess, "run", lambda command, **kwargs: removed.append(command) or subprocess.CompletedProcess(command, 0))
+    controller.ensure_odoo_stopped("phase6-session")
+    assert removed == [["docker", "rm", "--force", "odoo-container"]]
 
 
 def test_failure_scenarios_have_bundle_and_recovery_contract():
@@ -110,7 +132,7 @@ def test_failure_scenarios_have_bundle_and_recovery_contract():
     for scenario in ("create-failed", "readiness-timeout", "module-{operation}-failed", "{operation}-failed"):
         assert scenario in controller
     assert 'transition(session, "recoverable"' in controller
-    assert 'compose(session, "stop", "odoo", check=False)' in controller
+    assert "ensure_odoo_stopped(session)" in controller
     assert 'diagnostics(session, "interrupted-operation")' in controller
     assert 'diagnostics(session, "recovery-failed")' in controller
     assert "restore accepts only this session's backup artifacts" in controller

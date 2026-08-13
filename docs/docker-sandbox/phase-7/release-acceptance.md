@@ -57,5 +57,6 @@ Unsupported platform tests and failed gates are blockers, not passes.
 
 Release review additionally requires that failed outer port publication never
 marks a fleet session ready, failed database restore keeps Odoo stopped and the
-session failed, and migration names match the controller's Odoo technical-name
+session failed after verified Odoo quarantine (with force-removal fallback),
+and migration names match the controller's Odoo technical-name
 contract before a target path is constructed.

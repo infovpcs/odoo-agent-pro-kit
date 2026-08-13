@@ -303,6 +303,9 @@ that consumes stable Community releases instead of forking this repository.
   fails fleet creation when port publication fails, keeps Odoo stopped and the
   session failed after a database-restore error, and validates migration names
   before constructing the staging path; regression tests cover all three.
+- Follow-up review required verified quarantine when graceful Odoo stop itself
+  fails during restore recovery. The controller now checks running container
+  IDs, force-removes any survivor, verifies absence, and tests that fallback.
 - The Phase 5 KVM host used a documented 1-vCPU/2-GiB validation override per
   microVM because the designated host has 2 vCPU/15 GiB. The shipped default
   remains 2 vCPU/8 GiB and the outer 40 GiB disk target is advisory in sbx
