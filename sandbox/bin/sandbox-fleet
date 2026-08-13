@@ -142,7 +142,7 @@ def cmd_create(args):
         data.update(status="ready", last_activity_at=now(), result={"status": "succeeded", "operation": "create"})
         write_session(data)
         print(name)
-    except (subprocess.CalledProcessError, RuntimeError) as error:
+    except (subprocess.CalledProcessError, RuntimeError, KeyboardInterrupt) as error:
         cleanup_errors = []
         if outer_creation_attempted:
             inner = run(

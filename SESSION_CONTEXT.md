@@ -323,6 +323,9 @@ that consumes stable Community releases instead of forking this repository.
 - Fleet provisioning cleanup now runs after every outer creation attempt,
   including when the creation subprocess returns nonzero after partial success,
   preventing a partially created Sandbox from being orphaned.
+- Operator interruption during outer creation, branch setup, inner provisioning,
+  or port publication now uses the same cleanup and failed-manifest path instead
+  of leaving an allocated Sandbox and a perpetual provisioning record.
 - The Phase 5 KVM host used a documented 1-vCPU/2-GiB validation override per
   microVM because the designated host has 2 vCPU/15 GiB. The shipped default
   remains 2 vCPU/8 GiB and the outer 40 GiB disk target is advisory in sbx

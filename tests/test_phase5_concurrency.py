@@ -53,6 +53,7 @@ def test_create_requires_successful_port_publication():
     assert '["sbx", "rm", "--force", name]' in fleet
     assert "outer_creation_attempted = True" in fleet
     assert '"outer_removed": outer_creation_attempted and' in fleet
+    assert "RuntimeError, KeyboardInterrupt" in fleet
 
 
 def test_capacity_counts_retained_failures(monkeypatch):
