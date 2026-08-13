@@ -70,6 +70,10 @@ and the full cross-version test matrix.
 
 Community `/fleet` allocates one local Docker Sandbox per module task through
 `sandbox/bin/sandbox-fleet`; shared and remote fleet scheduling remain Pro.
+Session logs, redacted diagnostics, stable test artifacts, bounded recovery,
+and explicit development-database backup/restore use the Phase 6 controller
+contract documented in
+[`docs/docker-sandbox/phase-6/observability-recovery.md`](docs/docker-sandbox/phase-6/observability-recovery.md).
 
 The Odoo 17/18/19 inner runtime controller is documented in
 [`sandbox/README.md`](sandbox/README.md). Phase gates remain authoritative in

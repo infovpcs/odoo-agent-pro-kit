@@ -120,16 +120,16 @@ Exit gate: one failed session does not change or stop any sibling session.
 
 ## Phase 6: Observability and recovery
 
-- [ ] Implement unified service log streaming and filtering.
-- [ ] Implement redacted diagnostic bundles with Compose state, health, events,
+- [x] Implement unified service log streaming and filtering.
+- [x] Implement redacted diagnostic bundles with Compose state, health, events,
   resources, policy diagnostics, and operation results.
-- [ ] Emit JUnit/coverage/browser artifacts in stable locations.
-- [ ] Add optional OpenTelemetry log export interface.
-- [ ] Add crash, denied-network, disk-pressure, invalid-module, interrupted
+- [x] Emit JUnit/coverage/browser artifacts in stable locations.
+- [x] Add optional OpenTelemetry log export interface.
+- [x] Add crash, denied-network, disk-pressure, invalid-module, interrupted
   operation, and controller-restart tests.
-- [ ] Add backup/restore for session development databases when explicitly
+- [x] Add backup/restore for session development databases when explicitly
   requested.
-- [ ] LIVE TEST: inject each supported failure and confirm actionable logs,
+- [x] LIVE TEST: inject each supported failure and confirm actionable logs,
   bounded retry, recovery/cleanup, and sibling health.
 
 Exit gate: every failure scenario produces a redacted diagnostic bundle and a

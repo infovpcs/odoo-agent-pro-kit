@@ -27,7 +27,7 @@ bash -n \
   scripts/validate.sh
 
 echo "==> Python syntax"
-python3 -m py_compile sandbox/bin/sandboxctl sandbox/scripts/fixture-lifecycle.py
+python3 -m py_compile sandbox/bin/sandboxctl sandbox/scripts/fixture-lifecycle.py sandbox/tests/phase6-verify.py
 
 echo "==> Git whitespace validation"
 git diff --check

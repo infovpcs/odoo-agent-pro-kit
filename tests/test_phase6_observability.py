@@ -1,0 +1,89 @@
+import importlib.machinery
+import importlib.util
+import json
+import subprocess
+import tarfile
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def load_controller():
+    path = ROOT / "sandbox/bin/sandboxctl"
+    loader = importlib.machinery.SourceFileLoader("sandboxctl_phase6", str(path))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+def fake_session(controller, tmp_path):
+    controller.ROOT = tmp_path
+    session = "phase6-session"
+    directory = controller.state_dir(session)
+    for child in ("logs", "results", "diagnostics", "tests/junit", "tests/coverage", "tests/browser/screenshots"):
+        (directory / child).mkdir(parents=True, exist_ok=True)
+    (directory / "runtime.env").write_text("POSTGRES_PASSWORD=hunter2\nODOO_API_KEY=abc123\n")
+    (directory / "session.json").write_text(json.dumps({"session_id": session, "odoo_version": "19.0", "module": "sandbox_fixture"}))
+    (directory / "events.jsonl").write_text('{"status":"failed","token":"abc123"}\n')
+    (directory / "results/result.json").write_text('{"message":"password=hunter2"}\n')
+    return session, directory
+
+
+def test_phase6_commands_are_exposed():
+    help_result = subprocess.run([str(ROOT / "sandbox/bin/sandboxctl"), "--help"], capture_output=True, text=True, check=True)
+    for command in ("logs", "diagnose", "backup", "restore", "recover"):
+        assert command in help_result.stdout
+
+
+def test_redacted_diagnostic_bundle_has_stable_evidence(monkeypatch, tmp_path):
+    controller = load_controller()
+    session, directory = fake_session(controller, tmp_path)
+
+    def completed(*_args, **_kwargs):
+        return subprocess.CompletedProcess([], 0, stdout="password=hunter2 token=abc123\n", stderr="")
+
+    monkeypatch.setattr(controller.subprocess, "run", completed)
+    bundle = Path(controller.diagnostics(session, "denied-network"))
+    assert bundle.parent == directory / "diagnostics"
+    with tarfile.open(bundle) as archive:
+        names = set(archive.getnames())
+        assert {"bundle.json", "compose-state.json", "compose-processes.log", "resources.jsonl", "service-logs.log", "policy.json", "session.json", "events.jsonl", "results/result.json"} <= names
+        content = b"".join(archive.extractfile(name).read() for name in names if archive.getmember(name).isfile())
+    assert b"hunter2" not in content
+    assert b"abc123" not in content
+    assert b"[REDACTED]" in content
+
+
+def test_stable_test_artifacts_are_machine_readable(tmp_path):
+    controller = load_controller()
+    session, directory = fake_session(controller, tmp_path)
+    controller.write_test_artifacts(session, "sandbox_fixture", 1)
+    assert "failures=\"1\"" in (directory / "tests/junit/junit.xml").read_text()
+    assert "line-rate=\"0\"" in (directory / "tests/coverage/coverage.xml").read_text()
+    assert json.loads((directory / "tests/browser/result.json").read_text())["status"] == "not_run"
+
+
+def test_optional_telemetry_file_interface(tmp_path):
+    controller = load_controller()
+    session, directory = fake_session(controller, tmp_path)
+    target = tmp_path / "otel/events.jsonl"
+    (directory / "runtime.env").write_text(f"SANDBOX_OTEL_LOG_ENDPOINT=file://{target}\n")
+    controller.emit_telemetry(session, "health", {"status": "recoverable"})
+    record = json.loads(target.read_text())
+    assert record["session_id"] == session
+    assert record["attributes"]["status"] == "recoverable"
+
+
+def test_failure_scenarios_have_bundle_and_recovery_contract():
+    controller = (ROOT / "sandbox/bin/sandboxctl").read_text()
+    for scenario in ("create-failed", "readiness-timeout", "module-{operation}-failed", "{operation}-failed"):
+        assert scenario in controller
+    assert 'transition(session, "recoverable"' in controller
+    assert 'compose(session, "start", "odoo", check=False)' in controller
+    assert 'diagnostics(session, "interrupted-operation")' in controller
+    assert 'diagnostics(session, "recovery-failed")' in controller
+    assert "restore accepts only this session's backup artifacts" in controller
+    assert 'diagnostics(session, "invalid-module")' in controller
+    assert '"code": "invalid_module"' in controller

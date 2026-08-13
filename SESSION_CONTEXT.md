@@ -26,7 +26,7 @@ Before changing files:
 - Supported Odoo versions: 17.0, 18.0, and 19.0
 - Active workstream: public Docker Sandbox foundation and open-core commercial
   planning
-- Active branch: `feature/docker-sandbox-phase-5`
+- Active branch: `feature/docker-sandbox-phase-6`
 - Branch base: `main` at commit `192f6c9`
 - Last context update: 2026-08-13 (Asia/Kolkata)
 
@@ -180,6 +180,12 @@ that consumes stable Community releases instead of forking this repository.
   two each for Odoo 17/18/19: all installs passed, duplicate-module source/DB/
   log isolation passed, one real failed operation left five siblings healthy,
   lock/resource/cleanup gates passed, and all inner/outer resources were removed.
+- [x] Implemented Phase 6 unified metadata-prefixed logs, redacted diagnostic
+  bundles, stable test artifacts, optional JSONL telemetry, bounded recovery,
+  invalid-module validation, and explicit PostgreSQL backup/restore.
+- [x] Passed the Phase 6 Ubuntu KVM LIVE TEST with Odoo/PostgreSQL crashes,
+  denied network, bounded disk pressure, invalid module, interrupted operation,
+  controller restart, backup/restore, telemetry, redaction, and sibling health.
 
 ## Current state
 
@@ -261,6 +267,21 @@ that consumes stable Community releases instead of forking this repository.
   `/home/ubuntu/phase5-src` was removed.
 - Phase 5 is complete and committed with subject
   `Complete Docker Sandbox Phase 5 concurrency`.
+- Phase 6 candidate implementation adds unified prefixed logs, redacted
+  diagnostic tarballs, stable JUnit/coverage/browser artifacts, optional local
+  JSONL telemetry, bounded recovery, and explicit database backup/restore.
+- Phase 6 local validation passed on 2026-08-13: 42 repository tests, 18 skill
+  validations, artifact structure/locks, shell/Python syntax, and Git
+  whitespace checks.
+- The Phase 6 Ubuntu LIVE TEST produced 11 redacted bundles covering all eight
+  required reasons. Database restore returned a mutated two-row probe to its
+  one-row snapshot; telemetry, log prefixes, stable artifacts, bounded
+  recovery, and sibling health passed.
+- The first Phase 6 candidate exposed and corrected missing parent creation for
+  nested artifact paths and false success for a nonexistent module.
+- Phase 6 cleanup removed both inner Compose projects, their volumes/networks,
+  both outer Sandboxes, and disposable host sources. The host returned to
+  7.5 GiB used/37 GiB free, and `sbx ls` reported no Sandboxes.
 - The Phase 4 LIVE TEST used Codex CLI 0.146.0 in
   `odoo-phase4-codex`. Odoo session `19-sandbox-fixture-107d14` emitted
   succeeded create/install/test results, preserved the candidate fixture edit,
@@ -279,12 +300,17 @@ that consumes stable Community releases instead of forking this repository.
   Compose 5.3.1; unrelated running containers were not changed.
 - Phase 4 is complete and committed with subject
   `Complete Docker Sandbox Phase 4 adapters`.
-- Phase 5 local concurrency is the sole next task and must begin in a fresh
-  session with this context and the authoritative checklist reread.
+- Phase 6 is complete and committed on `feature/docker-sandbox-phase-6` with
+  subject `Complete Docker Sandbox Phase 6 observability`.
 
 ## Blockers and risks
 
 ### Immediate
+
+- No immediate Phase 6 blocker remains. Docker login JWKS and refresh-lock
+  connectivity was intermittent during the run; authentication diagnostics
+  passed and the completed evidence was verified from inner state rather than
+  client-stream continuity.
 
 - No immediate Phase 4 blocker remains. `ssh odoo-phase4-codex.sbx -- id` negotiated
   the managed server and host key but closed during authentication with
@@ -317,22 +343,23 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Next task
 
-### Task ID: OBSERVABILITY-001 — Phase 6 observability and recovery
+### Task ID: RELEASE-001 — Phase 7 release hardening
 
-Goal: add unified/redacted diagnostics, stable test artifacts, optional
-telemetry export, failure recovery tests, and explicit backup/restore.
+Goal: add the CI, platform runbooks, upgrade/rollback matrix, measurements,
+capacity guidance, migration documentation, and clean-host release acceptance
+defined by Phase 7.
 
 Steps:
 
-- [ ] Start Phase 6 only in a fresh session after the Phase 5 focused commit.
-- [ ] Read the Phase 6 checklist and linked observability/recovery contracts.
+- [ ] Start Phase 7 only in a fresh session after the Phase 6 focused commit.
+- [ ] Read the Phase 7 checklist and linked release-hardening contracts.
 
 Work from a fresh session after reading this file and the Phase 6 section of
 `docs/docker-sandbox/tasks.md`.
 
 ## Following tasks
 
-1. **OBSERVABILITY-001:** implement Phase 6 observability and recovery.
+1. **RELEASE-001:** implement Phase 7 release hardening.
 2. Continue in the order and gates defined by
    `docs/docker-sandbox/tasks.md`.
 

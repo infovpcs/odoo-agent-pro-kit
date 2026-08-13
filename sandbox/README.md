@@ -61,3 +61,9 @@ one outer Sandbox, normalized name, branch, inner runtime, dynamic port, and
 private result manifest. See
 `docs/docker-sandbox/phase-5/local-concurrency.md` for capacity, cancellation,
 retention, aggregation, and cleanup-guard behavior.
+
+Phase 6 adds prefixed multi-service log streaming, redacted diagnostic bundles,
+stable JUnit/coverage/browser paths, opt-in JSONL telemetry, bounded recovery,
+and explicit `pg_dump`/`pg_restore` snapshots. See
+`docs/docker-sandbox/phase-6/observability-recovery.md` for commands, retention
+boundaries, and the failure-injection contract.
