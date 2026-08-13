@@ -23,6 +23,16 @@ scoped to that.
    template — fill in Summary, Motivation, Odoo version(s) affected,
    skill(s)/component(s) touched, testing done, and the checklist.
 
+## Docker Sandbox platform testing
+
+Apple Silicon macOS and Windows 11/WSL2 are community-validation candidates.
+If you can test either platform, follow
+[`docs/docker-sandbox/community-platform-validation.md`](docs/docker-sandbox/community-platform-validation.md)
+and submit the dedicated **Docker Sandbox platform validation** issue. Reports
+should contain exact versions, commands, results, cleanup evidence, and only
+redacted logs. Reproducible bug fixes and runbook corrections are welcome as
+pull requests linked to the report.
+
 ## Review process
 
 The validation entrypoint runs the repository tests, checks shell syntax and
@@ -34,7 +44,7 @@ A human maintainer makes the final merge decision.
 
 ## Scope guidance
 
-In scope: Odoo 17.0/18.0/19.0 skills, commands, hooks, local setup scripts,
+In scope: Odoo 17.0/18.0/19.0 skills, commands, hooks, local/Sandbox setup scripts,
 and agent integrations (Claude Code, Codex, Cursor, Antigravity, VS Code,
 GitHub Copilot).
 

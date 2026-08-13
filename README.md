@@ -83,6 +83,10 @@ configuring or releasing the Sandbox runtime.
 The Ubuntu KVM release matrix and measured capacity limits are recorded in
 [`phase-7/live-test.md`](docs/docker-sandbox/phase-7/live-test.md); Apple Silicon
 and Windows procedures remain unclaimed candidate runbooks until executed.
+Community members with that hardware can follow the
+[`platform validation guide`](docs/docker-sandbox/community-platform-validation.md),
+report results or bugs through the dedicated issue template, and propose tested
+runbook or compatibility fixes by pull request.
 
 The Odoo 17/18/19 inner runtime controller is documented in
 [`sandbox/README.md`](sandbox/README.md). Phase gates remain authoritative in

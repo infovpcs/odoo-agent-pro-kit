@@ -38,6 +38,8 @@ the pinned range. Run repository validation, preflight, an arm64 image build,
 and the complete release matrix. Record Docker Desktop, macOS, `sbx`, inner
 Docker, and Compose versions. Until this clean-host matrix passes, the runbook
 is published but native macOS Sandbox support is not claimed.
+Community testers should submit results using
+`../community-platform-validation.md`, including clean-host and cleanup evidence.
 
 ## macOS Intel — repository/daemon validation only
 
@@ -54,6 +56,9 @@ complete release matrix only if the pinned `sbx` build supports the platform;
 otherwise record the capability failure and use the Ubuntu KVM host. Native
 PowerShell paths and NTFS workspaces are compatibility surfaces, not validated
 runtime targets, until the clean-host matrix passes.
+Community testers should submit results using
+`../community-platform-validation.md`; WSL and native Windows behavior must be
+identified separately.
 
 ## Cleanup
 

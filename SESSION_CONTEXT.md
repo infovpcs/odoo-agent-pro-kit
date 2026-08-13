@@ -295,6 +295,10 @@ that consumes stable Community releases instead of forking this repository.
   RAM, 7.5 GiB disk used, and no published Sandbox ports.
 - Phase 7 is committed on `feature/docker-sandbox-phase-7` with subject
   `Complete Docker Sandbox Phase 7 hardening` and pushed for review.
+- Apple Silicon macOS and Windows 11/WSL2 remain community-validation
+  candidates. Contributors are directed to a dedicated evidence template and
+  guide; maintainers review test reports, bugs, and linked fix proposals one by
+  one before changing platform support status.
 - The Phase 5 KVM host used a documented 1-vCPU/2-GiB validation override per
   microVM because the designated host has 2 vCPU/15 GiB. The shipped default
   remains 2 vCPU/8 GiB and the outer 40 GiB disk target is advisory in sbx
