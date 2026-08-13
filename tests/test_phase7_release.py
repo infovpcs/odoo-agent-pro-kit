@@ -71,3 +71,8 @@ def test_migration_rejects_name_that_breaks_generated_session_id(tmp_path):
     )
     assert proc.returncode != 0
     assert "at most 52 characters" in proc.stderr
+
+
+def test_controller_caps_module_name_for_generated_session_id():
+    controller = (ROOT / "sandbox/bin/sandboxctl").read_text()
+    assert 're.fullmatch(r"[a-z][a-z0-9_]{0,51}", args.module)' in controller

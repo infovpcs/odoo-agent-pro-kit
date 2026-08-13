@@ -238,8 +238,8 @@ def wait_ready(session, timeout=180):
 
 def cmd_create(args):
     major, version = version_config(args.version)
-    if not re.fullmatch(r"[a-z][a-z0-9_]*", args.module):
-        raise SystemExit("invalid module name")
+    if not re.fullmatch(r"[a-z][a-z0-9_]{0,51}", args.module):
+        raise SystemExit("invalid module name: use an Odoo technical name of at most 52 characters")
     session = args.session or f"{major}-{args.module.replace('_', '-')}-{secrets.token_hex(3)}"
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]{2,62}", session):
         raise SystemExit("invalid session ID")

@@ -70,4 +70,4 @@ block, as do database backup and arbitrary Odoo-service execution. Status,
 logs, diagnostics, explicit restore, and cleanup remain available.
 Migration names must match the controller's Odoo
 technical-name contract and its conservative 52-character generated-session limit before a
-target path is constructed.
+target path is constructed. Direct controller creation enforces the same bound.

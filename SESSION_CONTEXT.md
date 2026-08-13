@@ -325,6 +325,8 @@ that consumes stable Community releases instead of forking this repository.
 - Database backup and arbitrary service execution enforce the marker so partial
   restore data cannot be published or accessed. Status, logs, diagnostics,
   explicit restore, and cleanup remain available to operators.
+- Direct `sandboxctl create` and local migration now share the 52-character
+  module-name limit required by generated controller session IDs.
 - Fleet provisioning cleanup now runs after every outer creation attempt,
   including when the creation subprocess returns nonzero after partial success,
   preventing a partially created Sandbox from being orphaned.
