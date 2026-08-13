@@ -469,7 +469,7 @@ def database_restore(session, source):
             proc = subprocess.run(["docker", "compose", "--env-file", str(state_dir(session) / "runtime.env"), "-f", str(COMPOSE), "exec", "-T", "db", "pg_restore", "--clean", "--if-exists", "--no-owner", "-U", env["POSTGRES_USER"], "-d", env["ODOO_DB_NAME"]], stdin=stream)
         if proc.returncode: raise RuntimeError("database restore failed")
         compose(session, "start", "odoo"); wait_ready(session)
-    except Exception as exc:
+    except (Exception, KeyboardInterrupt) as exc:
         # Keep Odoo stopped so a partially restored database is never exposed as
         # ready. Recovery requires another explicit restore or operator action.
         failure = {"summary": str(exc), "quarantine": "pending"}

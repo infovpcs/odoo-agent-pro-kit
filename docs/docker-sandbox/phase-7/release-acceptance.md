@@ -65,6 +65,7 @@ even if quarantine or diagnostics also fail, and uses force-removal fallback
 plus a volume-preserving full-stack teardown to keep the modified database
 inaccessible. An unsuccessful restore leaves a persistent integrity block that
 generic recovery cannot clear; only a successful explicit restore clears it.
+Restore interruption uses the same failed-state and quarantine path.
 Direct session start and module install/update/test enforce the same integrity
 block, as do database backup and arbitrary Odoo-service execution. Status,
 logs, diagnostics, explicit restore, and cleanup remain available.

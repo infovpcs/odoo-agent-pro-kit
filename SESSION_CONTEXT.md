@@ -327,6 +327,8 @@ that consumes stable Community releases instead of forking this repository.
   explicit restore, and cleanup remain available to operators.
 - Direct `sandboxctl create` and local migration now share the 52-character
   module-name limit required by generated controller session IDs.
+- Keyboard interruption during restore now enters the same durable failed-state,
+  quarantine, diagnostic, and integrity-block path as other restore failures.
 - Fleet provisioning cleanup now runs after every outer creation attempt,
   including when the creation subprocess returns nonzero after partial success,
   preventing a partially created Sandbox from being orphaned.
