@@ -13,6 +13,10 @@ version-aware `/plan-analysis` → `/start-coding` → `/testing` workflow, a li
 MCP server for real-time model discovery, and coding-standard/testing skills
 for Odoo 17.0, 18.0, and 19.0 — without building any of it from scratch.
 
+Docker Sandbox sessions use `sandbox/bin/sandboxctl module` as the single
+install/update/test entrypoint. It delegates to `manage_modules.sh`, preserves
+local execution, and records machine-readable lifecycle-gate results.
+
 ## Quickstart
 
 ```bash

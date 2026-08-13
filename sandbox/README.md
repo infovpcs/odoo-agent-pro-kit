@@ -40,5 +40,9 @@ The fixture is intentionally public and contains no Enterprise source. Each
 session receives a private copy whose manifest series matches the selected
 Odoo version. Run the concurrent amd64 runtime matrix with
 `sandbox/tests/lifecycle.sh`, and validate both amd64 and arm64 image builds
-with `sandbox/tests/multiarch-build.sh`. Integration with `manage_modules.sh`
-remains Phase 3 work.
+with `sandbox/tests/multiarch-build.sh`.
+
+Phase 3 adds `sandboxctl module <session> install|update|test <module>`. The
+controller delegates to `manage_modules.sh`, which selects local or Compose
+execution, queries session database state, waits for health, and writes result
+JSON plus isolated progress. See `docs/docker-sandbox/phase-3/live-test.md`.

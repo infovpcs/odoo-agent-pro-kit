@@ -3,6 +3,19 @@
 # No-ops (exit 0, no output) when run outside a recognized Odoo workspace.
 set -uo pipefail
 
+SESSION_FILE="${SANDBOX_SESSION_FILE:-./.sandbox/session.json}"
+if [ -f "$SESSION_FILE" ]; then
+  SUMMARY=$(python3 - "$SESSION_FILE" <<'PY'
+import json, sys
+data = json.load(open(sys.argv[1]))
+runtime = data.get("runtime", {})
+print(f"[odoo-agent-pro-kit] Sandbox session {data['session_id']} — Odoo {data['odoo_version']}, module {data['module']}, status {data['status']}, Compose project {runtime.get('compose_project', 'unknown')}, MCP target http://odoo:8069")
+PY
+  ) || exit 0
+  echo "$SUMMARY"
+  exit 0
+fi
+
 VERSION=""
 for v in 19.0 18.0 17.0; do
   if [ -d "./$v" ]; then

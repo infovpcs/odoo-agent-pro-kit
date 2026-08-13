@@ -8,3 +8,6 @@ Use the Skill tool to invoke the `odoo_commanding_system` skill, then load
 through STEP 11 of that workflow for Odoo version $1 (ask the user for the
 version if $1 is not exactly one of 17, 18, or 19). If $2 is provided, use it
 as the module name; otherwise ask the user for it before proceeding.
+
+When `.sandbox/session.json` exists, use its version, module, and MCP service
+endpoint as authoritative and record session operation evidence in handoff.

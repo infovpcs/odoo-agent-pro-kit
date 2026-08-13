@@ -11,3 +11,7 @@ workflow once the PRD exists. Otherwise execute the workflow for Odoo
 version $1 (ask the user for the version if $1 is not exactly one of 17, 18,
 or 19), working through `docs/tasks.md` task-by-task with a backend test after
 each task, per the `odoo_backend_testing` skill.
+
+In sandbox mode use `sandbox/bin/sandboxctl module <session>
+install|update|test <module>` for mutations and record its result JSON. A
+missing or non-`succeeded` result keeps the task open.

@@ -228,6 +228,19 @@ curl -s "http://localhost:${ODOO_PORT}/web/health" | grep -q "pass" || \
 ```
 
 **Install/update the module — CRITICAL patterns:**
+
+Sandbox mode (when `.sandbox/session.json` exists):
+
+```bash
+SESSION_ID=$(python3 -c 'import json; print(json.load(open(".sandbox/session.json"))["session_id"])')
+sandbox/bin/sandboxctl module "$SESSION_ID" install {module_name}
+sandbox/bin/sandboxctl module "$SESSION_ID" test {module_name}
+```
+
+Record both result JSON paths in progress. Do not mark the task complete unless
+each reports `status: succeeded`, and never call raw `odoo-bin` from a skill.
+
+Local compatibility mode:
 ```bash
 # ALWAYS invoke via `bash` with WORKSPACE_PATH set — DO NOT call ./manage_modules.sh directly
 # Reason: macOS default shell is zsh (lacks bash 4+ features); on Linux bash is default but

@@ -100,6 +100,11 @@ sandboxctl export <session>
   result containing session, operation, module, attempt, duration, status, and
   relevant log paths.
 
+The Phase 3 implementation writes these results below the canonical session
+state directory and records the latest result in `module-progress.json`.
+Sandbox lifecycle skills gate on `status: succeeded`; local-mode callers retain
+their existing commands and defaults.
+
 ### Agent skills and context
 
 - The existing coding standards, version tools, backend/frontend testing,

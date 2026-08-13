@@ -17,6 +17,10 @@ How CommandingSystem commands pass episodic memory to the next command.
 
 ## Context Write: End of Each Command
 
+In sandbox mode, record the path and status of the latest result under
+`.sandbox/sessions/<session-id>/results/`. A gate passes only when that JSON
+reports `status: succeeded`; terminal output alone is not evidence.
+
 ### After /plan-analysis completes
 
 ```bash

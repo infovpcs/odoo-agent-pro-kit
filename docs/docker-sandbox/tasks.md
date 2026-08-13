@@ -56,21 +56,21 @@ from a warm image cache.
 
 Exit gate: the same controller interface passes for all three versions.
 
-## Phase 3: Existing kit integration
+## Phase 3: Existing kit integration — complete
 
-- [ ] Refactor `manage_modules.sh` into environment resolution, executor, and
+- [x] Refactor `manage_modules.sh` into environment resolution, executor, and
   operation layers while retaining local mode.
-- [ ] Add the `compose` executor and machine-readable exit/result contract.
-- [ ] Update install/update decision logic to query the session database and
+- [x] Add the `compose` executor and machine-readable exit/result contract.
+- [x] Update install/update decision logic to query the session database and
   isolated progress state.
-- [ ] Update MCP configuration for Compose service discovery and session-scoped
+- [x] Update MCP configuration for Compose service discovery and session-scoped
   endpoints.
-- [ ] Update SessionStart and context handoff to read `session.json`.
-- [ ] Update backend/frontend testing skills with sandbox command examples.
-- [ ] Update `/plan-analysis`, `/start-coding`, and `/testing` gates to record
+- [x] Update SessionStart and context handoff to read `session.json`.
+- [x] Update backend/frontend testing skills with sandbox command examples.
+- [x] Update `/plan-analysis`, `/start-coding`, and `/testing` gates to record
   session operation results.
-- [ ] Add `.sandbox/` ignore rules while preserving user-authored docs/context.
-- [ ] LIVE TEST: execute all three lifecycle commands in an Odoo 19 Codex
+- [x] Add `.sandbox/` ignore rules while preserving user-authored docs/context.
+- [x] LIVE TEST: execute all three lifecycle commands in an Odoo 19 Codex
   sandbox and verify install/update/log gates.
 
 Exit gate: existing local-mode tests still pass and sandbox mode completes one

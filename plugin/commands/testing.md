@@ -11,3 +11,6 @@ then resume this workflow once all tasks are done. Otherwise execute the
 workflow for Odoo version $1 (ask the user for the version if $1 is not
 exactly one of 17, 18, or 19), using the `agent_browser_automation` and
 `odoo_module_documentation` skills for frontend tests and documentation assets.
+
+In sandbox mode require a successful session `update` result before browser
+testing and record the final `test` result. Never invoke `odoo-bin` directly.

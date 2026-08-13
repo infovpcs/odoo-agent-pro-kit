@@ -11,7 +11,7 @@ from typing import Optional, Literal
 from pathlib import Path
 
 from pydantic import BaseModel, Field, field_validator
-from dotenv import load_dotenv
+from dotenv import dotenv_values, load_dotenv
 
 # Load .env file
 # override=False so that env vars already set in the process environment
@@ -20,6 +20,26 @@ from dotenv import load_dotenv
 load_dotenv(override=False)
 
 logger = logging.getLogger(__name__)
+
+
+def load_session_environment() -> None:
+    """Resolve session-scoped Compose settings without overriding explicit env."""
+    manifest_path = Path(os.environ.get("SANDBOX_SESSION_FILE", ".sandbox/session.json"))
+    if not manifest_path.is_file():
+        return
+    try:
+        manifest = __import__("json").loads(manifest_path.read_text())
+        session_id = manifest["session_id"]
+        runtime_env = manifest_path.parent / "sessions" / session_id / "runtime.env"
+        values = dotenv_values(runtime_env) if runtime_env.is_file() else {}
+        os.environ.setdefault("DEFAULT_ODOO_VERSION", manifest["odoo_version"])
+        os.environ.setdefault("ODOO_URL", "http://odoo:8069")
+        os.environ.setdefault("ODOO_DB_NAME", str(values.get("ODOO_DB_NAME", "sandbox_db")))
+        os.environ.setdefault("ODOO_DB_USER", "admin")
+        os.environ.setdefault("ODOO_DB_PASSWORD", str(values.get("ODOO_API_PASSWORD", "")))
+        os.environ.setdefault("MCP_SERVER_HOST", "0.0.0.0")
+    except (KeyError, OSError, ValueError) as exc:
+        logger.warning("Unable to load sandbox session manifest %s: %s", manifest_path, exc)
 
 
 class OdooConfig(BaseModel):
@@ -99,6 +119,7 @@ def load_config(version: Optional[str] = None) -> OdooConfig:
         - ODOO18_URL, ODOO18_DB_NAME, ODOO18_DB_USER, ODOO18_DB_PASSWORD
         - ODOO19_URL, ODOO19_DB_NAME, ODOO19_DB_USER, ODOO19_DB_PASSWORD
     """
+    load_session_environment()
     # Determine version
     if version is None:
         version = os.environ.get("DEFAULT_ODOO_VERSION", "19.0")

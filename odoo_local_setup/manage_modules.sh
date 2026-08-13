@@ -14,6 +14,7 @@ set -e  # Exit on any error
 
 # Version detection (can be overridden via environment or argument)
 WORKSPACE_PATH="${WORKSPACE_PATH:-.}"
+ODOO_EXECUTOR="${ODOO_EXECUTOR:-local}"
 if [ -z "${ODOO_VERSION:-}" ]; then
     if [ -d "$WORKSPACE_PATH/19.0" ]; then
         ODOO_VERSION="19"
@@ -70,7 +71,7 @@ elif [ -f "$PROJECT_DIR/odoo.conf" ]; then
     CONFIG_FILE="$PROJECT_DIR/odoo.conf"
 else
     # Fallback to standard template path
-    CONFIG_FILE="$PROJECT_DIR/config/odoo.conf.${ODOO_VERSION}"
+CONFIG_FILE="$PROJECT_DIR/config/odoo.conf.${ODOO_VERSION}"
 fi
 # Use script directory for logs and other output if PROJECT_DIR is just "."
 if [ "$PROJECT_DIR" = "." ] || [ "$PROJECT_DIR" = "" ]; then
@@ -78,7 +79,9 @@ if [ "$PROJECT_DIR" = "." ] || [ "$PROJECT_DIR" = "" ]; then
 else
     LOG_DIR="$PROJECT_DIR/logs"
 fi
-LOG_FILE="$LOG_DIR/odoo.log"
+CONFIG_FILE="${ODOO_EXEC_CONFIG_FILE:-${ODOO_CONFIG_FILE:-$CONFIG_FILE}}"
+LOG_DIR="${ODOO_LOG_DIR:-$LOG_DIR}"
+LOG_FILE="${ODOO_LOG_FILE:-$LOG_DIR/odoo.log}"
 TEST_LOG_DIR="$LOG_DIR/test_results"
 ERROR_REPORT_FILE="$TEST_LOG_DIR/error_report.json"
 CUSTOM_ADDONS_DIR="${ODOO_CUSTOM_ADDONS:-$PROJECT_DIR/extra-${ODOO_VERSION}}"
@@ -101,7 +104,7 @@ get_config_value() {
 }
 
 # Version-specific defaults
-DATABASE="${DATABASE:-odoo${ODOO_VERSION}}"
+DATABASE="${ODOO_DB_NAME:-${DATABASE:-odoo${ODOO_VERSION}}}"
 DEFAULT_PORT=$((8090 + ODOO_VERSION))  # 8107, 8108, 8109
 PORT_FROM_CONFIG="$(get_config_value "http_port" "$CONFIG_FILE")"
 PORT_FROM_XMLRPC="$(get_config_value "xmlrpc_port" "$CONFIG_FILE")"
@@ -150,6 +153,17 @@ esac
 # Create necessary directories
 mkdir -p "$LOG_DIR" "$TEST_LOG_DIR"
 
+# Compose executor contract. These values are supplied by sandboxctl and may
+# also be used directly by automation in an existing session.
+COMPOSE_FILE="${COMPOSE_FILE:-}"
+COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-}"
+COMPOSE_SERVICE="${COMPOSE_SERVICE:-odoo}"
+COMPOSE_DB_SERVICE="${COMPOSE_DB_SERVICE:-db}"
+SESSION_ID="${SESSION_ID:-local-${ODOO_VERSION}-session}"
+RESULTS_DIR="${ODOO_RESULTS_DIR:-$TEST_LOG_DIR}"
+PROGRESS_FILE="${ODOO_PROGRESS_FILE:-$RESULTS_DIR/module-progress.json}"
+mkdir -p "$RESULTS_DIR"
+
 # ============================================================================
 # STARTUP & VALIDATION
 # ============================================================================
@@ -175,6 +189,19 @@ validate_setup() {
     
     echo -e "${YELLOW}🔍 Validating environment...${NC}"
     
+    if [ "$ODOO_EXECUTOR" = "compose" ]; then
+        if [ -z "$COMPOSE_FILE" ] || [ -z "$COMPOSE_ENV_FILE" ]; then
+            echo -e "${RED}❌ Compose executor requires COMPOSE_FILE and COMPOSE_ENV_FILE${NC}"
+            return 1
+        fi
+        if [ ! -f "$COMPOSE_FILE" ] || [ ! -f "$COMPOSE_ENV_FILE" ]; then
+            echo -e "${RED}❌ Compose configuration is missing${NC}"
+            return 1
+        fi
+        docker compose --env-file "$COMPOSE_ENV_FILE" -f "$COMPOSE_FILE" ps >/dev/null
+        return $?
+    fi
+
     if [ ! -d "$ODOO_DIR" ]; then
         echo -e "${RED}❌ Odoo directory not found: $ODOO_DIR${NC}"
         ((errors++))
@@ -386,6 +413,90 @@ EOFTRBL
 # CORE FUNCTIONS
 # ============================================================================
 
+compose_run() {
+    docker compose --env-file "$COMPOSE_ENV_FILE" -f "$COMPOSE_FILE" "$@"
+}
+
+module_is_installed() {
+    local module="$1"
+    if [ "$ODOO_EXECUTOR" = "compose" ]; then
+        compose_run exec -T "$COMPOSE_DB_SERVICE" psql -U "${POSTGRES_USER:-odoo_runtime}" -d "$DATABASE" -Atqc \
+            "SELECT 1 FROM ir_module_module WHERE name = '$module' AND state = 'installed' LIMIT 1" 2>/dev/null | grep -qx 1
+    else
+        psql -d "$DATABASE" -Atqc \
+            "SELECT 1 FROM ir_module_module WHERE name = '$module' AND state = 'installed' LIMIT 1" 2>/dev/null | grep -qx 1
+    fi
+}
+
+write_progress_state() {
+    local module="$1" operation="$2" status="$3" result_file="$4"
+    python3 - "$PROGRESS_FILE" "$SESSION_ID" "$module" "$operation" "$status" "$result_file" <<'PY'
+import json, pathlib, sys
+path = pathlib.Path(sys.argv[1])
+data = {}
+if path.exists():
+    try: data = json.loads(path.read_text())
+    except json.JSONDecodeError: data = {}
+data.update({"session_id": sys.argv[2], "module": sys.argv[3], "last_operation": sys.argv[4],
+             "last_status": sys.argv[5], "last_result": sys.argv[6]})
+path.parent.mkdir(parents=True, exist_ok=True)
+path.write_text(json.dumps(data, indent=2) + "\n")
+PY
+}
+
+emit_operation_result() {
+    local operation="$1"
+    local module="$2" started_epoch="$3" exit_code="$4" operation_log="$5"
+    local status="succeeded" error_code="" result_file
+    [ "$exit_code" -eq 0 ] || { status="failed"; error_code="${operation}_failed"; }
+    result_file="$RESULTS_DIR/${operation}-$(date +%s)-$$.json"
+    python3 - "$result_file" "$SESSION_ID" "$operation" "$module" "$started_epoch" "$exit_code" "$operation_log" "$status" "$error_code" <<'PY'
+import datetime, json, pathlib, sys, time
+target, session, operation, module, started, code, log, status, error_code = sys.argv[1:]
+started = int(started)
+now = datetime.datetime.now(datetime.timezone.utc)
+data = {"schema_version":"1.0.0", "session_id":session, "operation_id":pathlib.Path(target).stem,
+        "operation":operation, "module":module, "attempt":1, "status":status,
+        "started_at":datetime.datetime.fromtimestamp(started, datetime.timezone.utc).isoformat().replace("+00:00","Z"),
+        "finished_at":now.isoformat().replace("+00:00","Z"), "duration_ms":max(0, int((time.time()-started)*1000)),
+        "exit_code":int(code), "message":None, "logs":[log], "artifacts":[], "error":None}
+if error_code:
+    data["error"]={"code":error_code, "summary":f"{operation} failed; inspect {log}", "diagnostic_bundle":None}
+pathlib.Path(target).write_text(json.dumps(data, indent=2)+"\n")
+PY
+    write_progress_state "$module" "$operation" "$status" "$result_file"
+    echo "RESULT_FILE=$result_file"
+}
+
+compose_module_operation() {
+    local requested="$1" modules="$2"
+    local operation="$requested" flag="--update" rc=0
+    local test_args=()
+    local started operation_log module
+    started=$(date +%s)
+    operation_log="$TEST_LOG_DIR/${requested}_$(date '+%Y%m%d_%H%M%S').log"
+    module="${modules%%,*}"
+
+    validate_setup || rc=$?
+    if [ "$rc" -eq 0 ] && [ "$requested" = "install" ] && module_is_installed "$module"; then
+        operation="update"
+        echo "Module $module is already installed in $DATABASE; resolving install request to update."
+    fi
+    [ "$operation" = "install" ] && flag="--init"
+    [ "$operation" = "test" ] && test_args=(--test-enable)
+
+    if [ "$rc" -eq 0 ]; then
+        compose_run stop "$COMPOSE_SERVICE" >>"$operation_log" 2>&1 || rc=$?
+    fi
+    if [ "$rc" -eq 0 ]; then
+        compose_run run --rm -T "$COMPOSE_SERVICE" odoo --config "$CONFIG_FILE" --database "$DATABASE" \
+            "$flag" "$modules" "${test_args[@]}" --stop-after-init --no-http >>"$operation_log" 2>&1 || rc=$?
+    fi
+    compose_run up -d --wait --wait-timeout "${ODOO_READY_TIMEOUT:-180}" "$COMPOSE_SERVICE" >>"$operation_log" 2>&1 || [ "$rc" -ne 0 ] || rc=$?
+    emit_operation_result "$operation" "$module" "$started" "$rc" "$operation_log"
+    return "$rc"
+}
+
 show_usage() {
     echo -e "${CYAN}Usage: $0 <command> [modules] [options]${NC}"
     echo ""
@@ -494,6 +605,10 @@ install_module_requirements() {
 
 install_modules() {
     local modules="${1:-$DEFAULT_MODULES}"
+    if [ "$ODOO_EXECUTOR" = "compose" ]; then
+        compose_module_operation install "$modules"
+        return $?
+    fi
     local timestamp=$(date '+%Y%m%d_%H%M%S')
     local install_log="$TEST_LOG_DIR/install_${timestamp}.log"
     local error_log="$LOG_DIR/install_errors_${timestamp}.log"
@@ -531,6 +646,10 @@ install_modules() {
 
 update_modules() {
     local modules="${1:-$DEFAULT_MODULES}"
+    if [ "$ODOO_EXECUTOR" = "compose" ]; then
+        compose_module_operation update "$modules"
+        return $?
+    fi
     local timestamp=$(date '+%Y%m%d_%H%M%S')
     local update_log="$TEST_LOG_DIR/update_${timestamp}.log"
     local error_log="$LOG_DIR/update_errors_${timestamp}.log"
@@ -565,6 +684,10 @@ update_modules() {
 
 run_tests() {
     local modules="${1:-$DEFAULT_MODULES}"
+    if [ "$ODOO_EXECUTOR" = "compose" ]; then
+        compose_module_operation test "$modules"
+        return $?
+    fi
     
     echo -e "${BLUE}========================================${NC}"
     echo -e "${BLUE}RUNNING TESTS (Odoo ${ODOO_VERSION})${NC}"

@@ -28,7 +28,7 @@ Before changing files:
   planning
 - Active branch: `feature/docker-sandbox-phase-1`
 - Branch base: `main` at commit `192f6c9`
-- Last context update: 2026-08-12 (Asia/Kolkata)
+- Last context update: 2026-08-13 (Asia/Kolkata)
 
 ## Objective
 
@@ -147,6 +147,15 @@ that consumes stable Community releases instead of forking this repository.
   copies, and concurrent lifecycle coverage.
 - [x] Built every Phase 2 dev image for linux/amd64 and linux/arm64 as OCI
   output and passed the concurrent amd64 LIVE TEST in an Ubuntu KVM Sandbox.
+- [x] Implemented the Phase 3 Compose executor, `sandboxctl module` delegation,
+  database-aware install/update resolution, structured results/progress,
+  session manifest handoff, unified Odoo file logs, and lifecycle skill gates.
+- [x] Passed the Phase 3 underlying Odoo 19 runtime gates in an Ubuntu KVM
+  Codex Sandbox: install/update/test, JSON-2 CRUD, result/progress/log gates,
+  health wait, destroy, orphan check, and outer Sandbox removal.
+- [x] Passed the literal Phase 3 Codex LIVE TEST after OAuth restoration:
+  `/plan-analysis`, `/start-coding`, and `/testing` recorded successful
+  install/update/test/JSON-2/log gates without raw `odoo-bin` skill calls.
 
 ## Current state
 
@@ -189,7 +198,7 @@ that consumes stable Community releases instead of forking this repository.
   repository validation stopped with `No module named pytest`. Per the approved
   platform split, clean-shell repository validation ran on the Intel workstation.
 - No branch has been pushed and no private Pro repository has been created.
-- Active branch: `feature/docker-sandbox-phase-2`.
+- Active branch: `feature/docker-sandbox-phase-3`.
 - Phase 2 repository validation passes with 20 tests, 18 validated skills,
   shell/Python syntax checks, and Git whitespace validation.
 - The Intel workstation passed the concurrent warm-cache amd64 lifecycle and
@@ -200,13 +209,25 @@ that consumes stable Community releases instead of forking this repository.
   concurrently and passed install, data-changing update, protocol CRUD,
   restart, export, destroy, and orphan checks. The Sandbox was removed and the
   host returned to 5.9 GiB used.
+- Phase 3 contract tests pass locally. A real workstation Docker attempt did
+  not provision because the Docker daemon was unavailable; no container or
+  volume was created and the disposable failed state was moved away.
+- Clean-shell `./scripts/validate.sh` passed on 2026-08-13: 24 tests, 18 skill
+  validations, shell/Python syntax, and Git whitespace checks all passed.
+- Final post-LIVE-TEST clean-shell validation repeated successfully on
+  2026-08-13 with the same 24/18/syntax/whitespace results.
+- Phase 3 is complete and committed on `feature/docker-sandbox-phase-3` with
+  subject `Complete Docker Sandbox Phase 3 integration`.
+- The Phase 3 KVM runtime run produced succeeded install/update/test results,
+  verified Odoo 19 JSON-2 CRUD, and retrieved 61,597 bytes through the Odoo log
+  gate. The active inner and outer sessions were fully removed.
 
 ## Blockers and risks
 
 ### Immediate
 
-- No immediate Phase 2 blocker remains. The authorized validation connection is
-  available through the ignored local file documented under Current state.
+- No immediate Phase 3 blocker remains. OpenAI OAuth is configured in the
+  Docker Sandbox host secret store; no credential was added to the repository.
 - Docker supports Sandbox on Apple Silicon macOS 14+; this host is Intel macOS.
 - Native macOS Sandbox behavior remains untested because the workstation is
   Intel. It is not required by the approved validation policy unless a future
@@ -223,23 +244,22 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Next task
 
-### Task ID: KIT-001 — Phase 3 existing kit integration
+### Task ID: TEMPLATE-001 — Phase 4 agent templates and IDE adapters
 
-Goal: connect the validated Compose controller to the existing module manager,
-MCP startup, context hooks, and lifecycle skills while preserving local mode.
+Goal: package the validated controller/skills into minimal agent templates and
+IDE attach adapters while keeping platform differences outside the runtime.
 
 Steps:
 
-- [ ] Read the Phase 3 checklist and the current `manage_modules.sh`, MCP,
-  SessionStart, and lifecycle command contracts.
-- [ ] Implement and validate only Phase 3 in a fresh session.
+- [ ] Start Phase 4 only in a fresh session after the Phase 3 focused commit.
+- [ ] Read the Phase 4 checklist and linked template/kit design contracts.
 
-Work from a fresh session after reading this file and the Phase 3 section of
+Work from a fresh session after reading this file and the Phase 4 section of
 `docs/docker-sandbox/tasks.md`.
 
 ## Following tasks
 
-1. **KIT-001:** integrate the existing module manager and lifecycle skills.
+1. **TEMPLATE-001:** implement Phase 4 agent templates, kits, and IDE adapters.
 2. Continue in the order and gates defined by
    `docs/docker-sandbox/tasks.md`.
 

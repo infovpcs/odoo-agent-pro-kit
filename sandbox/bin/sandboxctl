@@ -18,6 +18,7 @@ COMPOSE = ROOT / "sandbox/compose/compose.yaml"
 LOCK = ROOT / "sandbox/config/images.lock"
 TEMPLATE = ROOT / "sandbox/config/odoo.conf.template"
 VERSIONS = ROOT / "sandbox/config/versions.yaml"
+MANAGE_MODULES = ROOT / "odoo_local_setup/manage_modules.sh"
 
 
 def now():
@@ -107,6 +108,12 @@ def write_manifest(data):
     data["updated_at"] = now()
     path = state_dir(data["session_id"]) / "session.json"
     path.write_text(json.dumps(data, indent=2) + "\n")
+    # Session-local consumers (hooks, MCP, and lifecycle skills) use one stable
+    # active-session path; the controller's canonical history remains under
+    # .sandbox/sessions/<session-id>/.
+    active = ROOT / ".sandbox/session.json"
+    active.parent.mkdir(parents=True, exist_ok=True)
+    active.write_text(json.dumps(data, indent=2) + "\n")
 
 
 def transition(session, status, **extra):
@@ -244,6 +251,28 @@ def simple_operation(session, operation, action):
         raise
 
 
+def module_operation(session, operation, module_name):
+    data = manifest(session)
+    env = os.environ.copy()
+    env.update(load_env(session))
+    env.update({
+        "ODOO_EXECUTOR": "compose",
+        "ODOO_VERSION": data["odoo_version"].split(".")[0],
+        "ODOO_DB_NAME": env["ODOO_DB_NAME"],
+        "ODOO_EXEC_CONFIG_FILE": "/etc/odoo/odoo.conf",
+        "ODOO_CUSTOM_ADDONS": "/mnt/extra-addons",
+        "ODOO_LOG_DIR": str(state_dir(session) / "logs"),
+        "ODOO_LOG_FILE": str(state_dir(session) / "logs/odoo.log"),
+        "ODOO_RESULTS_DIR": str(state_dir(session) / "results"),
+        "ODOO_PROGRESS_FILE": str(state_dir(session) / "module-progress.json"),
+        "SESSION_ID": session,
+        "COMPOSE_FILE": str(COMPOSE),
+        "COMPOSE_ENV_FILE": str(state_dir(session) / "runtime.env"),
+    })
+    proc = subprocess.run(["bash", str(MANAGE_MODULES), operation, module_name], env=env, cwd=ROOT)
+    return proc.returncode
+
+
 def main():
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="command", required=True)
@@ -254,6 +283,7 @@ def main():
         if name == "logs": item.add_argument("--service", choices=("odoo", "db")); item.add_argument("--follow", action="store_true")
         if name == "destroy": item.add_argument("--keep-state", action="store_true")
     execute = sub.add_parser("exec"); execute.add_argument("session"); execute.add_argument("remainder", nargs=argparse.REMAINDER)
+    module = sub.add_parser("module"); module.add_argument("session"); module.add_argument("operation", choices=("install", "update", "test")); module.add_argument("module")
     args = parser.parse_args()
     if args.command == "create": return cmd_create(args)
     if not state_dir(args.session).is_dir(): raise SystemExit(f"unknown session: {args.session}")
@@ -263,9 +293,16 @@ def main():
         command = args.remainder[1:] if args.remainder[:1] == ["--"] else args.remainder
         if not command: raise SystemExit("exec requires a command after --")
         raise SystemExit(compose(args.session, "exec", "-T", "odoo", *command, check=False).returncode)
+    if args.command == "module":
+        raise SystemExit(module_operation(args.session, args.operation, args.module))
     if args.command == "logs":
         command = ["logs", "--no-color"] + (["--follow"] if args.follow else []) + ([args.service] if args.service else [])
-        raise SystemExit(compose(args.session, *command, check=False).returncode)
+        proc = compose(args.session, *command, check=False)
+        file_log = state_dir(args.session) / "logs/odoo.log"
+        if not args.follow and args.service in (None, "odoo") and file_log.is_file():
+            print(f"[{args.session}/odoo/file] {file_log}")
+            print(file_log.read_text(), end="")
+        raise SystemExit(proc.returncode)
     if args.command == "stop":
         transition(args.session, "stopping"); simple_operation(args.session, "stop", lambda: compose(args.session, "stop")); transition(args.session, "stopped"); return
     if args.command == "start":
@@ -280,6 +317,9 @@ def main():
         transition(args.session, "destroying")
         def destroy(): compose(args.session, "down", "--volumes", "--remove-orphans")
         simple_operation(args.session, "destroy", destroy); transition(args.session, "destroyed")
+        active = ROOT / ".sandbox/session.json"
+        if active.exists() and json.loads(active.read_text()).get("session_id") == args.session:
+            active.unlink()
         if not args.keep_state: shutil.rmtree(state_dir(args.session)); return
 
 

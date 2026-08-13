@@ -237,6 +237,12 @@ The final implementation must use the flags supported by the selected official
 image and must serialize module mutations within one session. Different
 sessions require no shared database lock.
 
+Phase 3 implements this boundary with `ODOO_EXECUTOR=local|compose` and keeps
+the Compose host bind-mount config (`ODOO_CONFIG_FILE`) distinct from the
+container CLI path (`ODOO_EXEC_CONFIG_FILE`). `sandboxctl module` supplies the
+session environment, and `manage_modules.sh` owns database-state resolution,
+bounded post-operation health, result JSON, and isolated progress state.
+
 ## Logging and observability
 
 Each session has a `.sandbox/` directory ignored by Git:

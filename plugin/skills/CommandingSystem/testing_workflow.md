@@ -185,6 +185,13 @@ echo "✅ All system dependencies ready"
 
 ## STEP 5: Install / Update Module
 
+Sandbox mode (when `.sandbox/session.json` exists): resolve `session_id`, run
+`sandbox/bin/sandboxctl module <session_id> update {module_name}`, and require
+the emitted result JSON to report `status: succeeded`. Record that path in
+progress before continuing. Do not invoke raw `odoo-bin`.
+
+Local compatibility mode:
+
 ```bash
 # ALWAYS invoke via `bash` with WORKSPACE_PATH set explicitly.
 # macOS default shell is zsh (which lacks bash 4+ features used in manage_modules.sh).
