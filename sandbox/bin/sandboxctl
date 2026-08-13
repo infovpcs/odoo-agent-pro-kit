@@ -432,9 +432,18 @@ def database_restore(session, source):
         with source.open("rb") as stream:
             proc = subprocess.run(["docker", "compose", "--env-file", str(state_dir(session) / "runtime.env"), "-f", str(COMPOSE), "exec", "-T", "db", "pg_restore", "--clean", "--if-exists", "--no-owner", "-U", env["POSTGRES_USER"], "-d", env["ODOO_DB_NAME"]], stdin=stream)
         if proc.returncode: raise RuntimeError("database restore failed")
-    finally:
-        compose(session, "start", "odoo", check=False); wait_ready(session)
-    result(session, "restore", started, "succeeded", 0, artifacts=[str(source)])
+        compose(session, "start", "odoo"); wait_ready(session)
+    except Exception as exc:
+        # Keep Odoo stopped so a partially restored database is never exposed as
+        # ready. Recovery requires another explicit restore or operator action.
+        compose(session, "stop", "odoo", check=False)
+        bundle = diagnostics(session, "database-restore-failed")
+        transition(session, "failed", failure={"summary": str(exc), "diagnostic_bundle": bundle})
+        result(session, "restore", started, "failed", 1, str(exc), {"code": "restore_failed", "summary": str(exc), "diagnostic_bundle": bundle}, [str(source)])
+        raise
+    else:
+        transition(session, "ready", failure=None)
+        result(session, "restore", started, "succeeded", 0, artifacts=[str(source)])
 
 
 def recover(session, timeout):

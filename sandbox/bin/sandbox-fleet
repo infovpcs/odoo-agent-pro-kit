@@ -128,8 +128,10 @@ def cmd_create(args):
         run(["sbx", "exec", name, "--", "env", f"ODOO_CPU_LIMIT={container_cpu}", f"POSTGRES_CPU_LIMIT={container_cpu}", "sandbox/bin/sandboxctl", "create", "--version", args.version, "--module", args.module, "--session", name])
         port_result = run(["sbx", "ports", name, "--publish", "8069"], check=False, capture=True)
         host_port = parse_port(port_result.stdout + port_result.stderr)
-        if port_result.returncode == 0 and host_port:
-            data["ports"] = [{"service": "odoo", "container_port": 8069, "host_port": host_port, "host_ip": "127.0.0.1"}]
+        if port_result.returncode != 0 or not host_port:
+            detail = (port_result.stderr or port_result.stdout or "no published port returned").strip()
+            raise RuntimeError(f"required Odoo port publication failed: {detail}")
+        data["ports"] = [{"service": "odoo", "container_port": 8069, "host_port": host_port, "host_ip": "127.0.0.1"}]
         data.update(status="ready", last_activity_at=now(), result={"status": "succeeded", "operation": "create"})
         write_session(data)
         print(name)

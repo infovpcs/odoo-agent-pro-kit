@@ -44,3 +44,17 @@ def test_phase7_skill_and_runbooks_are_discoverable():
     assert "release-acceptance.py verify" in skill
     for name in ("operator-runbooks.md", "release-acceptance.md", "migration-capacity.md"):
         assert (ROOT / "docs/docker-sandbox/phase-7" / name).is_file()
+
+
+def test_migration_rejects_invalid_module_name(tmp_path):
+    source = tmp_path / "source"
+    source.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=source, check=True)
+    proc = subprocess.run(
+        ["python3", "sandbox/scripts/migrate-local.py", "--source", str(source),
+         "--version", "19", "--name", "../../escaped"],
+        cwd=ROOT, text=True, capture_output=True,
+    )
+    assert proc.returncode != 0
+    assert "valid Odoo technical module name" in proc.stderr
+    assert not (tmp_path / "escaped").exists()

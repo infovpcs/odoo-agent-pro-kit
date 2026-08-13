@@ -76,14 +76,46 @@ def test_optional_telemetry_file_interface(tmp_path):
     assert record["attributes"]["status"] == "recoverable"
 
 
+def test_failed_restore_keeps_odoo_stopped_and_marks_session_failed(monkeypatch, tmp_path):
+    controller = load_controller()
+    session, directory = fake_session(controller, tmp_path)
+    (directory / "runtime.env").write_text("POSTGRES_USER=odoo\nODOO_DB_NAME=sandbox_db\n")
+    backup = directory / "backups/failed.dump"
+    backup.parent.mkdir()
+    backup.write_bytes(b"not-a-valid-dump")
+    compose_calls = []
+    transitions = []
+    results = []
+
+    monkeypatch.setattr(controller, "compose", lambda _session, *args, **kwargs: compose_calls.append(args))
+    monkeypatch.setattr(controller.subprocess, "run", lambda *args, **kwargs: subprocess.CompletedProcess(args, 1))
+    monkeypatch.setattr(controller, "diagnostics", lambda *args, **kwargs: "diagnostics.tar.gz")
+    monkeypatch.setattr(controller, "transition", lambda *args, **kwargs: transitions.append((args, kwargs)))
+    monkeypatch.setattr(controller, "result", lambda *args, **kwargs: results.append((args, kwargs)))
+
+    try:
+        controller.database_restore(session, backup)
+    except RuntimeError as error:
+        assert "restore failed" in str(error)
+    else:
+        raise AssertionError("invalid restore unexpectedly succeeded")
+
+    assert compose_calls == [("stop", "odoo"), ("stop", "odoo")]
+    assert transitions[-1][0][1] == "failed"
+    assert results[-1][0][3] == "failed"
+
+
 def test_failure_scenarios_have_bundle_and_recovery_contract():
     controller = (ROOT / "sandbox/bin/sandboxctl").read_text()
     for scenario in ("create-failed", "readiness-timeout", "module-{operation}-failed", "{operation}-failed"):
         assert scenario in controller
     assert 'transition(session, "recoverable"' in controller
-    assert 'compose(session, "start", "odoo", check=False)' in controller
+    assert 'compose(session, "stop", "odoo", check=False)' in controller
     assert 'diagnostics(session, "interrupted-operation")' in controller
     assert 'diagnostics(session, "recovery-failed")' in controller
     assert "restore accepts only this session's backup artifacts" in controller
     assert 'diagnostics(session, "invalid-module")' in controller
     assert '"code": "invalid_module"' in controller
+    assert 'diagnostics(session, "database-restore-failed")' in controller
+    assert '"code": "restore_failed"' in controller
+    assert 'transition(session, "failed", failure=' in controller

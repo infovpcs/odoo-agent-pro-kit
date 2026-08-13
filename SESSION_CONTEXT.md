@@ -299,6 +299,10 @@ that consumes stable Community releases instead of forking this repository.
   candidates. Contributors are directed to a dedicated evidence template and
   guide; maintainers review test reports, bugs, and linked fix proposals one by
   one before changing platform support status.
+- PR #2 external review found three valid release-safety gaps. The branch now
+  fails fleet creation when port publication fails, keeps Odoo stopped and the
+  session failed after a database-restore error, and validates migration names
+  before constructing the staging path; regression tests cover all three.
 - The Phase 5 KVM host used a documented 1-vCPU/2-GiB validation override per
   microVM because the designated host has 2 vCPU/15 GiB. The shipped default
   remains 2 vCPU/8 GiB and the outer 40 GiB disk target is advisory in sbx

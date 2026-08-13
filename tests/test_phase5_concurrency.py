@@ -46,6 +46,12 @@ def test_port_parser_accepts_sbx_loopback_mapping():
     assert fleet.parse_port("no published ports") is None
 
 
+def test_create_requires_successful_port_publication():
+    fleet = (ROOT / "sandbox/bin/sandbox-fleet").read_text()
+    assert 'if port_result.returncode != 0 or not host_port:' in fleet
+    assert 'raise RuntimeError(f"required Odoo port publication failed:' in fleet
+
+
 def test_capacity_counts_retained_failures(monkeypatch):
     fleet = load_fleet()
     monkeypatch.setattr(fleet, "policy", lambda: {"max_active_sessions": 2})
