@@ -61,6 +61,8 @@ including a creation command that fails after partial success. Failed
 provisioning interruption follows the same cleanup and terminal-state path.
 Repeated SIGINT is ignored until cleanup and terminal-state persistence finish.
 Initial provisioning-state persistence is inside the same guarded lifecycle.
+An interrupted allocation before outer creation records no runtime retained and
+does not consume fleet capacity.
 Failed database restore records failed state before quarantine, preserves that state
 even if quarantine or diagnostics also fail, and uses force-removal fallback
 plus a volume-preserving full-stack teardown to keep the modified database
@@ -69,6 +71,8 @@ generic recovery cannot clear; only a successful explicit restore clears it.
 Restore interruption uses the same failed-state and quarantine path.
 Repeated interruption during quarantine or diagnostics is recorded without
 skipping the remaining fallback and terminal result.
+An explicit restore retry recreates and waits for PostgreSQL after full-stack
+quarantine before applying the backup.
 Direct session start and module install/update/test enforce the same integrity
 block, as do database backup and arbitrary Odoo-service execution. Status,
 logs, diagnostics, explicit restore, and cleanup remain available.

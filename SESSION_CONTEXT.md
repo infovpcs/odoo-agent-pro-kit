@@ -332,6 +332,8 @@ that consumes stable Community releases instead of forking this repository.
 - Repeated interruption during restore quarantine, full-stack fallback, or
   diagnostics is caught and recorded so subsequent cleanup and terminal result
   persistence still run.
+- Explicit restore retries recreate and wait for PostgreSQL after full-stack
+  quarantine, while other recovery and data-access paths remain blocked.
 - Fleet provisioning cleanup now runs after every outer creation attempt,
   including when the creation subprocess returns nonzero after partial success,
   preventing a partially created Sandbox from being orphaned.
@@ -344,6 +346,8 @@ that consumes stable Community releases instead of forking this repository.
 - Allocation and initial provisioning-manifest persistence now occur inside the
   same interruption handler, eliminating the window between writing
   `provisioning` and entering guarded cleanup.
+- Interruption before outer creation records that no runtime is retained, so
+  the terminal failed manifest does not consume fleet capacity.
 - The Phase 5 KVM host used a documented 1-vCPU/2-GiB validation override per
   microVM because the designated host has 2 vCPU/15 GiB. The shipped default
   remains 2 vCPU/8 GiB and the outer 40 GiB disk target is advisory in sbx

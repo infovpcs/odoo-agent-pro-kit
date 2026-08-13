@@ -106,6 +106,7 @@ def test_failed_restore_keeps_odoo_stopped_and_marks_session_failed(monkeypatch,
 
     assert compose_calls == [
         ("stop", "odoo"), ("ps", "-q", "odoo"), ("ps", "-q", "odoo"),
+        ("up", "-d", "--wait", "--wait-timeout", "180", "db"),
         ("stop", "odoo"), ("ps", "-q", "odoo"), ("ps", "-q", "odoo"),
     ]
     assert transitions[-1][0][1] == "failed"
@@ -208,6 +209,7 @@ def test_restore_interruption_uses_failure_quarantine_path():
     assert "except (Exception, KeyboardInterrupt) as quarantine_exc:" in restore_section
     assert "except (Exception, KeyboardInterrupt) as stack_exc:" in restore_section
     assert "except (Exception, KeyboardInterrupt) as diagnostic_exc:" in restore_section
+    assert 'compose(session, "up", "-d", "--wait", "--wait-timeout", "180", "db")' in restore_section
 
 
 def test_failure_scenarios_have_bundle_and_recovery_contract():

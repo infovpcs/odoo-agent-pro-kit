@@ -164,7 +164,7 @@ def cmd_create(args):
                 result_data["cleanup_errors"] = cleanup_errors
             data.update(status="failed", result=result_data, cleanup={
                 "outer_creation_attempted": outer_creation_attempted,
-                "outer_removed": outer_creation_attempted and "outer Sandbox cleanup failed" not in cleanup_errors,
+                "outer_removed": not outer_creation_attempted or "outer Sandbox cleanup failed" not in cleanup_errors,
             })
             write_session(data)
         finally:
