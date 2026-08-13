@@ -190,6 +190,10 @@ that consumes stable Community releases instead of forking this repository.
   pinned-contract and dependency inventory tools, a benchmark recorder, guarded
   local migration, cross-platform operator runbooks, and the agent-facing
   `DockerSandboxOperations` skill.
+- [x] Synchronized `docs/architecture.excalidraw` and its rendered PNG with the
+  merged Docker Sandbox execution plane: bounded single-host fleet allocation,
+  one microVM per session, `sandboxctl`/`manage_modules.sh`, the private inner
+  Compose runtime, Odoo/PostgreSQL isolation, and structured session artifacts.
 
 ## Current state
 
