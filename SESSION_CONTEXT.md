@@ -26,7 +26,7 @@ Before changing files:
 - Supported Odoo versions: 17.0, 18.0, and 19.0
 - Active workstream: public Docker Sandbox foundation and open-core commercial
   planning
-- Active branch: `feature/docker-sandbox-phase-4`
+- Active branch: `feature/docker-sandbox-phase-5`
 - Branch base: `main` at commit `192f6c9`
 - Last context update: 2026-08-13 (Asia/Kolkata)
 
@@ -169,6 +169,17 @@ that consumes stable Community releases instead of forking this repository.
 - [x] Completed the Phase 4 LIVE TEST and exit gate with Codex plus the approved
   terminal adapter; supplemental OpenCode 1.18.13 also passed the same isolated
   edit, Odoo 19 module-test, correlated-log, and cleanup contract.
+- [x] Implemented the Phase 5 bounded single-host Community coordinator with
+  one outer Sandbox per task, normalized sessions/branches, ephemeral ports,
+  capacity/resource policy, idle/retention maintenance, aggregate manifests,
+  cancellation, failure isolation, and guarded cleanup.
+- [x] Added atomic allocation and per-session controller locks, idempotent
+  lifecycle transitions, inner Compose CPU/memory limits, and outer retention
+  when inner cleanup fails.
+- [x] Passed the Phase 5 Ubuntu KVM LIVE TEST with six simultaneous sessions,
+  two each for Odoo 17/18/19: all installs passed, duplicate-module source/DB/
+  log isolation passed, one real failed operation left five siblings healthy,
+  lock/resource/cleanup gates passed, and all inner/outer resources were removed.
 
 ## Current state
 
@@ -211,7 +222,7 @@ that consumes stable Community releases instead of forking this repository.
   repository validation stopped with `No module named pytest`. Per the approved
   platform split, clean-shell repository validation ran on the Intel workstation.
 - No branch has been pushed and no private Pro repository has been created.
-- Active branch: `feature/docker-sandbox-phase-4`.
+- Active branch: `feature/docker-sandbox-phase-5`.
 - Phase 2 repository validation passes with 20 tests, 18 validated skills,
   shell/Python syntax checks, and Git whitespace validation.
 - The Intel workstation passed the concurrent warm-cache amd64 lifecycle and
@@ -238,6 +249,18 @@ that consumes stable Community releases instead of forking this repository.
   validations, artifact locking, shell/Python syntax, and whitespace checks.
   The Ubuntu host validated, packed, and inspected `odoo-mixin` 0.4.0 with
   `sbx` 0.38.0; the temporary ZIP was removed after the check.
+- Final Phase 5 clean-shell validation passed on 2026-08-13 with 37 tests, 18
+  skill validations, artifact structure/locks, shell/Python syntax, and Git
+  whitespace checks.
+- The Phase 5 KVM host used a documented 1-vCPU/2-GiB validation override per
+  microVM because the designated host has 2 vCPU/15 GiB. The shipped default
+  remains 2 vCPU/8 GiB and the outer 40 GiB disk target is advisory in sbx
+  0.38.x. Inner Compose reported a 3 GiB/1.0 CPU Odoo limit.
+- Six unique ports in the observed 32771-32781 range were closed after cleanup;
+  `sbx ls` reported no Sandboxes, the host used 7.5 GiB disk, and disposable
+  `/home/ubuntu/phase5-src` was removed.
+- Phase 5 is complete and committed with subject
+  `Complete Docker Sandbox Phase 5 concurrency`.
 - The Phase 4 LIVE TEST used Codex CLI 0.146.0 in
   `odoo-phase4-codex`. Odoo session `19-sandbox-fixture-107d14` emitted
   succeeded create/install/test results, preserved the candidate fixture edit,
@@ -294,22 +317,22 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Next task
 
-### Task ID: TEMPLATE-001 — Phase 4 agent templates and IDE adapters
+### Task ID: OBSERVABILITY-001 — Phase 6 observability and recovery
 
-Goal: package the validated controller/skills into minimal agent templates and
-IDE attach adapters while keeping platform differences outside the runtime.
+Goal: add unified/redacted diagnostics, stable test artifacts, optional
+telemetry export, failure recovery tests, and explicit backup/restore.
 
 Steps:
 
-- [ ] Start Phase 4 only in a fresh session after the Phase 3 focused commit.
-- [ ] Read the Phase 4 checklist and linked template/kit design contracts.
+- [ ] Start Phase 6 only in a fresh session after the Phase 5 focused commit.
+- [ ] Read the Phase 6 checklist and linked observability/recovery contracts.
 
-Work from a fresh session after reading this file and the Phase 4 section of
+Work from a fresh session after reading this file and the Phase 6 section of
 `docs/docker-sandbox/tasks.md`.
 
 ## Following tasks
 
-1. **TEMPLATE-001:** implement Phase 4 agent templates, kits, and IDE adapters.
+1. **OBSERVABILITY-001:** implement Phase 6 observability and recovery.
 2. Continue in the order and gates defined by
    `docs/docker-sandbox/tasks.md`.
 

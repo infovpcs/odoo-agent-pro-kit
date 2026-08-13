@@ -19,6 +19,8 @@ Approved session and operation-result contracts live in `sandbox/schemas/`.
 Phase 1 runtime usage is documented in [`../../sandbox/README.md`](../../sandbox/README.md),
 and its required microVM procedure is in [`phase-1/live-test.md`](phase-1/live-test.md).
 Phase 2 cross-version evidence is in [`phase-2/live-test.md`](phase-2/live-test.md).
+Phase 5's bounded Community fleet contract is in
+[`phase-5/local-concurrency.md`](phase-5/local-concurrency.md).
 
 ## Recommended delivery decision
 

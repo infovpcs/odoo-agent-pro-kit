@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0.0",
+  "max_active_sessions": 6,
+  "cpus_per_session": 2,
+  "memory_gib_per_session": 8,
+  "disk_gib_per_session": 40,
+  "idle_stop_minutes": 60,
+  "stopped_retention_days": 7,
+  "artifact_retention_days": 14,
+  "max_artifact_mib": 250
+}

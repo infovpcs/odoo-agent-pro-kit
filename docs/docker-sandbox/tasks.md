@@ -104,16 +104,16 @@ Exit gate: platform differences are confined to launch/attach adapters.
 
 ## Phase 5: Local concurrency
 
-- [ ] Replace the Community `/fleet` subprocess/thread allocation with one local
+- [x] Replace the Community `/fleet` subprocess/thread allocation with one local
   sandbox session per module task; keep shared/remote fleet scheduling in Pro.
-- [ ] Add normalized unique session naming and branch creation.
-- [ ] Add controller locks and idempotent lifecycle transitions.
-- [ ] Add dynamic port allocation and manifest recording.
-- [ ] Add maximum concurrency, CPU/memory/disk budgets, idle stop, and retention.
-- [ ] Aggregate status/results without granting cross-session write access.
-- [ ] Require commit, push, or patch export before destructive cleanup.
-- [ ] Add graceful cancellation and partial-failure reporting.
-- [ ] LIVE TEST: run six sessions (two each for 17/18/19), including two copies
+- [x] Add normalized unique session naming and branch creation.
+- [x] Add controller locks and idempotent lifecycle transitions.
+- [x] Add dynamic port allocation and manifest recording.
+- [x] Add maximum concurrency, CPU/memory/disk budgets, idle stop, and retention.
+- [x] Aggregate status/results without granting cross-session write access.
+- [x] Require commit, push, or patch export before destructive cleanup.
+- [x] Add graceful cancellation and partial-failure reporting.
+- [x] LIVE TEST: run six sessions (two each for 17/18/19), including two copies
   of the same module, and prove source/database/log isolation.
 
 Exit gate: one failed session does not change or stop any sibling session.

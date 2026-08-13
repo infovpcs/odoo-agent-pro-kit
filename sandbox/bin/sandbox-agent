@@ -10,7 +10,7 @@ usage() {
   cat <<'EOF'
 Usage:
   sandbox-agent preflight
-  sandbox-agent create <codex|claude|copilot> <name> [workspace]
+  sandbox-agent create <codex|claude|copilot> <name> [workspace] [cpus] [memory]
   sandbox-agent attach <name>
   sandbox-agent test <name> <session> <module>
   sandbox-agent logs <name> <session> [odoo|db|mcp|agent]
@@ -51,10 +51,12 @@ case "$command_name" in
     agent="${2:-}"
     name="${3:-}"
     workspace="${4:-$REPO_ROOT}"
+    cpus="${5:-2}"
+    memory="${6:-8g}"
     case "$agent" in codex|claude|copilot) ;; *) usage >&2; exit 2 ;; esac
     [[ -n "$name" ]] || { usage >&2; exit 2; }
     preflight
-    exec sbx create --clone --name "$name" --cpus 2 --memory 8g --kit "$KIT_DIR" "$agent" "$workspace"
+    exec sbx create --clone --name "$name" --cpus "$cpus" --memory "$memory" --kit "$KIT_DIR" "$agent" "$workspace"
     ;;
   attach)
     require_sbx

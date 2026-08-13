@@ -3,8 +3,8 @@ description: Parallel workspace orchestration across multiple Odoo modules for O
 argument-hint: <17|18|19>
 ---
 
-Use the Skill tool to invoke the `odoo_commanding_system` skill, then load
-`fleet_workflow.md` from that same skill directory. Execute it for Odoo
-version $1 (ask the user for the version if $1 is not exactly one of 17, 18,
-or 19), coordinating parallel sessions per the workflow's isolation and
-result-aggregation steps.
+Use the `odoo_commanding_system` skill and load `fleet_workflow.md`. Execute it
+for Odoo version $1. Allocate every module with `sandbox/bin/sandbox-fleet`;
+never replace the Sandbox boundary with threads or subprocess agents sharing a
+writable workspace. Aggregate only coordinator manifests and preserve sibling
+sessions when one allocation fails or is cancelled.

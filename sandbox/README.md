@@ -54,3 +54,10 @@ test, and log adapters. Artifact versions and the kit digest are pinned in
 `config/artifacts.lock`; run `scripts/validate-artifacts.sh` before packaging.
 Shared-skills, scoped secret/OAuth, policy, VS Code, and Cursor setup are in
 `docs/docker-sandbox/phase-4/agent-adapters.md`.
+
+Phase 5 replaces shared-workspace `/fleet` threads/subprocesses with the bounded
+single-host `sandbox/bin/sandbox-fleet` coordinator. Every module task receives
+one outer Sandbox, normalized name, branch, inner runtime, dynamic port, and
+private result manifest. See
+`docs/docker-sandbox/phase-5/local-concurrency.md` for capacity, cancellation,
+retention, aggregation, and cleanup-guard behavior.

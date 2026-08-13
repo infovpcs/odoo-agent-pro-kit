@@ -3,6 +3,7 @@
 
 import argparse
 import datetime as dt
+import fcntl
 import json
 import os
 import re
@@ -12,6 +13,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from contextlib import contextmanager
 
 ROOT = Path(__file__).resolve().parents[2]
 COMPOSE = ROOT / "sandbox/compose/compose.yaml"
@@ -27,6 +29,19 @@ def now():
 
 def state_dir(session):
     return ROOT / ".sandbox/sessions" / session
+
+
+@contextmanager
+def session_lock(session, create=False):
+    directory = state_dir(session)
+    if create:
+        directory.mkdir(parents=True, exist_ok=True)
+    elif not directory.is_dir():
+        raise RuntimeError(f"unknown session: {session}")
+    lock_path = directory / ".controller.lock"
+    with lock_path.open("a+") as stream:
+        fcntl.flock(stream, fcntl.LOCK_EX)
+        yield
 
 
 def load_env(session):
@@ -172,10 +187,17 @@ def cmd_create(args):
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]{2,62}", session):
         raise SystemExit("invalid session ID")
     directory = state_dir(session)
-    if directory.exists():
+    directory.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        directory.mkdir()
+    except FileExistsError:
+        existing = directory / "session.json"
+        if existing.exists() and json.loads(existing.read_text()).get("status") in {"ready", "active"}:
+            print(session)
+            return
         raise SystemExit(f"session already exists: {session}")
     for child in ("config", "logs", "results", "diagnostics", "exports", "addons"):
-        (directory / child).mkdir(parents=True, exist_ok=True)
+        (directory / child).mkdir()
     # These are container output drop zones. Their contents are non-secret and
     # the sandbox boundary is the access control; make them writable across
     # host/container UID mappings on native Linux.
@@ -208,6 +230,8 @@ def cmd_create(args):
         "ODOO_CONFIG_FILE": str(config_file), "ADDONS_DIR": str(directory / "addons"),
         "SESSION_LOGS_DIR": str(directory / "logs"), "SESSION_RESULTS_DIR": str(directory / "results"),
         "ODOO_API_PASSWORD": secrets.token_urlsafe(24), "ODOO_API_KEY": "", "ODOO_RPC_PROTOCOL": version["rpc_protocol"],
+        "ODOO_MEMORY_LIMIT": os.environ.get("ODOO_MEMORY_LIMIT", "3g"), "ODOO_CPU_LIMIT": os.environ.get("ODOO_CPU_LIMIT", "1.5"),
+        "POSTGRES_MEMORY_LIMIT": os.environ.get("POSTGRES_MEMORY_LIMIT", "2g"), "POSTGRES_CPU_LIMIT": os.environ.get("POSTGRES_CPU_LIMIT", "1.0"),
     }
     (directory / "runtime.env").write_text("".join(f"{key}={value}\n" for key, value in env.items()))
     os.chmod(directory / "runtime.env", 0o600)
@@ -281,7 +305,7 @@ def main():
     for name in ("status", "logs", "stop", "start", "destroy", "export"):
         item = sub.add_parser(name); item.add_argument("session")
         if name == "logs": item.add_argument("--service", choices=("odoo", "db")); item.add_argument("--follow", action="store_true")
-        if name == "destroy": item.add_argument("--keep-state", action="store_true")
+        if name == "destroy": item.add_argument("--keep-state", action="store_true"); item.add_argument("--allow-unexported", action="store_true")
     execute = sub.add_parser("exec"); execute.add_argument("session"); execute.add_argument("remainder", nargs=argparse.REMAINDER)
     module = sub.add_parser("module"); module.add_argument("session"); module.add_argument("operation", choices=("install", "update", "test")); module.add_argument("module")
     args = parser.parse_args()
@@ -304,8 +328,10 @@ def main():
             print(file_log.read_text(), end="")
         raise SystemExit(proc.returncode)
     if args.command == "stop":
+        if manifest(args.session)["status"] == "stopped": return
         transition(args.session, "stopping"); simple_operation(args.session, "stop", lambda: compose(args.session, "stop")); transition(args.session, "stopped"); return
     if args.command == "start":
+        if manifest(args.session)["status"] in {"ready", "active"}: return
         transition(args.session, "starting")
         def start(): compose(args.session, "start"); wait_ready(args.session)
         simple_operation(args.session, "start", start); transition(args.session, "ready"); return
@@ -314,6 +340,10 @@ def main():
         subprocess.run(["tar", "--exclude=exports", "-czf", str(target), "-C", str(state_dir(args.session)), "."], check=True)
         transition(args.session, "exported"); result(args.session, "export", started, "succeeded", 0, artifacts=[str(target)]); print(target); return
     if args.command == "destroy":
+        if manifest(args.session)["status"] == "destroyed": return
+        exports = list((state_dir(args.session) / "exports").glob("*.tar.gz"))
+        if not args.allow_unexported and not exports:
+            raise SystemExit("destroy refused: export, commit/push externally, or pass --allow-unexported")
         transition(args.session, "destroying")
         def destroy(): compose(args.session, "down", "--volumes", "--remove-orphans")
         simple_operation(args.session, "destroy", destroy); transition(args.session, "destroyed")
@@ -325,7 +355,13 @@ def main():
 
 if __name__ == "__main__":
     try:
-        main()
+        # Every mutating command is serialized per session. Creation uses an
+        # atomic directory claim before its manifest exists.
+        if len(sys.argv) > 2 and sys.argv[1] in {"stop", "start", "destroy", "export", "module"}:
+            with session_lock(sys.argv[2]):
+                main()
+        else:
+            main()
     except (subprocess.CalledProcessError, RuntimeError) as error:
         print(f"sandboxctl: {error}", file=sys.stderr)
         raise SystemExit(1)

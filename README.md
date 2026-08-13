@@ -68,6 +68,9 @@ sessions is in [`docs/docker-sandbox/`](docs/docker-sandbox/README.md). It
 includes requirements, architecture, source-guide corrections, release gates,
 and the full cross-version test matrix.
 
+Community `/fleet` allocates one local Docker Sandbox per module task through
+`sandbox/bin/sandbox-fleet`; shared and remote fleet scheduling remain Pro.
+
 The Odoo 17/18/19 inner runtime controller is documented in
 [`sandbox/README.md`](sandbox/README.md). Phase gates remain authoritative in
 [`docs/docker-sandbox/tasks.md`](docs/docker-sandbox/tasks.md).
