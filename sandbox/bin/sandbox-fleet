@@ -144,24 +144,28 @@ def cmd_create(args):
         print(name)
     except (subprocess.CalledProcessError, RuntimeError, KeyboardInterrupt) as error:
         cleanup_errors = []
-        if outer_creation_attempted:
-            inner = run(
-                ["sbx", "exec", name, "--", "sandbox/bin/sandboxctl", "destroy", name, "--allow-unexported"],
-                check=False, capture=True,
-            )
-            if inner.returncode:
-                cleanup_errors.append("inner runtime cleanup failed")
-            outer = run(["sbx", "rm", "--force", name], check=False, capture=True)
-            if outer.returncode:
-                cleanup_errors.append("outer Sandbox cleanup failed")
-        result_data = {"status": "failed", "operation": "create", "message": str(error)}
-        if cleanup_errors:
-            result_data["cleanup_errors"] = cleanup_errors
-        data.update(status="failed", result=result_data, cleanup={
-            "outer_creation_attempted": outer_creation_attempted,
-            "outer_removed": outer_creation_attempted and "outer Sandbox cleanup failed" not in cleanup_errors,
-        })
-        write_session(data)
+        previous_sigint = signal.signal(signal.SIGINT, signal.SIG_IGN)
+        try:
+            if outer_creation_attempted:
+                inner = run(
+                    ["sbx", "exec", name, "--", "sandbox/bin/sandboxctl", "destroy", name, "--allow-unexported"],
+                    check=False, capture=True,
+                )
+                if inner.returncode:
+                    cleanup_errors.append("inner runtime cleanup failed")
+                outer = run(["sbx", "rm", "--force", name], check=False, capture=True)
+                if outer.returncode:
+                    cleanup_errors.append("outer Sandbox cleanup failed")
+            result_data = {"status": "failed", "operation": "create", "message": str(error)}
+            if cleanup_errors:
+                result_data["cleanup_errors"] = cleanup_errors
+            data.update(status="failed", result=result_data, cleanup={
+                "outer_creation_attempted": outer_creation_attempted,
+                "outer_removed": outer_creation_attempted and "outer Sandbox cleanup failed" not in cleanup_errors,
+            })
+            write_session(data)
+        finally:
+            signal.signal(signal.SIGINT, previous_sigint)
         raise
 
 
