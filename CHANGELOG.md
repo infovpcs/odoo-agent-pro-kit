@@ -21,6 +21,37 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
   including custom customer repositories and Odoo Enterprise dependency
   detection (never Enterprise source bundling/committal).
 
+## 0.3.1 — 2026-08-18
+
+### Added
+
+- **Dynamic context-usage handoff guard** (`plugin/context_guard.py`) — a
+  new `post_api_request` hook fires on real per-turn token usage (not a
+  guess) for any in-progress command inside a module workspace (any command
+  with `docs/tasks.md` present, not just `/start-coding`). When usage
+  crosses a threshold, it writes the same `CLAUDE.md`/`GEMINI.md`/
+  `AGENTS.md` episodic-context files the manual per-command writes already
+  produce, then nudges the live agent to wrap up and hand off to a fresh
+  session. The threshold is dynamic, not a single fixed percentage: base
+  60% (configurable via `context_handoff.threshold_pct`), auto-tightened to
+  50% for modules with >15 `docs/tasks.md` tasks and loosened to 65% for
+  modules with ≤5 tasks, bounded to 40%-80%, and re-fires only once usage
+  crosses a new 10-point bucket past the last trigger for that module. See
+  `plugin/skills/CommandingSystem/context_handoff_workflow.md` "Dynamic
+  Context-Usage Handoff (Phase 8)".
+- Ported the previously-external `AgentSkills/auto_test/{context_writer.py,
+  auto_test_runner.py}` harness (from the separate
+  `Odoo_Agents_MultiSupport` workspace, only ever installed into a bootstrap
+  workspace copy) into
+  `plugin/skills/CommandingSystem/auto_test/` so it actually ships with
+  this repository/plugin, matching what `CommandingSystem/SKILL.md` and
+  `context_handoff_workflow.md` already documented as the canonical paths.
+- 16 new unit tests (`tests/test_context_guard.py`) covering threshold
+  scaling, task counting, usage-percentage computation, module-workspace
+  detection, and an end-to-end trigger test that verifies the real
+  `register(ctx)` entrypoint writes the handoff files and injects the nudge
+  message. Repository suite: 73 tests passing (up from 57).
+
 ## 0.3.0 — 2026-08-18
 
 ### Added

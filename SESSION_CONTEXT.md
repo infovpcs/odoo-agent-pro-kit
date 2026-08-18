@@ -643,11 +643,69 @@ that consumes stable Community releases instead of forking this repository.
   the migration effort, wired both into `PROJECTS/README.md` and the root
   `index.md` catalog, and appended a dated `log.md` entry per the vault's
   OKF conventions. Committed and pushed to `origin/master` as `86c7b35`.
+- [x] (Additive) Defined **Phase 8: Full-coverage skill-orchestrated
+  migration pipeline (client-readiness proof)** in
+  `docs/docker-sandbox/tasks.md` — the canonical 10-step skill sequence
+  (dependency/context intake → coding standard → `/plan-analysis` →
+  install/update lifecycle rules → `/start-coding` with per-task auto-test
+  → backend testing → live browser evidence → frontend testing →
+  `/testing` → fresh-session context-reset check) that must run inside a
+  Docker Sandbox microVM against a real VPCSCloud module before batching
+  the remaining backlog or taking on client work. Cross-referenced from
+  `plugin/skills/CommandingSystem/SKILL.md`, `README.md`, `CHANGELOG.md`.
+  Committed locally as `97c1b19` (not pushed).
+- [x] (Additive, 0.3.1) Built the **dynamic context-usage handoff guard**
+  (`plugin/context_guard.py`) requested directly by the user: a new
+  `post_api_request` Hermes hook that fires on real per-turn token usage
+  (not a guess or a fixed 60%) for *any* in-progress command inside a
+  module workspace — not hardcoded to `/start-coding`. The effective
+  threshold auto-adjusts to the module's actual `docs/tasks.md` task count
+  (50% for >15 tasks, 60% for 6-15, 65% for ≤5, bounded 40-80%), so
+  handoff timing depends on module complexity and work-coverage pipeline
+  state exactly as the user specified. On trigger it writes the same
+  `CLAUDE.md`/`GEMINI.md`/`AGENTS.md` episodic-context files the manual
+  per-command writes already produce (via a real code path, not a new
+  format) and nudges the live agent via `ctx.inject_message()` to wrap up
+  and hand off to a fresh session. Along the way, found and fixed a real
+  pre-existing gap: `CommandingSystem/SKILL.md` and
+  `context_handoff_workflow.md` documented `AgentSkills/auto_test/
+  {context_writer.py,auto_test_runner.py}` as canonical paths, but that
+  harness was never actually shipped in this repository — only present in
+  the separate `Odoo_Agents_MultiSupport` workspace and copied in by
+  `odoo_local_setup/setup_odoo_workspaces.sh` during local bootstrap.
+  Ported both files into `plugin/skills/CommandingSystem/auto_test/` so
+  the plugin is self-contained. Verified for real, not just unit-tested:
+  ran `register(ctx)` against a fake `PluginContext` and confirmed
+  `post_api_request` is among the 3 registered hooks (alongside the
+  pre-existing `on_session_start`/`on_session_end`), then fired it with a
+  70%-usage payload against an 8-task temp module workspace and confirmed
+  `CLAUDE.md`/`GEMINI.md`/`AGENTS.md` were written with a "Dynamic Context
+  Handoff" section and the agent nudge message was injected. `hermes
+  plugins doctor plugin --ci` confirms 7 tools/3 hooks/zero warnings.
+  16 new unit tests in `tests/test_context_guard.py`
+  (threshold scaling, task counting, usage-pct math, module detection, a
+  below-threshold no-op case, an outside-workspace no-op case, a
+  malformed-input fail-open case, and the full end-to-end trigger case).
+  `./scripts/validate.sh` passed clean: 73 tests (up from 57), 20 skills,
+  Sandbox artifact/Compose/shell/Python/whitespace checks all OK. Grepped
+  every new/changed file for hardcoded secrets/credentials/private paths —
+  clean. Bumped plugin version 0.3.0 -> 0.3.1 in `plugin.yaml` and
+  `.claude-plugin/plugin.json` in lockstep per the existing convention.
+  Committed locally (not pushed, per explicit user instruction to push
+  everything together only after all security checks and Phase 8 module
+  work is verified working smoothly).
 
 ## Blockers and risks
 
 ### Immediate
 
+- **Push policy (explicit user instruction, 2026-08-18):** commit locally
+  after each unit of work as usual, but do NOT push to `origin/main` until
+  all security checks pass AND the in-progress module development/Phase 8
+  work is verified working smoothly end to end. Push everything together
+  at that point, not incrementally. This session's Phase 8 planning
+  (`97c1b19`) and the dynamic context-handoff guard (0.3.1) are both
+  committed locally only.
 - No immediate blocker remains for VPS live-inference pipeline testing —
   resolved this session (see Completed above). The remaining gap is
   narrower: only `odoo19-dev` has run a live slash command end-to-end;

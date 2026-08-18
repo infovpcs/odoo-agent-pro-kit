@@ -1,6 +1,7 @@
-# Context Handoff Workflow (Phase 25)
+# Context Handoff Workflow (Phase 25, extended Phase 8)
 
-How CommandingSystem commands pass episodic memory to the next command.
+How CommandingSystem commands pass episodic memory to the next command, and
+how context pressure triggers an automatic handoff mid-command.
 
 ---
 
@@ -10,7 +11,7 @@ How CommandingSystem commands pass episodic memory to the next command.
 |------|---------------|-------|
 | **Working memory** | `sessions/{module}_progress.json` | Current session |
 | **Episodic memory** | `{module_dir}/CLAUDE.md` | Across sessions/commands |
-| **Semantic memory** | `AgentSkills/Odoo{V}CodingStandard/SKILL.md` | Persistent reference |
+| **Semantic memory** | `Odoo{V}CodingStandard/SKILL.md` | Persistent reference |
 | **Procedural memory** | `CommandingSystem/*_workflow.md` | Persistent reference |
 
 ---
@@ -24,7 +25,7 @@ reports `status: succeeded`; terminal output alone is not evidence.
 ### After /plan-analysis completes
 
 ```bash
-python3 AgentSkills/auto_test/context_writer.py write \
+python3 CommandingSystem/auto_test/context_writer.py write \
   --module {module_name} \
   --module-dir {module_dir} \
   --version {version} \
@@ -38,13 +39,13 @@ python3 AgentSkills/auto_test/context_writer.py write \
 
 ```bash
 # 1. Run auto-test for the completed task
-python3 AgentSkills/auto_test/auto_test_runner.py \
+python3 CommandingSystem/auto_test/auto_test_runner.py \
   --version {version} \
   --module {module_name} \
   --task "{task_title}"
 
 # 2. Update context with test result
-python3 AgentSkills/auto_test/context_writer.py write \
+python3 CommandingSystem/auto_test/context_writer.py write \
   --module {module_name} \
   --module-dir {module_dir} \
   --version {version} \
@@ -58,7 +59,7 @@ python3 AgentSkills/auto_test/context_writer.py write \
 ### After /testing completes
 
 ```bash
-python3 AgentSkills/auto_test/context_writer.py write \
+python3 CommandingSystem/auto_test/context_writer.py write \
   --module {module_name} \
   --module-dir {module_dir} \
   --version {version} \
@@ -107,3 +108,55 @@ Task N implemented
 ```
 
 The agent MUST NOT mark a task `[x]` in `docs/tasks.md` until auto-test returns PASS or PARTIAL (with review).
+
+---
+
+## Dynamic Context-Usage Handoff (Phase 8)
+
+Beyond the per-command writes above, `plugin/context_guard.py` fires on
+Hermes' real `post_api_request` hook — actual per-turn token usage, not a
+guess — for **any** in-progress command (`/plan-analysis`, `/start-coding`,
+`/testing`, `/fleet`, or plain conversation inside a module workspace with
+`docs/tasks.md`). This is deliberately command-agnostic: context pressure
+comes from how complex the module is and how much work the running command
+has already done, not from which command happens to be running.
+
+**Threshold is dynamic, not a single fixed percentage:**
+
+- Base threshold: `context_handoff.threshold_pct` plugin config, default 60%.
+- Auto-tightened per module complexity, read from `docs/tasks.md`'s task
+  count at trigger time:
+  - ≤ 5 tasks: threshold +5 points (run closer to the limit — little
+    remaining work per task).
+  - 6-15 tasks: threshold unchanged.
+  - \> 15 tasks: threshold -10 points (hand off earlier — each remaining
+    task needs more headroom).
+  - Bounded to 40%-80% regardless of config.
+- Re-fires only once usage crosses into a new 10-point bucket past the last
+  trigger for that module (`context_handoff.retrigger_bucket_pct`), so a
+  long-running command past threshold isn't nudged every single API call.
+
+**What happens at trigger:**
+
+1. `context_guard.py` calls `context_writer.write_context()` directly (same
+   contract as the manual per-command writes above), stamping an additional
+   `extra.context_handoff` block into the session JSON and a visible
+   "⚠️ Dynamic Context Handoff" section into `CLAUDE.md`/`GEMINI.md`/
+   `AGENTS.md` with the usage%, threshold%, triggering command, and
+   timestamp.
+2. `ctx.inject_message()` nudges the live agent: finish the current step
+   cleanly, don't start new large work, and tell the user this session
+   should reset.
+3. The **next** session (fresh context) reads `CLAUDE.md` at the normal
+   command-start read step above and resumes purely from that file plus
+   `docs/tasks.md` — no special-casing needed, because it is the same
+   episodic-memory contract every command already writes to and reads from.
+
+**Verification requirement (Phase 8 exit gate, step 10):** a handoff caused
+by this guard must be confirmed by actually starting a **new** agent
+session against the same module directory and checking it resumes from
+`CLAUDE.md` state — never self-reported by the same uninterrupted session
+that triggered the handoff.
+
+**Reference:** `plugin/context_guard.py` (implementation),
+`plugin/plugin.yaml` `config_schema.context_handoff.*` (tunables).

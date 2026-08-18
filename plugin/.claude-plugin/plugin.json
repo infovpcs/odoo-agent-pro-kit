@@ -1,7 +1,7 @@
 {
   "name": "odoo-agent-pro-kit",
   "displayName": "Odoo Agent Pro Kit",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Skills, slash commands, hooks, and an MCP server covering the full Odoo 17/18/19 custom application development lifecycle: plan, code, test, and document.",
   "author": {
     "name": "Vinay Rana",

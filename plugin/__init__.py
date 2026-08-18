@@ -516,6 +516,20 @@ def register(ctx) -> None:
     ctx.register_hook("on_session_start", _on_session_start)
     ctx.register_hook("on_session_end", _on_session_end)
 
+    # --- dynamic context-usage handoff guard (Phase 8) ---
+    # Fires on every real per-turn token-usage report (post_api_request),
+    # regardless of which command/step is running, and regardless of module
+    # complexity — see plugin/context_guard.py for the threshold logic.
+    try:
+        from .context_guard import maybe_handle_context_pressure
+
+        def _on_post_api_request(**kwargs: Any) -> None:
+            maybe_handle_context_pressure(ctx, **kwargs)
+
+        ctx.register_hook("post_api_request", _on_post_api_request)
+    except Exception as exc:  # noqa: BLE001 - never block plugin registration
+        logger.warning("odoo-agent-pro-kit: context_guard hook registration failed: %s", exc)
+
     # --- bundled skills: every plugin/skills/<name>/SKILL.md ---
     skills_dir = _PLUGIN_DIR / "skills"
     if skills_dir.is_dir():
@@ -525,7 +539,7 @@ def register(ctx) -> None:
                 ctx.register_skill(child.name, skill_md)
 
     logger.info(
-        "odoo-agent-pro-kit: registered %d odoo_* tools, 4 slash commands, 2 hooks, and skills from %s",
+        "odoo-agent-pro-kit: registered %d odoo_* tools, 4 slash commands, 3 hooks, and skills from %s",
         len(_TOOLS),
         skills_dir,
     )

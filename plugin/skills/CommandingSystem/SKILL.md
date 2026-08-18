@@ -172,3 +172,13 @@ session resumes purely from `CLAUDE.md` + `docs/tasks.md`. This sequence
 must run inside a Docker Sandbox microVM, not the bare local workspace.
 Full detail, scope checklist, and exit gate: `docs/docker-sandbox/tasks.md`
 "Phase 8".
+
+**Dynamic context-usage handoff, throughout the sequence:** any step above
+can independently trigger the handoff guard (`plugin/context_guard.py`,
+fired on real per-turn token usage via the `post_api_request` hook) — the
+threshold is not fixed and not tied to a specific command; it adjusts to
+the module's actual task count from `docs/tasks.md` (smaller modules run
+closer to the limit, larger ones hand off earlier). When triggered, the
+current step's episodic context is written and a fresh session resumes
+from it automatically — no manual context-budget tracking required. See
+`context_handoff_workflow.md` "Dynamic Context-Usage Handoff (Phase 8)".

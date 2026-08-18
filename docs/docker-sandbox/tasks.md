@@ -228,6 +228,13 @@ module), with every step's output captured as session artifacts under
   loading, per `context_handoff_workflow.md`) actually changes agent
   behavior on a real second run of the same module (measurable: it skips
   already-completed tasks rather than re-deriving them).
+- [ ] Confirm the dynamic context-usage handoff guard
+  (`plugin/context_guard.py`, fired on the real per-turn `post_api_request`
+  usage hook) actually writes `CLAUDE.md`/`GEMINI.md`/`AGENTS.md` and nudges
+  the agent when usage crosses its module-size-adjusted threshold — for at
+  least one step of the sequence, not only for `/start-coding` — and that a
+  genuinely fresh session (new process, not the same context) resumes
+  correctly from the written handoff without operator intervention.
 - [ ] Confirm the pipeline behaves correctly for a module with a real
   **Odoo Enterprise dependency** (not just Community-only modules) —
   dependency detection must flag it without ever fetching, bundling, or

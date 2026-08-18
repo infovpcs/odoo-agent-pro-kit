@@ -6,7 +6,7 @@
 # plugin is installed via `hermes plugins install` — see register(ctx) in
 # __init__.py for what actually gets wired up.
 name: odoo-agent-pro-kit
-version: "0.3.0"
+version: "0.3.1"
 description: >-
   Odoo 17/18/19 custom application development lifecycle for Hermes: native
   odoo_* MCP-equivalent tools (model/field/relationship discovery over live
@@ -30,6 +30,7 @@ provides_tools:
 provides_hooks:
   - on_session_start
   - on_session_end
+  - post_api_request
 python_dependencies:
   - "pydantic>=2.0,<3"
   - "python-dotenv>=1.0,<2"
@@ -43,4 +44,32 @@ config_schema:
       commands when a call omits an explicit version. Falls back to
       DEFAULT_ODOO_VERSION env var, then session-start auto-detection, then
       19.0.
+    required: false
+  context_handoff.threshold_pct:
+    type: float
+    default: 0.60
+    description: >-
+      Base fraction (0-1) of the model's context window at which the dynamic
+      context-handoff guard writes CLAUDE.md/GEMINI.md/AGENTS.md and nudges
+      the agent to hand off to a fresh session. Automatically tightened for
+      modules with more remaining docs/tasks.md tasks (see
+      plugin/context_guard.py::_effective_threshold_pct) and loosened for
+      small modules; effective range is bounded to 0.40-0.80.
+    required: false
+  context_handoff.context_window_tokens:
+    type: int
+    default: 128000
+    description: >-
+      Context window size (tokens) used to compute usage percentage from the
+      real per-turn usage totals reported by post_api_request. Set to match
+      the active model's actual context window for accurate percentages.
+    required: false
+  context_handoff.retrigger_bucket_pct:
+    type: float
+    default: 0.10
+    description: >-
+      Re-fire granularity: the guard only re-writes the handoff files once
+      usage crosses into a new bucket this many percentage points past the
+      last trigger, so a long-running command past threshold isn't nudged
+      every single API call.
     required: false
