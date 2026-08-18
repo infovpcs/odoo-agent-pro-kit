@@ -28,8 +28,9 @@ Before changing files:
   planning
 - Active branch: `main`
 - Branch base: `main` at commit `12368b7` (post-Phase-7, additive 0.2.0/0.3.0 work)
-- Last context update: 2026-08-18 (Asia/Kolkata, verified free-tier inference
-  fallback providers on local Mac; VPS profiles still need the same)
+- Last context update: 2026-08-18 (Asia/Kolkata, live end-to-end pipeline
+  test on Oracle VPS odoo19-dev passed with real inference; architecture
+  diagram updated with deployment section, render pipeline fixed)
 
 ## Objective
 
@@ -556,23 +557,91 @@ that consumes stable Community releases instead of forking this repository.
     previous session's live slash-command test was deferred. See Next
     task.
 
+- [x] (Additive) **Live end-to-end pipeline test on the Oracle VPS with real
+  inference — both parts of the previous Next task, completed 2026-08-18.**
+  1. **Provider setup, per profile, non-interactive.** Discovered a gap the
+     previous session missed: `hermes -p <profile> ...` re-points
+     `HERMES_HOME` at `~/.hermes/profiles/<profile>/`, which has its own
+     `.env` (root cause found by reading `hermes_cli/main.py` profile-arg
+     pre-parsing and `hermes_cli/env_loader.py`) — writing keys only to
+     `~/.hermes/.env` was not enough; each profile silently fell back to
+     "No LLM provider configured" even with `fallback list` showing the
+     chain. Fixed by writing `HETZNER_API_KEY`/`OPENROUTER_API_KEY` to
+     **both** `~/.hermes/.env` (shared) and each of
+     `~/.hermes/profiles/{odoo17,odoo18,odoo19}-dev/.env` (chmod 600).
+     Ran the exact non-interactive `hermes -p <profile> config set ...`
+     sequence from the previous session's Next-task recipe (`providers.
+     hetzner.*`, `model.default=openrouter/free`, `model.provider=
+     openrouter`, `fallback_providers=[{provider:custom:hetzner,...}]`)
+     against all 3 profiles — confirmed with `hermes -p <profile> fallback
+     list` (primary `openrouter/free` via openrouter, 1-entry Hetzner
+     fallback) on all three. `hermes` on this VPS has no global shim —
+     must `source /home/ubuntu/.hermes/hermes-agent/venv/bin/activate`
+     first (the bare `hermes` binary hits `ModuleNotFoundError: No module
+     named 'dotenv'` outside the venv).
+  2. **Live pipeline test.** On `odoo19-dev`: `hermes -p odoo19-dev -z
+     "reply with just the word pong" --cli` returned a real `pong` — first
+     successful live LLM turn on this VPS ever (previous sessions only did
+     in-process tool calls, never a real agent turn). Then asked the live
+     agent to actually invoke `odoo_get_version_info` (not describe it):
+     it called the tool for real and returned `{"error": "Failed to
+     connect to Odoo 19.0 at http://localhost:8069 (db=). Check ODOO_URL/
+     ODOO_DB_NAME/..."}` — a clean connection-refused error, not a
+     registration error, matching the acceptance bar exactly (no live Odoo
+     backend is running on this VPS). Then ran `/plan-analysis 19
+     sample_module` as a real slash command through the live agent
+     (backgrounded via `nohup ... &` over SSH, ran ~20 minutes real wall
+     time doing genuine multi-step analysis): confirmed dispatch through
+     the native plugin (`agent.log` shows "odoo-agent-pro-kit: registered
+     7 odoo_* tools, 4 slash commands, 2 hooks" loading at session start),
+     and it completed for real — produced actual artifacts on disk,
+     verified directly (not from the agent's self-report): `~/.hermes/
+     analysis/{dependency_context.json, manifest_analysis.json}` and
+     `/tmp/sample_module_for_analysis/static/description/{icon.png,
+     banner.png, index.html, 5 screenshot PNGs}`, plus a
+     coding-standard-violations summary in the transcript. This is real
+     dispatch and real work, not "command not found" and not an
+     in-process bypass.
+  - **Security**: same two tokens from the prior session, still used only
+    in-memory for verification (`curl`) plus writing to `~/.hermes/.env`
+    files on the VPS over SSH; never written to any file inside
+    `~/odoo-agent-pro-kit` on the VPS or in the local repo; `git status`
+    stayed clean throughout.
+  - **Only odoo19-dev was live-tested end-to-end** (per the previous
+    session's "at least one, then decide" framing) — odoo17-dev and
+    odoo18-dev have the same provider config verified via `fallback list`
+    but have not yet run a live `/plan-analysis` slash command themselves.
+- [x] (Additive) Updated `docs/architecture.excalidraw` /
+  `docs/architecture.png` with a new "Deployment & live operations"
+  section reflecting the VPS state above: Oracle Cloud VPS hub fanning out
+  to the 3 profile boxes (odoo19-dev marked "live-tested"), an evidence
+  block with the exact fallback-provider config and the live `pong`
+  verification command, and a footer note pointing at the next open task
+  (live `/plan-analysis` -> `/start-coding` -> `/testing` chain test).
+  Fixed a real, previously-broken render pipeline as a side effect: the
+  skill's `render_template.html` imported `@excalidraw/excalidraw?bundle`
+  from esm.sh, whose bundled transitive dependency
+  (`@braintree/sanitize-url@6.0.2/es2022/dist/constants.mjs`) 404s on esm.sh
+  right now — confirmed by direct `curl` and a raw Playwright console-log
+  probe. Removing `?bundle` (importing the unbundled ESM graph instead,
+  where esm.sh resolves each submodule import correctly) fixed it; verified
+  by an actual `uv run python render_excalidraw.py ...` run that produced
+  `docs/architecture.png` and visually reviewing the rendered PNG (new
+  section reads cleanly, no clipped text, no overlapping elements, arrows
+  land on their targets).
+
 ## Blockers and risks
 
 ### Immediate
 
-- **No inference provider is configured on any of the 3 Oracle VPS Hermes
-  profiles.** `hermes -p <profile> model` requires a real interactive
-  terminal (it refused over a piped SSH command: "Error: 'hermes model'
-  requires an interactive terminal. It cannot be run through a pipe or
-  non-interactive subprocess."). This is why every plugin-wiring
-  verification on the VPS so far has used an in-process Python call to
-  the registered tool function, bypassing the LLM entirely — real
-  slash-command dispatch (`/plan-analysis`, `/start-coding`, `/testing`,
-  `/fleet`) has never been exercised on that host. The local Mac now has
-  a working, verified, free fallback chain (Hetzner + OpenRouter, see
-  Completed above) that can be replicated onto the VPS non-interactively
-  via `hermes -p <profile> config set ...` (same command family used
-  locally) instead of the interactive `hermes model` wizard.
+- No immediate blocker remains for VPS live-inference pipeline testing —
+  resolved this session (see Completed above). The remaining gap is
+  narrower: only `odoo19-dev` has run a live slash command end-to-end;
+  `odoo17-dev`/`odoo18-dev` have verified provider config
+  (`fallback list`) but no live slash-command run yet, and no session has
+  chained `/plan-analysis` -> `/start-coding` -> `/testing` together
+  against a real running Odoo backend (none was running on the VPS this
+  session either).
 - No immediate Phase 6 blocker remains. Docker login JWKS and refresh-lock
   connectivity was intermittent during the run; authentication diagnostics
   passed and the completed evidence was verified from inner state rather than
@@ -609,68 +678,34 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Next task
 
-Test the whole odoo-agent-pro-kit plugin pipeline end-to-end on the Oracle
-VPS with real, live inference — not in-process tool calls or `plugins
-doctor` registration checks. Two parts, both required:
+The odoo19-dev live-inference pipeline test passed this session (see
+Completed). Two follow-ups remain, either is a reasonable next task:
 
-1. **Provider setup on the VPS (per profile, non-interactive).** Replicate
-   the already-verified local Mac fallback chain onto
-   odoo17-dev/odoo18-dev/odoo19-dev without the interactive `hermes model`
-   wizard (it refuses over SSH/piped input — see Blockers → Immediate):
-   ```bash
-   # per profile, on the VPS
-   echo "HETZNER_API_KEY=<token>" >> ~/.hermes/.env       # once, shared across profiles
-   echo "OPENROUTER_API_KEY=<token>" >> ~/.hermes/.env    # once, shared across profiles
-   hermes -p <profile> config set providers.hetzner.api "https://inference.hetzner.com/api/v1"
-   hermes -p <profile> config set providers.hetzner.key_env "HETZNER_API_KEY"
-   hermes -p <profile> config set providers.hetzner.transport "chat_completions"
-   hermes -p <profile> config set providers.hetzner.default_model "Qwen/Qwen3.6-35B-A3B-FP8"
-   hermes -p <profile> config set model.default "openrouter/free"
-   hermes -p <profile> config set model.provider "openrouter"
-   hermes -p <profile> config set fallback_providers '[{"provider":"custom:hetzner","model":"Qwen/Qwen3.6-35B-A3B-FP8"}]'
-   ```
-   (Reuse the user's existing Hetzner/OpenRouter tokens from this session —
-   do not ask the user to regenerate them unless they've expired/rotated.
-   Get them the same secure way: user pastes in chat, used only for one
-   in-memory verification `curl`/`hermes -z` call, written only to
-   `~/.hermes/.env` on the VPS via SSH, never into any file under
-   `~/odoo-agent-pro-kit`.) Since OpenRouter is free but the *default*
-   model, using `openrouter/free` as primary (not just fallback) keeps
-   every VPS profile's agent loop cost-free end-to-end; swap in a paid
-   provider later if response quality on `openrouter/free`'s auto-routed
-   model proves too weak for real Odoo task reasoning.
+1. **Replicate the live slash-command test on odoo17-dev and odoo18-dev.**
+   Provider config is already verified via `fallback list` on both — the
+   remaining work is just running the same `hermes -p <profile> -z
+   "/plan-analysis <ver> <module>" --cli` pattern used for odoo19-dev
+   (background it with `nohup ... &` over SSH; it took ~20 minutes real
+   wall time for odoo19-dev) and confirming real artifacts on disk
+   afterward, not just the agent's self-reported summary.
+2. **Bring up a real Odoo 19 backend and chain the full lifecycle live.**
+   Start an actual Odoo 19 instance reachable at `localhost:8069` on the
+   VPS (Docker Sandbox microVM per the Phase 0-7 work, or a simpler local
+   `sandboxctl`/direct Odoo process — whichever is faster to stand up),
+   then run `/plan-analysis` -> `/start-coding` -> `/testing` back to back
+   through the live agent against that real backend, recording exact
+   commands and pass/fail per step in this file. This finally proves the
+   full documented lifecycle end-to-end with a real Odoo target instead
+   of a clean connection-refused error.
 
-2. **Live pipeline test per profile (or at least one, then decide whether
-   to repeat for all three).** With a real provider now configured, run
-   an actual chat turn — `hermes -p <profile> -z "..." --cli` or a real
-   interactive session — that exercises the plugin end-to-end:
-   - Issue `/plan-analysis 19 <a small real or fixture module>` (or
-     another registered slash command) and confirm it dispatches through
-     the native plugin's `_make_command_handler` path (not "command not
-     found").
-   - Call at least one `odoo_*` tool (e.g. `odoo_get_version_info`)
-     through the live agent turn, not a direct Python call, and record
-     whether it reaches a real Odoo backend or returns the same clean
-     connection-refused error confirmed last session (acceptable either
-     way — the acceptance bar is "not a registration error").
-   - If a live Odoo 19 backend is reachable on that VPS (check
-     `sandboxctl`/Docker Sandbox session state first — none was reported
-     running at last session's cleanup), prefer running the test against
-     it so the full `/plan-analysis` -> `/start-coding` -> `/testing`
-     lifecycle can be exercised for real, not just command dispatch.
-   - Record exact commands, raw output/log excerpts, and pass/fail per
-     step here in SESSION_CONTEXT.md — do not summarize from memory.
-
-WhatsApp/Telegram gateway linkage is explicitly OUT OF SCOPE for this task
-— the user asked whether it's required and was told no: SSH + a
-configured inference provider is sufficient to exercise the full plugin
-pipeline. Messaging-gateway linkage is a separate future decision only
-needed for phone-based triggering or off-session delivery, not for this
-verification.
+Decide between them based on priority: (1) is cheap confidence-building
+across all 3 profiles; (2) is the deeper, more valuable proof but costs
+more time/resources to set up.
 
 ## Following tasks
 
-1. Once live slash-command dispatch is proven on the VPS, decide whether
+1. Once the full `/plan-analysis` -> `/start-coding` -> `/testing` chain
+   has been proven against a live Odoo backend, decide whether
    `openrouter/free` is good enough quality for real Odoo task work or
    whether a paid primary provider should be linked instead (the user
    raised this trade-off directly — "otherwise I will link my Claude
