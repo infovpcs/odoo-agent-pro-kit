@@ -16,7 +16,7 @@ description: >-
 author: "Vinay Rana"
 homepage: "https://github.com/infovpcs/odoo-agent-pro-kit"
 license: "Apache-2.0"
-manifest_version: 2
+manifest_version: 1
 api_version: 1
 tags: ["odoo", "odoo-17", "odoo-18", "odoo-19", "erp", "mcp", "docker-sandbox"]
 provides_tools:
