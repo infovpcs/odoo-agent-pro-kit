@@ -1,4 +1,7 @@
-mcp[server]>=1.0.0
+# mcp>=2.0.0 removed the fastmcp submodule odoo_mcp_server.py depends on
+# (from mcp.server.fastmcp import FastMCP). Pin below 2.0.0 until the server
+# is ported to the new mcp API.
+mcp[server]>=1.0.0,<2.0.0
 pydantic>=2.0
 python-dotenv>=1.0
 requests>=2.31.0

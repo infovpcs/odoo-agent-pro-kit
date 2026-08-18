@@ -57,9 +57,13 @@ reads it natively). See `integrations/codex/INSTALL.md`.
 | 4 slash commands (`/plan-analysis`, `/start-coding`, `/testing`, `/fleet`) | `plugin/commands/` |
 | 3 hooks (SessionStart/PreCompact/Stop) for context optimization | `plugin/hooks/` |
 | Live MCP server for Odoo 17/18/19 model discovery | `plugin/odoo_mcp/` |
+| Compose sidecar running odoo_mcp as a persistent service inside a Docker Sandbox session | `sandbox/mcp-sidecar/` |
+| Portable playbook for provisioning an AI agent host for Odoo dev (any agent/IDE, any project) | `plugin/skills/OdooHermesEnvironmentSetup/` |
 | Local Odoo workspace bootstrap/management scripts | `odoo_local_setup/` |
 | Generic agent context templates | `context-templates/` |
 | Six agent/IDE integrations | `integrations/` |
+
+See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ## Docker Sandbox roadmap
 
@@ -91,6 +95,13 @@ runbook or compatibility fixes by pull request.
 The Odoo 17/18/19 inner runtime controller is documented in
 [`sandbox/README.md`](sandbox/README.md). Phase gates remain authoritative in
 [`docs/docker-sandbox/tasks.md`](docs/docker-sandbox/tasks.md).
+
+The `sandbox/mcp-sidecar/` Compose-sidecar pattern runs `odoo_mcp` as a
+`restart: unless-stopped` service inside the same Compose project as `db`/
+`odoo`, so the MCP server survives Sandbox microVM idle-suspend and
+cold-reboot instead of relying on an unmanaged bare `docker run` process.
+`plugin/skills/DockerSandboxOperations/SKILL.md` documents wiring it into a
+session and publishing its port with `sbx ports`.
 
 ## Commercial/open-core roadmap
 

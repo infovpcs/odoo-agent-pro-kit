@@ -1,0 +1,29 @@
+name: ${COMPOSE_PROJECT_NAME}
+# Compose override that adds the odoo_mcp server as a first-class sidecar
+# service inside an existing Docker Sandbox session's stack. This is
+# ADDITIVE ONLY: it does not modify sandbox/compose/compose.yaml, so it
+# never touches the phase-gated, pinned base runtime.
+#
+# Usage (from inside the sbx microVM that owns the session):
+#   sandbox/mcp-sidecar/mcp_up.sh <session-id>
+# Then, from OUTSIDE the microVM:
+#   sbx ports <sandbox-name> --publish <mcp-port>:<mcp-port>
+services:
+  mcp:
+    image: ${ODOO_MCP_IMAGE:-odoo-mcp-sidecar:latest}
+    build:
+      context: ${REPOSITORY_ROOT}/plugin
+      dockerfile: ${REPOSITORY_ROOT}/sandbox/mcp-sidecar/odoo_mcp_sidecar.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      odoo:
+        condition: service_healthy
+    environment:
+      ODOO_URL: http://odoo:8069
+      ODOO_DB_NAME: ${ODOO_DB_NAME}
+      ODOO_DB_USER: admin
+      ODOO_DB_PASSWORD: ${ODOO_API_PASSWORD}
+      DEFAULT_ODOO_VERSION: ${MCP_ODOO_VERSION:-19.0}
+    command: ["--version", "${MCP_ODOO_VERSION:-19.0}", "--port", "${MCP_PORT:-8767}"]
+    ports:
+      - "${MCP_PORT:-8767}:${MCP_PORT:-8767}"

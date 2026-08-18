@@ -34,6 +34,22 @@ sandbox/bin/sandboxctl destroy <session>
 
 Read `.sandbox/session.json` and operation-result JSON. Require `status: succeeded` before advancing a lifecycle gate.
 
+## Expose odoo_mcp to a live session
+
+`sandbox/compose/compose.yaml` does not publish Odoo's port outside the
+sandbox's private Docker network, so `plugin/odoo_mcp` cannot reach a
+sandboxed Odoo without extra wiring — and this pinned file must not be
+edited. Use the additive Compose override at `sandbox/mcp-sidecar/` instead:
+
+```bash
+sbx exec <name> -- bash sandbox/mcp-sidecar/mcp_up.sh <session-id>
+sbx ports <name> --publish 8767:8767   # 8765/8766/8767 for 17/18/19
+```
+
+See `OdooHermesEnvironmentSetup/SKILL.md` step 6 for the full flow, the
+`mcp[server]<2.0.0` pin pitfall, and why a bare `docker run` sidecar does not
+survive `sbx` microVM idle-suspend/cold-reboot cycles.
+
 ## Migrate local work
 
 Require a clean source Git repository, then stage a secret-filtered copy:
