@@ -1,0 +1,46 @@
+# Native Hermes plugin manifest for odoo-agent-pro-kit.
+#
+# This coexists with the Claude-Code-style manifest at
+# .claude-plugin/plugin.json (used when this plugin/ directory is installed
+# as a Claude Code plugin). Hermes discovers *this* file instead when the
+# plugin is installed via `hermes plugins install` — see register(ctx) in
+# __init__.py for what actually gets wired up.
+name: odoo-agent-pro-kit
+version: "0.3.0"
+description: >-
+  Odoo 17/18/19 custom application development lifecycle for Hermes: native
+  odoo_* MCP-equivalent tools (model/field/relationship discovery over live
+  XML-RPC/JSON-RPC-2.0), /plan-analysis, /start-coding, /testing, /fleet
+  slash commands, session-start Odoo workspace detection, and all bundled
+  Odoo skills registered under the odoo-agent-pro-kit: namespace.
+author: "Vinay Rana"
+homepage: "https://github.com/infovpcs/odoo-agent-pro-kit"
+license: "Apache-2.0"
+manifest_version: 2
+api_version: 1
+tags: ["odoo", "odoo-17", "odoo-18", "odoo-19", "erp", "mcp", "docker-sandbox"]
+provides_tools:
+  - odoo_search_models
+  - odoo_get_fields
+  - odoo_get_relationships
+  - odoo_validate_field
+  - odoo_get_model_info
+  - odoo_list_all_models
+  - odoo_get_version_info
+provides_hooks:
+  - on_session_start
+  - on_session_end
+python_dependencies:
+  - "pydantic>=2.0,<3"
+  - "python-dotenv>=1.0,<2"
+  - "requests>=2.31.0,<3"
+config_schema:
+  default_odoo_version:
+    type: str
+    default: ""
+    description: >-
+      Default Odoo version (17.0/18.0/19.0) used by odoo_* tools and slash
+      commands when a call omits an explicit version. Falls back to
+      DEFAULT_ODOO_VERSION env var, then session-start auto-detection, then
+      19.0.
+    required: false

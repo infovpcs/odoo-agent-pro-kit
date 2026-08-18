@@ -3,6 +3,40 @@
 All notable changes to `odoo-agent-pro-kit` are documented here. Versions
 track the `plugin/.claude-plugin/plugin.json` `version` field.
 
+## 0.3.0 — 2026-08-18
+
+### Added
+
+- **Native Hermes plugin** (`plugin/plugin.yaml` + `plugin/__init__.py`) —
+  `hermes plugins install infovpcs/odoo-agent-pro-kit/plugin --enable` now
+  registers everything in-process, no separate MCP server/port/sidecar
+  required for a Hermes session:
+  - 7 `odoo_*` tools (`odoo_search_models`, `odoo_get_fields`,
+    `odoo_get_relationships`, `odoo_validate_field`, `odoo_get_model_info`,
+    `odoo_list_all_models`, `odoo_get_version_info`) — in-process wrappers
+    around the existing `plugin/odoo_mcp/{config,connection_manager,
+    model_extractor}.py` (same pooling, retry, and XML-RPC/JSON-RPC-2.0
+    protocol selection as the standalone MCP server), each accepting an
+    optional `version` argument.
+  - 4 slash commands (`/plan-analysis`, `/start-coding`, `/testing`,
+    `/fleet`) — real Hermes commands via `ctx.register_command()`, routing
+    into the `odoo_commanding_system` skill exactly like the Claude Code
+    command files.
+  - 2 hooks — `on_session_start` (Odoo workspace / sandbox session
+    detection banner, replacing `hooks/session_start.sh`) and
+    `on_session_end` (closes pooled Odoo connections opened during the
+    session).
+  - All 20 bundled skills registered via `ctx.register_skill()`, namespaced
+    as `odoo-agent-pro-kit:<skill-name>` (e.g.
+    `skill_view("odoo-agent-pro-kit:CommandingSystem")`).
+  - Coexists with the pre-existing Claude-Code-style manifest at
+    `.claude-plugin/plugin.json` — that one is read when this `plugin/`
+    directory is installed as a Claude Code plugin; `plugin.yaml` is read
+    when it's installed via `hermes plugins install`.
+  - Verified with `hermes plugins doctor plugin --ci` (7 tools, 2 hooks,
+    4 slash commands, 20 skills, zero warnings) and a real install+enable
+    cycle in an isolated `HERMES_HOME`.
+
 ## 0.2.0 — 2026-08-18
 
 ### Added

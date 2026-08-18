@@ -111,21 +111,55 @@ wrapper in `~/.local/bin/<profile-name>` (e.g. `odoo19-dev chat`).
 git clone https://github.com/infovpcs/odoo-agent-pro-kit.git ~/odoo-agent-pro-kit
 ```
 
-**Do not use `hermes plugins install` on `plugin/`** — it is a Claude-Code
-style plugin (`.claude-plugin/plugin.json`), not a native Hermes plugin
-manifest. `hermes plugins install` will accept the files but
-`hermes plugins doctor` reports 0 tool/hook registrations; slash commands
-and hooks will not fire. It also trips the plugin security scanner
-(`Blocked: dangerous verdict`) on completely normal Odoo dev patterns
-(`os.getenv('ODOO_DB_PASSWORD', ...)`, `sudo systemctl start postgresql`,
-episodic-memory `CLAUDE.md` writes) — these are false positives specific to
-this repo's known-safe patterns, not a real compromise. If you must install
-via that path anyway, temporarily set
+**As of 0.3.0, `plugin/` ships a real native Hermes plugin manifest**
+(`plugin/plugin.yaml` + `plugin/__init__.py`, alongside the pre-existing
+Claude-Code-style `.claude-plugin/plugin.json` — Hermes reads the former,
+Claude Code the latter, from the same directory). Use `hermes plugins
+install` per profile — this is now the preferred, verified path:
+
+```bash
+for p in odoo17-dev odoo18-dev odoo19-dev; do
+  hermes -p "$p" plugins install ~/odoo-agent-pro-kit/plugin --enable
+done
+```
+
+This registers, per profile, in one step: 7 `odoo_*` model-discovery tools
+(in-process — no separate MCP server/port needed for a Hermes session), the
+`/plan-analysis`/`/start-coding`/`/testing`/`/fleet` slash commands, an
+`on_session_start` hook (Odoo workspace / sandbox session detection banner)
+and `on_session_end` hook (closes pooled Odoo connections), and all 20
+bundled skills under the `odoo-agent-pro-kit:` namespace (e.g.
+`skill_view("odoo-agent-pro-kit:CommandingSystem")`).
+
+**Local-path installs skip the security scanner's git-provenance checks
+but still run static content scanning.** If it still flags a false
+positive on this repo's known-safe patterns (`os.getenv('ODOO_DB_PASSWORD',
+...)`, `sudo systemctl start postgresql`, episodic-memory `CLAUDE.md`
+writes), temporarily set
 `hermes -p <profile> config set plugins.scan_on_install false`, install,
 then set it back to `true`.
 
-**Instead, copy the skills directly into each profile** as a category folder
-(this is what actually works and is verified reliable):
+Verify before trusting an install — run this from the repo clone, before or
+after installing into any profile:
+
+```bash
+hermes plugins doctor ~/odoo-agent-pro-kit/plugin --ci
+```
+
+Expect `OK: runtime discovery, manifest parsing, import, and registration
+passed` with `registrations: 7 tool(s), 2 hook(s)` and zero warnings (a
+`python_dependencies` entry without an upper bound is a real warning to
+fix, not noise — pin it like the shipped manifest does). Then confirm live
+in a profile:
+
+```bash
+hermes -p odoo19-dev plugins list | grep odoo-agent-pro-kit   # status: enabled
+```
+
+**Legacy fallback (pre-0.3.0 repos, or if native install is refused for
+policy reasons): copy the skills directly** into each profile as a category
+folder — this still works and needs no plugin registration at all, but
+loses the native tools/commands/hooks:
 
 ```bash
 for p in odoo17-dev odoo18-dev odoo19-dev; do
@@ -136,7 +170,8 @@ done
 ```
 
 Symlink each profile's workspace to the pro-kit repo so skills that expect
-`sandbox/`, `odoo_local_setup/`, etc. relative to CWD resolve correctly:
+`sandbox/`, `odoo_local_setup/`, etc. relative to CWD resolve correctly —
+needed for both the native-plugin and legacy-copy paths:
 
 ```bash
 for p in odoo17-dev odoo18-dev odoo19-dev; do
@@ -146,7 +181,7 @@ for p in odoo17-dev odoo18-dev odoo19-dev; do
 done
 ```
 
-Verify all 19 skills loaded and enabled:
+If using the legacy copy path, verify all 19 skills loaded and enabled:
 
 ```bash
 hermes -p odoo19-dev skills list 2>&1 | grep vpcs-odoo-project
@@ -159,12 +194,12 @@ Odoo_Custom_App_Install_Update, OdooRestartUpgradeRules, PRD-Writing,
 excalidraw-diagram-skill, Agent-browser-skill,
 Odoo_Module_Documentation_Screenshot — 19 entries, all `enabled`.
 
-**For a different AI agent/IDE** (not Hermes): skip the `hermes skills`
-step and instead point that agent's skill/context loader at
-`~/odoo-agent-pro-kit/plugin/skills/` and `plugin/commands/` directly per
-its own convention (e.g. Claude Code reads `.claude-plugin/plugin.json`
-natively — installing the whole `plugin/` dir as a Claude Code plugin works
-as-is there, unlike in Hermes).
+**For a different AI agent/IDE** (not Hermes): point that agent's
+skill/context loader at `~/odoo-agent-pro-kit/plugin/skills/` and
+`plugin/commands/` directly per its own convention (e.g. Claude Code reads
+`.claude-plugin/plugin.json` natively — installing the whole `plugin/` dir
+as a Claude Code plugin works as-is there, alongside Hermes's own
+`plugin.yaml` in the same directory).
 
 ## 5. Docker Sandbox: create, validate, and destroy one real session
 
@@ -293,10 +328,17 @@ each on its own fixed port.
 
 ## Known gaps not yet solved by this playbook
 
-- Native Hermes plugin manifest (proper `plugin.yaml`/hooks/slash-command
-  wiring) does not exist for odoo-agent-pro-kit yet — skills load fine via
-  direct copy (step 4), but `/plan-analysis` etc. are not real Hermes
-  slash-command equivalents until that manifest is built.
+- Repo-hosted install shorthand (`hermes plugins install
+  infovpcs/odoo-agent-pro-kit/plugin`) requires the plugin's git history to
+  actually be pushed and reachable — verified working against a local path
+  install (`hermes plugins install ~/odoo-agent-pro-kit/plugin`) and via
+  `hermes plugins doctor`; re-verify the GitHub-hosted shorthand once 0.3.0
+  is tagged/released, since it clones fresh rather than using an existing
+  local checkout.
+- Odoo knowledge-base repos are wired in as filesystem references (see
+  below), not through the native plugin's `ctx.register_skill()` surface —
+  a future iteration could ship a searchable index as a plugin-bundled
+  skill instead of a raw grep target.
 
 ## Knowledge-base sync (solved — do it this way)
 

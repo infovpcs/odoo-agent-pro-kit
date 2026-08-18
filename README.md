@@ -43,6 +43,17 @@ multi-version setup.
 /plugin install odoo-agent-pro-kit
 ```
 
+**Hermes (native plugin):**
+```bash
+hermes plugins install infovpcs/odoo-agent-pro-kit/plugin --enable
+```
+Registers 7 `odoo_*` model-discovery tools (in-process, no separate MCP
+server/port needed), the `/plan-analysis`, `/start-coding`, `/testing`,
+`/fleet` slash commands, session-start Odoo workspace detection, and all 20
+bundled skills under the `odoo-agent-pro-kit:` namespace. See
+[CHANGELOG.md](CHANGELOG.md) 0.3.0 for details, or run
+`hermes plugins doctor plugin --ci` from a clone to verify locally first.
+
 **Codex:** copy `context-templates/AGENTS.md` into your project root (Codex
 reads it natively). See `integrations/codex/INSTALL.md`.
 
@@ -54,9 +65,9 @@ reads it natively). See `integrations/codex/INSTALL.md`.
 | Component | Where |
 |---|---|
 | 18 Odoo skills (coding standards, dependency context, tools, testing, docs) | `plugin/skills/` |
-| 4 slash commands (`/plan-analysis`, `/start-coding`, `/testing`, `/fleet`) | `plugin/commands/` |
-| 3 hooks (SessionStart/PreCompact/Stop) for context optimization | `plugin/hooks/` |
-| Live MCP server for Odoo 17/18/19 model discovery | `plugin/odoo_mcp/` |
+| 4 slash commands (`/plan-analysis`, `/start-coding`, `/testing`, `/fleet`) | `plugin/commands/` (Claude Code) / `plugin/__init__.py` (native Hermes) |
+| 3 hooks (SessionStart/PreCompact/Stop) for context optimization | `plugin/hooks/` (Claude Code) / `plugin/__init__.py` (native Hermes: `on_session_start`/`on_session_end`) |
+| Live MCP server for Odoo 17/18/19 model discovery | `plugin/odoo_mcp/` (standalone server) / `plugin/__init__.py` (native Hermes in-process tools) |
 | Compose sidecar running odoo_mcp as a persistent service inside a Docker Sandbox session | `sandbox/mcp-sidecar/` |
 | Portable playbook for provisioning an AI agent host for Odoo dev (any agent/IDE, any project) | `plugin/skills/OdooHermesEnvironmentSetup/` |
 | Local Odoo workspace bootstrap/management scripts | `odoo_local_setup/` |

@@ -37,6 +37,7 @@ bash -n \
 
 echo "==> Python syntax"
 python3 -m py_compile \
+  plugin/__init__.py \
   sandbox/bin/sandboxctl \
   sandbox/scripts/fixture-lifecycle.py \
   sandbox/scripts/benchmark.py \
