@@ -297,10 +297,33 @@ each on its own fixed port.
   wiring) does not exist for odoo-agent-pro-kit yet — skills load fine via
   direct copy (step 4), but `/plan-analysis` etc. are not real Hermes
   slash-command equivalents until that manifest is built.
-- Odoo knowledge-base repos (full docs converted to Markdown, one branch per
-  version) are not yet synced or wired into any profile as a searchable
-  reference. If asked to add this, sync
-  `git@github.com:infovpcs/Knowledge-Base.git` branches `17.0`/`18.0`/`19.0`
-  to the target host and mount/copy into a skill's `references/` directory
-  or a dedicated search index — do not guess a wiring mechanism without
-  checking what the target agent supports.
+
+## Knowledge-base sync (solved — do it this way)
+
+Odoo knowledge-base repos (full official docs converted to Markdown, one
+branch per version, `git@github.com:infovpcs/Knowledge-Base.git` branches
+`17.0`/`18.0`/`19.0`) sync onto a target host and wire into profile skills
+like this:
+
+1. Sync each version's working tree (no `.git`, ~110-130MB per version) via
+   `tar` piped over SSH — do not rely on `rsync` between macOS (openrsync)
+   and a Linux host without a matching `rsync` binary installed; it silently
+   fails with "protocol version" / "unexpected end of file" errors:
+   ```bash
+   tar --exclude='.git' -czf - -C <local-workspaces-dir> knowledge-<ver> | \
+     ssh -i <key> <user>@<host> \
+     "mkdir -p ~/odoo-knowledge-base && tar -xzf - -C ~/odoo-knowledge-base"
+   ```
+   Lands at `~/odoo-knowledge-base/knowledge-<ver>/odoo<ver>-okf/` on the
+   target host (subdirs: `contributing/`, `attachments/`, `developer/`,
+   `legal/`, `administration/`, `applications/`).
+2. Wire it into each profile as a *reference*, not a copy: append a short
+   "Local Odoo Documentation Knowledge Base" section to the matching
+   `Odoo<ver>ExistingDependencyContext/SKILL.md` in every profile's
+   `skills/vpcs-odoo-project/` directory, pointing at the synced path and
+   telling the agent to `grep -rl` it for offline/static API and framework
+   research, while still treating live MCP/shell dependency capture as the
+   source of truth for actual installed-module state.
+3. Verify with a real grep against the synced tree (not just a file-count
+   check) before declaring it wired, e.g.
+   `grep -rl "compute" ~/odoo-knowledge-base/knowledge-19/odoo19-okf/developer/`.
