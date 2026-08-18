@@ -28,8 +28,8 @@ Before changing files:
   planning
 - Active branch: `main`
 - Branch base: `main` at commit `12368b7` (post-Phase-7, additive 0.2.0/0.3.0 work)
-- Last context update: 2026-08-18 (Asia/Kolkata, resolved native-plugin
-  install blocker on all 3 Oracle VPS profiles)
+- Last context update: 2026-08-18 (Asia/Kolkata, verified free-tier inference
+  fallback providers on local Mac; VPS profiles still need the same)
 
 ## Objective
 
@@ -505,14 +505,74 @@ that consumes stable Community releases instead of forking this repository.
   `hermes-gateway` systemd user service on the Oracle VPS as a side effect
   of restart guidance (was not running before this session; harmless,
   no messaging platforms configured so it idles).
+- [x] (Additive, resolved, local Mac only — not yet on VPS) Verified two
+  free/no-card-required OpenAI-compatible inference providers work with
+  Hermes and wired both into a fallback chain, closing the gap the
+  previous session's Next task called out ("no inference provider
+  configured at all" on the VPS). Both were tested with live `curl` calls
+  before any config change, and again through the real Hermes CLI
+  afterward:
+  - **Hetzner AI free tier** (`https://inference.hetzner.com/api/v1`,
+    Bearer token from https://experiments.hetzner.com/docs/inference,
+    account-gated by Hetzner's OIDC/SSO login — could not scrape the docs
+    page directly, browser automation confirmed it is a login-walled SPA).
+    `GET /v1/models` → one model, `Qwen/Qwen3.6-35B-A3B-FP8`. Live
+    `/v1/chat/completions` call returned real generated content (`pong`)
+    with a visible internal `reasoning` field (this is a reasoning model).
+  - **OpenRouter** (`https://openrouter.ai/api/v1`, existing first-class
+    Hermes provider, needs only `OPENROUTER_API_KEY`). `GET /v1/models` →
+    412 models, many `:free`-suffixed. The `openrouter/free` auto-router
+    alias returned a live completion at `"cost": 0`; a specific pinned
+    free model (`google/gemma-4-31b-it:free`) hit a `429` on the very next
+    call — OpenRouter's per-model free tier is shared/rate-limited across
+    all users, so `openrouter/free` (which auto-picks an available free
+    model) is the resilient choice, not a pinned `:free` model id.
+  - Configured on the **local Mac profile only** via `hermes config set`
+    (direct edits to `~/.hermes/config.yaml` are blocked by a built-in
+    Hermes safety guard — must go through the CLI):
+    `providers.hetzner = {api: https://inference.hetzner.com/api/v1,
+    key_env: HETZNER_API_KEY, transport: chat_completions, default_model:
+    Qwen/Qwen3.6-35B-A3B-FP8, context_length: 131072}` and
+    `fallback_providers = [{provider: openrouter, model:
+    openrouter/free}, {provider: custom:hetzner, model:
+    Qwen/Qwen3.6-35B-A3B-FP8}]` (primary model/provider — Anthropic
+    `claude-sonnet-5` — left untouched). `HETZNER_API_KEY` and
+    `OPENROUTER_API_KEY` added to `~/.hermes/.env` (chmod 600, outside
+    any git repo). Verified with `hermes fallback list` (shows the
+    2-entry chain under the unchanged primary) and two independent
+    `hermes -z "..." --provider <p> --model <m> --cli` calls, both
+    returning `pong` through the real Hermes agent loop, not just raw
+    `curl`.
+  - **Security**: both tokens only ever touched this chat, one in-memory
+    `curl` test each, and `~/.hermes/.env`/`~/.hermes/config.yaml`
+    (outside every git repo on this machine). Neither key was written to
+    any file inside `odoo-agent-pro-kit`; `git status` stayed clean at
+    `0d83521` throughout. `hermes_mcp_agent.py` (mentioned in the user's
+    original ask) was not found in any indexed public repo and was not
+    run — only the documented `curl`-based REST endpoints were used.
+  - **Gap carried forward**: this fallback chain exists only in the local
+    Mac's `~/.hermes/config.yaml`/`.env`, not in any of the 3 Oracle VPS
+    profiles (odoo17-dev/odoo18-dev/odoo19-dev), which is why the
+    previous session's live slash-command test was deferred. See Next
+    task.
 
 ## Blockers and risks
 
 ### Immediate
 
-- No immediate blocker remains for native plugin install/enable. The
-  `hermes plugins install` local-path resolution issue is resolved (see
-  Completed above).
+- **No inference provider is configured on any of the 3 Oracle VPS Hermes
+  profiles.** `hermes -p <profile> model` requires a real interactive
+  terminal (it refused over a piped SSH command: "Error: 'hermes model'
+  requires an interactive terminal. It cannot be run through a pipe or
+  non-interactive subprocess."). This is why every plugin-wiring
+  verification on the VPS so far has used an in-process Python call to
+  the registered tool function, bypassing the LLM entirely — real
+  slash-command dispatch (`/plan-analysis`, `/start-coding`, `/testing`,
+  `/fleet`) has never been exercised on that host. The local Mac now has
+  a working, verified, free fallback chain (Hetzner + OpenRouter, see
+  Completed above) that can be replicated onto the VPS non-interactively
+  via `hermes -p <profile> config set ...` (same command family used
+  locally) instead of the interactive `hermes model` wizard.
 - No immediate Phase 6 blocker remains. Docker login JWKS and refresh-lock
   connectivity was intermittent during the run; authentication diagnostics
   passed and the completed evidence was verified from inner state rather than
@@ -549,26 +609,75 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Next task
 
-Verify at least one `/plan-analysis`, `/start-coding`, `/testing`, or
-`/fleet` slash command actually dispatches correctly in a live Hermes
-chat session on one Oracle VPS profile (not just `plugins doctor`
-registration or an in-process tool-function call). This requires an
-inference provider to be configured on that VPS first (`hermes -p
-<profile> model`, or an API key in `~/.hermes/.env` /
-`~/.hermes/profiles/<profile>/.env`) — none is currently set up on
-`vpcscloud` (92.4.86.131), which is why this session verified plugin
-wiring via a direct in-process tool call instead of a live chat turn.
-Acceptance: a real interactive or `hermes -p <profile> -z "..."` session
-in at least one of odoo17-dev/odoo18-dev/odoo19-dev issues `/plan-analysis`
-(or another registered slash command) and it dispatches through the native
-plugin's `_make_command_handler` path — not a "command not found" error —
-whether or not a live Odoo backend is reachable to complete the workflow.
+Test the whole odoo-agent-pro-kit plugin pipeline end-to-end on the Oracle
+VPS with real, live inference — not in-process tool calls or `plugins
+doctor` registration checks. Two parts, both required:
+
+1. **Provider setup on the VPS (per profile, non-interactive).** Replicate
+   the already-verified local Mac fallback chain onto
+   odoo17-dev/odoo18-dev/odoo19-dev without the interactive `hermes model`
+   wizard (it refuses over SSH/piped input — see Blockers → Immediate):
+   ```bash
+   # per profile, on the VPS
+   echo "HETZNER_API_KEY=<token>" >> ~/.hermes/.env       # once, shared across profiles
+   echo "OPENROUTER_API_KEY=<token>" >> ~/.hermes/.env    # once, shared across profiles
+   hermes -p <profile> config set providers.hetzner.api "https://inference.hetzner.com/api/v1"
+   hermes -p <profile> config set providers.hetzner.key_env "HETZNER_API_KEY"
+   hermes -p <profile> config set providers.hetzner.transport "chat_completions"
+   hermes -p <profile> config set providers.hetzner.default_model "Qwen/Qwen3.6-35B-A3B-FP8"
+   hermes -p <profile> config set model.default "openrouter/free"
+   hermes -p <profile> config set model.provider "openrouter"
+   hermes -p <profile> config set fallback_providers '[{"provider":"custom:hetzner","model":"Qwen/Qwen3.6-35B-A3B-FP8"}]'
+   ```
+   (Reuse the user's existing Hetzner/OpenRouter tokens from this session —
+   do not ask the user to regenerate them unless they've expired/rotated.
+   Get them the same secure way: user pastes in chat, used only for one
+   in-memory verification `curl`/`hermes -z` call, written only to
+   `~/.hermes/.env` on the VPS via SSH, never into any file under
+   `~/odoo-agent-pro-kit`.) Since OpenRouter is free but the *default*
+   model, using `openrouter/free` as primary (not just fallback) keeps
+   every VPS profile's agent loop cost-free end-to-end; swap in a paid
+   provider later if response quality on `openrouter/free`'s auto-routed
+   model proves too weak for real Odoo task reasoning.
+
+2. **Live pipeline test per profile (or at least one, then decide whether
+   to repeat for all three).** With a real provider now configured, run
+   an actual chat turn — `hermes -p <profile> -z "..." --cli` or a real
+   interactive session — that exercises the plugin end-to-end:
+   - Issue `/plan-analysis 19 <a small real or fixture module>` (or
+     another registered slash command) and confirm it dispatches through
+     the native plugin's `_make_command_handler` path (not "command not
+     found").
+   - Call at least one `odoo_*` tool (e.g. `odoo_get_version_info`)
+     through the live agent turn, not a direct Python call, and record
+     whether it reaches a real Odoo backend or returns the same clean
+     connection-refused error confirmed last session (acceptable either
+     way — the acceptance bar is "not a registration error").
+   - If a live Odoo 19 backend is reachable on that VPS (check
+     `sandboxctl`/Docker Sandbox session state first — none was reported
+     running at last session's cleanup), prefer running the test against
+     it so the full `/plan-analysis` -> `/start-coding` -> `/testing`
+     lifecycle can be exercised for real, not just command dispatch.
+   - Record exact commands, raw output/log excerpts, and pass/fail per
+     step here in SESSION_CONTEXT.md — do not summarize from memory.
+
+WhatsApp/Telegram gateway linkage is explicitly OUT OF SCOPE for this task
+— the user asked whether it's required and was told no: SSH + a
+configured inference provider is sufficient to exercise the full plugin
+pipeline. Messaging-gateway linkage is a separate future decision only
+needed for phone-based triggering or off-session delivery, not for this
+verification.
 
 ## Following tasks
 
-1. Review community platform evidence and fix proposals as they arrive
+1. Once live slash-command dispatch is proven on the VPS, decide whether
+   `openrouter/free` is good enough quality for real Odoo task work or
+   whether a paid primary provider should be linked instead (the user
+   raised this trade-off directly — "otherwise I will link my Claude
+   plan").
+2. Review community platform evidence and fix proposals as they arrive
    (Apple Silicon macOS / Windows 11 Docker Sandbox validation).
-2. Plan the next roadmap phase in a fresh session before implementation.
+3. Plan the next roadmap phase in a fresh session before implementation.
 
 ## Validation commands
 
