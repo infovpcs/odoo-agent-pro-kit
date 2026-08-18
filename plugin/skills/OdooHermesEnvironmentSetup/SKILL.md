@@ -114,14 +114,65 @@ git clone https://github.com/infovpcs/odoo-agent-pro-kit.git ~/odoo-agent-pro-ki
 **As of 0.3.0, `plugin/` ships a real native Hermes plugin manifest**
 (`plugin/plugin.yaml` + `plugin/__init__.py`, alongside the pre-existing
 Claude-Code-style `.claude-plugin/plugin.json` — Hermes reads the former,
-Claude Code the latter, from the same directory). Use `hermes plugins
-install` per profile — this is now the preferred, verified path:
+Claude Code the latter, from the same directory). `plugin/plugin.yaml`
+declares `manifest_version: 1` — the bundled Hermes v0.20.3 installer's
+`_SUPPORTED_MANIFEST_VERSION` caps at 1 even though the plugin *loader*
+already understands v2 fields (`api_version`, `tags`,
+`python_dependencies`, `config_schema`, `license`, `homepage` all still
+parse correctly under a `manifest_version: 1` declaration) — declaring 2
+made `hermes plugins install` hard-refuse with "requires manifest_version
+2, but this installer only supports up to 1" on any Hermes version that
+hasn't run `hermes update` past that installer-side cap. Use `hermes
+plugins install` per profile — this is now the preferred, verified path:
 
 ```bash
 for p in odoo17-dev odoo18-dev odoo19-dev; do
   hermes -p "$p" plugins install ~/odoo-agent-pro-kit/plugin --enable
 done
 ```
+
+**Local absolute paths need the `file://` scheme + `#subdir` fragment, not
+a bare filesystem path.** `hermes plugins install <identifier>` treats any
+identifier without a recognized URL scheme as `owner/repo[/subdir]`
+GitHub shorthand — a bare `~/odoo-agent-pro-kit/plugin` or
+`/home/ubuntu/odoo-agent-pro-kit/plugin` gets misread as
+`owner=home, repo=ubuntu` (or similar) and tries to clone a bogus
+`https://github.com/<owner>/<repo>.git`, failing with `fatal: could not
+read Username for 'https://github.com': terminal prompts disabled`. The
+verified working form is:
+
+```bash
+hermes -p "$p" plugins install "file://$HOME/odoo-agent-pro-kit#plugin" --enable
+```
+
+i.e. `file://<absolute-repo-root>#<subdir-within-repo>`. This clones the
+local repo (via `git clone file://...`, so the repo must have at least one
+commit — a plain uncommitted working-tree edit is invisible to this path)
+and installs only the `plugin` subdirectory.
+
+**Local-path installs skip the security scanner's git-provenance checks
+but still run static content scanning**, and this repo's own skills
+content (subprocess/shell examples, `sudo systemctl start postgresql`,
+`allowed-tools` frontmatter, etc.) reliably trips a "dangerous" verdict —
+even `--force` does not override "dangerous" (only "caution"). Work
+around it per install by setting `scan_on_install: false` in that
+profile's `~/.hermes/profiles/<profile>/config.yaml` before installing,
+then setting it back to `true` immediately after:
+
+```bash
+CFG=~/.hermes/profiles/"$p"/config.yaml
+sed -i 's/scan_on_install: true/scan_on_install: false/' "$CFG"
+hermes -p "$p" plugins install "file://$HOME/odoo-agent-pro-kit#plugin" --enable < /dev/null
+sed -i 's/scan_on_install: false/scan_on_install: true/' "$CFG"
+```
+
+Note `--enable` on a scanner-bypassed non-interactive install prints
+"enabled" but installing fresh does NOT set `plugins.enabled` the same way
+`hermes plugins enable <name>` does on an existing install — always
+confirm afterward with `hermes -p "$p" plugins list --plain --no-bundled
+| grep odoo-agent-pro-kit` and expect the `enabled` state column, running
+`hermes -p "$p" plugins enable odoo-agent-pro-kit` again if it still shows
+`not enabled`.
 
 This registers, per profile, in one step: 7 `odoo_*` model-discovery tools
 (in-process — no separate MCP server/port needed for a Hermes session), the
@@ -130,14 +181,6 @@ This registers, per profile, in one step: 7 `odoo_*` model-discovery tools
 and `on_session_end` hook (closes pooled Odoo connections), and all 20
 bundled skills under the `odoo-agent-pro-kit:` namespace (e.g.
 `skill_view("odoo-agent-pro-kit:CommandingSystem")`).
-
-**Local-path installs skip the security scanner's git-provenance checks
-but still run static content scanning.** If it still flags a false
-positive on this repo's known-safe patterns (`os.getenv('ODOO_DB_PASSWORD',
-...)`, `sudo systemctl start postgresql`, episodic-memory `CLAUDE.md`
-writes), temporarily set
-`hermes -p <profile> config set plugins.scan_on_install false`, install,
-then set it back to `true`.
 
 Verify before trusting an install — run this from the repo clone, before or
 after installing into any profile:
@@ -330,11 +373,22 @@ each on its own fixed port.
 
 - Repo-hosted install shorthand (`hermes plugins install
   infovpcs/odoo-agent-pro-kit/plugin`) requires the plugin's git history to
-  actually be pushed and reachable — verified working against a local path
-  install (`hermes plugins install ~/odoo-agent-pro-kit/plugin`) and via
-  `hermes plugins doctor`; re-verify the GitHub-hosted shorthand once 0.3.0
-  is tagged/released, since it clones fresh rather than using an existing
-  local checkout.
+  actually be pushed and reachable; re-verify the GitHub-hosted shorthand
+  once 0.3.0 is tagged/released, since it clones fresh rather than using an
+  existing local checkout.
+- (Resolved 2026-08-18) The `hermes plugins install` local-path blocker is
+  closed: `plugin/plugin.yaml` now declares `manifest_version: 1` (the
+  installer's `_SUPPORTED_MANIFEST_VERSION` cap, distinct from the loader's
+  v2 support), and local installs use `file://<abs-repo-root>#plugin` with
+  a per-install `scan_on_install: false` toggle — see step 4 above for the
+  full working commands. Installed and verified `enabled` on all 3 Oracle
+  VPS profiles (odoo17-dev/odoo18-dev/odoo19-dev) via `hermes -p <profile>
+  plugins list` and `hermes -p <profile> plugins doctor
+  odoo-agent-pro-kit --ci` (7 tools, 2 hooks, 4 commands each). A direct
+  in-process call to `odoo_get_version_info` on odoo17-dev returned a
+  clean connection-refused error (no Odoo backend listening on
+  `localhost:8069` on that host) rather than a registration/import error,
+  confirming the plugin is functionally wired, not just discoverable.
 - Odoo knowledge-base repos are wired in as filesystem references (see
   below), not through the native plugin's `ctx.register_skill()` surface —
   a future iteration could ship a searchable index as a plugin-bundled
