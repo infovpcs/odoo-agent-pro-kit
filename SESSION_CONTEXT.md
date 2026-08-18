@@ -26,9 +26,9 @@ Before changing files:
 - Supported Odoo versions: 17.0, 18.0, and 19.0
 - Active workstream: public Docker Sandbox foundation and open-core commercial
   planning
-- Active branch: `feature/docker-sandbox-phase-7`
-- Branch base: `main` at commit `192f6c9`
-- Last context update: 2026-08-13 (Asia/Kolkata)
+- Active branch: `main`
+- Branch base: `main` at commit `12368b7` (post-Phase-7, additive 0.2.0/0.3.0 work)
+- Last context update: 2026-08-18 (Asia/Kolkata)
 
 ## Objective
 
@@ -194,6 +194,56 @@ that consumes stable Community releases instead of forking this repository.
   merged Docker Sandbox execution plane: bounded single-host fleet allocation,
   one microVM per session, `sandboxctl`/`manage_modules.sh`, the private inner
   Compose runtime, Odoo/PostgreSQL isolation, and structured session artifacts.
+- [x] PR #2 merged to `main`; Phase 7 release fully closed.
+- [x] (Additive, non-phase, 0.2.0) Built `sandbox/mcp-sidecar/` — a Compose
+  override running `plugin/odoo_mcp` as a `restart: unless-stopped` service
+  inside an existing Docker Sandbox session's Compose project (does not
+  modify the pinned `sandbox/compose/compose.yaml`). Verified end-to-end on
+  the Oracle VPS: created Odoo 19 sandbox session, brought up the sidecar,
+  published its port via `sbx ports`, `curl http://127.0.0.1:8767/sse`
+  returned `200 OK` `text/event-stream` from the bare host. Also fixed
+  `plugin/odoo_mcp/requirements.txt` (`mcp[server]<2.0.0` pin — the
+  unbounded `>=1.0.0` was resolving to `mcp` 2.0.0 and breaking with
+  `ModuleNotFoundError: No module named 'mcp.server.fastmcp'`). Committed as
+  `0a84ed8`.
+- [x] (Additive, 0.2.0) Created `plugin/skills/OdooHermesEnvironmentSetup/
+  SKILL.md` — portable playbook for provisioning any AI agent/IDE for Odoo
+  17/18/19 dev on a fresh host. Registered live as
+  `odoo-hermes-environment-setup` and installed into all 3 Oracle VPS
+  Hermes profiles (odoo17-dev/odoo18-dev/odoo19-dev).
+- [x] (Additive) Synced the Odoo documentation knowledge-base repos
+  (`knowledge-17/18/19`, ~110-130MB each, `git@github.com:infovpcs/
+  Knowledge-Base.git` branches `17.0`/`18.0`/`19.0`) from the local Mac to
+  the Oracle VPS at `~/odoo-knowledge-base/knowledge-<ver>/odoo<ver>-okf/`
+  via `tar | ssh` (rsync is unavailable on the VPS; macOS openrsync is
+  incompatible with a host lacking an rsync binary — use tar-over-ssh
+  instead). Wired in as reference material: appended a "Local Odoo
+  Documentation Knowledge Base" section to all 9
+  `Odoo<ver>ExistingDependencyContext/SKILL.md` copies (3 profiles x 3
+  versions) on the VPS, verified with a real `grep -rl` against the synced
+  tree. Documented the procedure in `OdooHermesEnvironmentSetup/SKILL.md`.
+  Committed as `bc007d5`.
+- [x] (Additive, 0.3.0) Built a **native Hermes plugin manifest**
+  (`plugin/plugin.yaml` + `plugin/__init__.py`), coexisting with the
+  pre-existing Claude-Code-style `.claude-plugin/plugin.json` in the same
+  directory. Registers via `register(ctx)`: 7 `odoo_*` in-process tools
+  (`odoo_search_models`, `odoo_get_fields`, `odoo_get_relationships`,
+  `odoo_validate_field`, `odoo_get_model_info`, `odoo_list_all_models`,
+  `odoo_get_version_info` — thin wrappers around the existing
+  `plugin/odoo_mcp/{config,connection_manager,model_extractor}.py`, no
+  separate MCP server/port/sidecar needed inside a Hermes session), 4 slash
+  commands (`/plan-analysis`, `/start-coding`, `/testing`, `/fleet` via
+  `ctx.register_command()`), 2 hooks (`on_session_start` workspace
+  detection, `on_session_end` connection cleanup), and all 20 bundled
+  skills via `ctx.register_skill()` under the `odoo-agent-pro-kit:`
+  namespace. Verified with `hermes plugins doctor plugin --ci` locally (7
+  tools, 2 hooks, 4 commands, 20 skills, zero warnings after pinning
+  `python_dependencies` upper bounds) and a real install+enable cycle in an
+  isolated `HERMES_HOME`. Also verified `doctor` passes identically against
+  all 3 Oracle VPS profiles. `plugin/.claude-plugin/plugin.json` and
+  `plugin/plugin.yaml` both bumped to 0.3.0 in lockstep. Committed as
+  `12368b7`, pushed to `origin/main`, and fast-forward-synced onto the
+  Oracle VPS repo clone (clean, no conflicts).
 
 ## Current state
 
@@ -396,11 +446,45 @@ that consumes stable Community releases instead of forking this repository.
   `Complete Docker Sandbox Phase 4 adapters`.
 - Phase 6 is complete and committed on `feature/docker-sandbox-phase-6` with
   subject `Complete Docker Sandbox Phase 6 observability`.
+- Phase 7 is merged to `main` via PR #2; the repository is on `main` at
+  `12368b7`, working tree clean, nothing outstanding to push locally.
+- (Additive, non-phase) Local repo, GitHub (`origin/main`), and the Oracle
+  VPS repo clone (`~/odoo-agent-pro-kit` on `92.4.86.131`) are byte-identical
+  at `12368b7`. This was hand-verified each round (`diff`/`md5`/`git log`)
+  before every push, not assumed.
+- (Additive) Oracle VPS: Hermes v0.20.3, 3 profiles (odoo17-dev/odoo18-dev/
+  odoo19-dev), 20 project skills loaded and `enabled` in each, `~/odoo-
+  agent-pro-kit` synced to `12368b7`, `~/odoo-knowledge-base/knowledge-
+  {17,18,19}/` synced and wired into skill references.
+- (Additive) `hermes plugins doctor ~/odoo-agent-pro-kit/plugin --ci` passes
+  cleanly on all 3 Oracle VPS profiles (7 tools, 2 hooks, zero warnings),
+  confirming the native 0.3.0 plugin code itself is correct and loadable on
+  that host. **It is not yet installed/enabled in any VPS profile** — see
+  Blockers below.
 
 ## Blockers and risks
 
 ### Immediate
 
+- **Native 0.3.0 plugin (`plugin/plugin.yaml` + `plugin/__init__.py`) is not
+  yet installed/enabled in any of the 3 Oracle VPS Hermes profiles.**
+  `hermes -p <profile> plugins install ~/odoo-agent-pro-kit/plugin --enable`
+  fails on the VPS with:
+  ```
+  Cloning https://github.com/home/ubuntu.git (subdir: odoo-agent-pro-kit/plugin)...
+  Error: Git clone failed: ... fatal: could not read Username for 'https://github.com': terminal prompts disabled
+  ```
+  Hermes's installer is misinterpreting the local absolute path
+  `~/odoo-agent-pro-kit/plugin` as an `owner/repo` GitHub shorthand (it
+  built `https://github.com/home/ubuntu.git` from the path segments)
+  instead of treating it as a plain filesystem directory. `hermes plugins
+  doctor <path>` DOES accept and correctly validate the same local path —
+  only `install` mishandles it. Needs: check `hermes plugins install
+  --help` on this Hermes version for the correct local-path syntax (a
+  `file://` prefix? a `--path`/`--local` flag? `./`-relative form?), or
+  confirm whether local-path install is only supported via a different
+  subcommand, then install+enable into all 3 profiles and verify with
+  `hermes -p <profile> plugins list`.
 - No immediate Phase 6 blocker remains. Docker login JWKS and refresh-lock
   connectivity was intermittent during the run; authentication diagnostics
   passed and the completed evidence was verified from inner state rather than
@@ -437,15 +521,27 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Next task
 
-Complete PR #2 review and merge only after all required checks pass. After
-merge, triage community Apple Silicon macOS and Windows 11 validation reports,
-bugs, and linked fix proposals individually; do not mark either platform tested
-without reproducible evidence.
+Resolve the `hermes plugins install` local-path resolution blocker (see
+Blockers → Immediate) and install+enable the native 0.3.0 plugin
+(`plugin/plugin.yaml`) into all 3 Oracle VPS Hermes profiles
+(odoo17-dev/odoo18-dev/odoo19-dev). Acceptance: `hermes -p <profile>
+plugins list` shows `odoo-agent-pro-kit` as `enabled` for all three
+profiles, and a live chat session in each profile can call at least one
+`odoo_*` tool successfully (or returns a clear connection error if no Odoo
+backend is reachable — not a registration error). Update
+`OdooHermesEnvironmentSetup/SKILL.md`'s step 4 with the corrected
+local-path install syntax once found, and close out or refine the
+"Repo-hosted install shorthand" item under its "Known gaps" section.
 
 ## Following tasks
 
-1. Review community platform evidence and fix proposals as they arrive.
-2. Plan the next roadmap phase in a fresh session before implementation.
+1. Once the native plugin is installed on all 3 VPS profiles, verify at
+   least one `/plan-analysis`, `/start-coding`, `/testing`, or `/fleet`
+   slash command actually dispatches correctly in a live session (not just
+   `plugins doctor` registration).
+2. Review community platform evidence and fix proposals as they arrive
+   (Apple Silicon macOS / Windows 11 Docker Sandbox validation).
+3. Plan the next roadmap phase in a fresh session before implementation.
 
 ## Validation commands
 
