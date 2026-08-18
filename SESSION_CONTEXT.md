@@ -692,69 +692,71 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Next task
 
-Begin the VPCSCloud Apps Store 17.0 -> 18.0/19.0 module migration workstream
-using the Odoo Agent Pro Kit's Docker Sandbox + Hermes agent pipeline (now
-live-verified end-to-end, see Completed above). Full working plan and
-tracker live in the Obsidian vault:
-`/Users/vinusoft85/infovpcs/topics/PROJECTS/vpcscloud-apps-store-migration.md`
-(committed `86c7b35`), with the underlying module inventory and priority
-tiers on
-`/Users/vinusoft85/infovpcs/wiki/entities/odoo/VPCS Custom Modules.md`
-"Cross-Version Migration Backlog" section.
+Execute **Phase 8: Full-coverage skill-orchestrated migration pipeline
+(client-readiness proof)**, newly defined in
+`docs/docker-sandbox/tasks.md`. This supersedes running further VPCSCloud
+Apps Store migrations directly against the bare local workspace (as the
+`edit_remove_pricelist_rule` pilot did) — the goal of Phase 8 is to prove the
+full skill-orchestrated, dynamic-context-handoff pipeline works end-to-end
+**inside a Docker Sandbox microVM** before batching the remaining ~45
+backlog modules or taking on external client project work.
 
-Source repos (local, outside this git repo — never edited directly by this
-repo's tooling, only read for dependency/context study and migrated-to
-targets):
-- `/Users/vinusoft85/workspace/vpcs_apps_cloud_17` (71 modules)
-- `/Users/vinusoft85/workspace/vpcs_apps_cloud_18` (56 modules)
-- `/Users/vinusoft85/workspace/vpcs_apps_cloud_19` (32 modules)
+Phase 8 requires, in this order, for one pilot module run inside a real
+Sandbox session on the Ubuntu KVM validation host:
+1. `Odoo{17,18,19}ExistingDependencyContext` (source, then target version)
+2. `Odoo{17,18,19}CodingStandard` (target version)
+3. `PRD-Writing` + `/plan-analysis {version} {module}`
+4. `Odoo_Custom_App_Install_Update` + `OdooRestartUpgradeRules` for every
+   install/update/upgrade inside the sandbox's inner Compose Odoo instance
+5. `/start-coding {version} {module}` with per-task `auto_test_runner.py`
+   and `CLAUDE.md`/`GEMINI.md`/`AGENTS.md` episodic-context writes
+6. `Odoo_Custom_Backend_Testing`
+7. `Agent-browser-skill` (or `Odoo_Module_Documentation_Screenshot`) against
+   the sandbox's real published port — this closes the outstanding blocked
+   browser-screenshot gap from the `edit_remove_pricelist_rule` local pilot
+8. `Odoo_Custom_Frontend_Testing` (where applicable)
+9. `/testing {version} {module}` to regenerate `static/description/`
+   from the live sandboxed instance
+10. A fresh-session context-reset check: confirm a brand-new agent session
+    can resume purely from `CLAUDE.md` + `docs/tasks.md`, proving the
+    dynamic context hook/handoff design survives a real context reset.
 
-Pending migration counts (folder-name diff, verified 2026-08-18):
-- 22 modules stuck at 17.0 only (never reached 18.0 or 19.0) — highest
-  priority.
-- 25 more modules reached 18.0 but never 19.0 (one is a likely stale
-  duplicate — `vpcs_construction_progressive_payment_terms` — needs manual
-  confirmation before being excluded from the count).
+Full sequence detail, scope checklist, and exit gate are in
+`docs/docker-sandbox/tasks.md` under "Phase 8". Write the design note to
+`docs/docker-sandbox/phase-8/design.md` and live-test evidence to
+`docs/docker-sandbox/phase-8/live-test.md` per that phase's Deliverables
+before marking it complete. Do not begin batching the remaining VPCSCloud
+migration backlog until Phase 8's exit gate passes with recorded evidence.
 
-Suggested first step for the next session: pick 1-2 small, low-risk Tier 1
-modules (17.0-only) as a pilot to prove the full workflow end-to-end before
-batching the rest:
-1. Run the existing `Odoo{17,18,19}ExistingDependencyContext` skills against
-   the source 17.0 module to capture its dependency/code footprint.
-2. Use `/plan-analysis` -> `/start-coding` -> `/testing` (this repo's
-   plugin, live-verified against the Oracle VPS `odoo19-dev` profile this
-   session) inside a Docker Sandbox microVM to port the module forward,
-   applying the target version's coding-standard skill.
-3. Regenerate `static/description/index.html` and screenshots from a real
-   sandboxed Odoo instance for the target version (not reused from the old
-   version unless the UI is genuinely unchanged).
-4. Record the pilot's exact commands, pass/fail, and time spent in both
-   this file and the Obsidian tracker before deciding whether to batch the
-   remaining ~45 modules the same way.
-
-Do not modify the `vpcs_apps_cloud_*` repos' publish/catalog pipeline
-without the user's explicit go-ahead — this repo's role is to prove the
-port + test workflow; publishing to `https://vpcscloud.com/shop` is a
-separate, explicitly-gated step per the user's existing catalog-generator
-process (see the vault's VPCS Product Catalog Generator entity).
+The existing `edit_remove_pricelist_rule` (17.0 -> 18.0) local-workspace
+pilot's backend functional test already passed (see prior Completed entry);
+its port and documentation-asset files remain valid and reusable as the
+Phase 8 pilot module — no need to redo the port itself, only to re-run it
+through the sandboxed skill sequence above to close the screenshot gap and
+prove the pipeline.
 
 ## Following tasks
 
-1. After the pilot migration(s) prove the workflow, batch the remaining
-   Tier 1 (17.0-only) modules, then the Tier 2 (18.0-only) modules.
-2. Once the full `/plan-analysis` -> `/start-coding` -> `/testing` chain
-   has also been proven against a live Odoo backend (a separate,
-   still-open item from the previous session), decide whether
-   `openrouter/free` is good enough quality for real Odoo task work or
-   whether a paid primary provider should be linked instead (the user
-   raised this trade-off directly — "otherwise I will link my Claude
-   plan").
-3. Replicate the live slash-command test on `odoo17-dev` and `odoo18-dev`
+1. After Phase 8's exit gate passes, batch the remaining Tier 1 (17.0-only)
+   VPCSCloud modules through the proven sandboxed sequence, then Tier 2
+   (18.0-only) modules, sized against the Phase 8-measured single-module
+   time/resource cost and the Phase 7 host capacity limits.
+2. Replicate the live slash-command test on `odoo17-dev` and `odoo18-dev`
    (provider config already verified via `fallback list`, no live run yet)
-   — natural to combine with the migration pilot since those profiles map
+   — natural to combine with the Phase 8 pilot since those profiles map
    directly to the 17.0/18.0 source repos.
+3. Once Phase 8 proves quality/reliability at scale, decide whether
+   `openrouter/free` is good enough for real Odoo task work or whether a
+   paid primary provider should be linked instead (the user raised this
+   trade-off directly — "otherwise I will link my Claude plan").
 4. Review community platform evidence and fix proposals as they arrive
    (Apple Silicon macOS / Windows 11 Docker Sandbox validation).
+5. Once Phase 8 and the VPCSCloud migration backlog prove the pipeline at
+   scale, this becomes the base offering for external client Odoo project
+   work — including custom customer repositories, existing Odoo Community
+   module context, and Enterprise module dependency detection (never
+   Enterprise source bundling/committal) as a fully dynamic, repeatable
+   solution.
 
 ## Validation commands
 

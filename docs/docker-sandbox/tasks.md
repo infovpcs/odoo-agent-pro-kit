@@ -152,6 +152,126 @@ deterministic terminal or recoverable state.
 Exit gate: all requirements acceptance scenarios pass, artifacts are pinned,
 and rollback plus cleanup are demonstrated.
 
+## Phase 8: Full-coverage skill-orchestrated migration pipeline (client-readiness proof)
+
+Purpose: prove that this repository's complete skill set, dynamic context
+handoff, and Docker Sandbox microVM execution model together form a mature,
+client-ready pipeline for real Odoo custom-module work — using the
+VPCSCloud Apps Store 17.0 -> 18.0/19.0 migration backlog as the live proving
+ground, not a synthetic fixture. This phase is the bridge from "the sandbox
+runs Odoo" (Phases 0-7) to "the sandbox runs a correctly sequenced,
+multi-skill agent development lifecycle end to end, unattended, inside an
+isolated microVM, with evidence." Only after this phase's LIVE TEST passes is
+the pipeline considered proven for external client project work.
+
+### Scope: skill sequence to validate, per migrated module
+
+Each pilot/batch module run must exercise this exact sequence inside a Docker
+Sandbox session (not the bare local workspace used for the first pilot
+module), with every step's output captured as session artifacts under
+`.sandbox/sessions/<session-id>/`:
+
+1. **Dependency/context intake** — `Odoo{17,18,19}ExistingDependencyContext`
+   (source version, then target version) to capture the module's real model,
+   view, and cross-module dependency footprint before any edit, including
+   Odoo Enterprise dependency detection where relevant.
+2. **Coding standard** — `Odoo{17,18,19}CodingStandard` for the *target*
+   version, applied to every ported file (manifest, models, views, security,
+   data, static assets).
+3. **Planning** — `PRD-Writing` + `CommandingSystem` `/plan-analysis
+   {version} {module}` to produce `docs/requirements.md`, `docs/design.md`,
+   `docs/tasks.md`, `docs/module_meta.md` for the port, using the intake
+   context from step 1 as input (not re-derived from scratch).
+4. **Install/update lifecycle** — `Odoo_Custom_App_Install_Update` +
+   `OdooRestartUpgradeRules` govern every module (re)install/update/upgrade
+   inside the sandbox's inner Compose Odoo instance; no ad hoc `-u`/`-i`
+   flag usage outside the documented restart-vs-upgrade decision rules.
+5. **Coding loop** — `CommandingSystem` `/start-coding {version} {module}`:
+   per-task implementation with `auto_test_runner.py` after every task,
+   `CLAUDE.md`/`GEMINI.md`/`AGENTS.md` episodic-context writes after every
+   command per `context_handoff_workflow.md`, and the PASS/PARTIAL/FAIL gate
+   already defined in `CommandingSystem/SKILL.md` enforced (no `[x]` without
+   a passing or reviewed-PARTIAL auto-test).
+6. **Backend testing** — `Odoo_Custom_Backend_Testing` against the sandboxed
+   instance (ORM/ACL/constraint/report coverage as applicable to the module).
+7. **Live UI evidence** — `Agent-browser-skill` (or
+   `Odoo_Module_Documentation_Screenshot` where it supersedes it) drives the
+   sandboxed Odoo instance's real published port to capture functional
+   screenshots — replacing the ad hoc/blocked browser-login attempt from the
+   local-workspace pilot with a sandbox-native, cookie/CSRF-clean session.
+8. **Frontend testing** — `Odoo_Custom_Frontend_Testing` for any
+   JS/OWL/QWeb-touching module.
+9. **Documentation regeneration** — `CommandingSystem` `/testing {version}
+   {module}` regenerates `static/description/index.html` and screenshots
+   from the live sandboxed instance for the *target* version; a prior
+   version's assets are reused only when explicitly confirmed UI-identical,
+   never assumed.
+10. **Context handoff and session reset** — verify `CLAUDE.md` reflects
+    100%-complete state at the end of step 9, then start a **fresh** agent
+    session/context against the same module directory and confirm it can
+    resume purely from `CLAUDE.md` + `docs/tasks.md` state (proves the
+    dynamic context hook/handoff design actually survives a full context
+    reset, not just an in-session memory carryover).
+
+### Scope: platform/orchestration coverage to validate
+
+- [ ] Confirm `plugin/__init__.py`'s `on_session_start` hook correctly
+  detects an Odoo Sandbox workspace vs. a bare local workspace and loads the
+  right skill subset without manual selection.
+- [ ] Confirm the version -> skill mapping table in `CommandingSystem/
+  SKILL.md` resolves correctly for all three versions inside a sandbox
+  session (not just documented).
+- [ ] Confirm `sandbox/bin/sandboxctl module` is the sole install/update/test
+  entrypoint used across the full sequence above — no direct `odoo-bin`
+  calls bypass it.
+- [ ] Confirm session-start context load (`CLAUDE.md` read before skill
+  loading, per `context_handoff_workflow.md`) actually changes agent
+  behavior on a real second run of the same module (measurable: it skips
+  already-completed tasks rather than re-deriving them).
+- [ ] Confirm the pipeline behaves correctly for a module with a real
+  **Odoo Enterprise dependency** (not just Community-only modules) —
+  dependency detection must flag it without ever fetching, bundling, or
+  committing licensed Enterprise source.
+- [ ] Measure and record wall-clock time and Sandbox resource usage for one
+  full single-module run through all 10 steps, to size future batch runs
+  within the Phase 7-measured host capacity limits (2-vCPU/15-GiB Oracle
+  host: max ~2 constrained concurrent sessions).
+
+### Deliverables
+
+- [ ] A written **Phase 8 design note**
+  (`docs/docker-sandbox/phase-8/design.md`) naming the exact skill
+  invocation order above as the canonical sequence, referenced from
+  `CommandingSystem/SKILL.md` so it is not only documented here.
+- [ ] At least one Tier-1 (17.0-only) VPCSCloud Apps Store module migrated
+  **inside a Docker Sandbox session** (not the bare local workspace used for
+  the `edit_remove_pricelist_rule` pilot) through the full 10-step sequence,
+  with every step's artifact path recorded in
+  `docs/docker-sandbox/phase-8/live-test.md`.
+- [ ] Confirmation that the already-completed `edit_remove_pricelist_rule`
+  local-workspace pilot's outstanding gap (blocked browser screenshot) is
+  closed via the sandbox-native `Agent-browser-skill` path in this phase,
+  not worked around locally.
+- [ ] A go/no-go decision, recorded in `SESSION_CONTEXT.md`, on batching the
+  remaining ~45 backlog modules through this proven sequence versus doing
+  targeted per-module runs, based on the measured single-module time/resource
+  cost above.
+
+### LIVE TEST (Ubuntu 24.04+ KVM validation host)
+
+Run one full pilot module through all 10 sequence steps end-to-end inside a
+real Docker Sandbox session on the designated Ubuntu KVM host, using the
+live-verified Hermes + `openrouter/free`/Hetzner fallback inference chain
+(already proven 2026-08-18 for `/plan-analysis`). A failed or skipped step,
+or any step that falls back to bare local execution instead of the sandbox
+controller, is a blocker — not a pass. Record exact commands, artifact
+paths, timings, and any deviation from the documented sequence.
+
+Exit gate: one full pilot module passes the sequence above with recorded
+evidence for every step, the dynamic context handoff/session-reset check in
+step 10 is independently verified (not self-reported by the same
+uninterrupted session), and the go/no-go batching decision is recorded.
+
 ## Definition of done for every implementation task
 
 - Code/config and user documentation are updated together.

@@ -3,6 +3,24 @@
 All notable changes to `odoo-agent-pro-kit` are documented here. Versions
 track the `plugin/.claude-plugin/plugin.json` `version` field.
 
+## Unreleased — Phase 8 planning
+
+### Added
+
+- **Phase 8: Full-coverage skill-orchestrated migration pipeline
+  (client-readiness proof)** defined in `docs/docker-sandbox/tasks.md` — the
+  next Docker Sandbox phase. Names the canonical 10-step skill invocation
+  sequence (dependency/context intake, coding standard, `/plan-analysis`,
+  install/update lifecycle rules, `/start-coding` with per-task auto-test and
+  episodic context writes, backend testing, live browser evidence, frontend
+  testing, `/testing` documentation regeneration, and a fresh-session
+  context-handoff/reset check) that must run correctly **inside a Docker
+  Sandbox microVM** using the real VPCSCloud Apps Store 17.0→18.0/19.0
+  module migration backlog as the proving ground. This is the gate the kit
+  must pass before it is considered ready for external client project work,
+  including custom customer repositories and Odoo Enterprise dependency
+  detection (never Enterprise source bundling/committal).
+
 ## 0.3.0 — 2026-08-18
 
 ### Added

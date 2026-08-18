@@ -155,3 +155,20 @@ For step-by-step execution of each command, read:
 | Procedural | `*_workflow.md` files | Persistent |
 
 **Reference:** `CommandingSystem/context_handoff_workflow.md`
+
+### Phase 8: Sandbox-native canonical skill sequence (client-readiness proof)
+
+For any real module port/migration (not a quick fixture test), the full
+canonical sequence is: `Odoo{V}ExistingDependencyContext` (source, then
+target) → `Odoo{V}CodingStandard` (target) → `PRD-Writing` +
+`/plan-analysis` → `Odoo_Custom_App_Install_Update` +
+`OdooRestartUpgradeRules` for every install/update inside the Sandbox's
+inner Compose Odoo instance → `/start-coding` (per-task auto-test +
+episodic context write) → `Odoo_Custom_Backend_Testing` →
+`Agent-browser-skill` (or `Odoo_Module_Documentation_Screenshot`) against
+the Sandbox's real published port → `Odoo_Custom_Frontend_Testing` →
+`/testing` → a fresh-session context-reset check confirming a new agent
+session resumes purely from `CLAUDE.md` + `docs/tasks.md`. This sequence
+must run inside a Docker Sandbox microVM, not the bare local workspace.
+Full detail, scope checklist, and exit gate: `docs/docker-sandbox/tasks.md`
+"Phase 8".

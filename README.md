@@ -103,6 +103,17 @@ Community members with that hardware can follow the
 report results or bugs through the dedicated issue template, and propose tested
 runbook or compatibility fixes by pull request.
 
+Phase 8 (in progress) proves the full skill-orchestrated development
+lifecycle — dependency/context intake, coding-standard application,
+`/plan-analysis` → `/start-coding` → `/testing`, install/update lifecycle
+rules, backend/frontend testing, live browser evidence, and dynamic
+context-handoff/session-reset — runs correctly end to end **inside a Docker
+Sandbox microVM**, using the real VPCSCloud Apps Store 17.0→18.0/19.0
+module migration backlog as the proving ground rather than a synthetic
+fixture. See [`docs/docker-sandbox/tasks.md`](docs/docker-sandbox/tasks.md)
+"Phase 8" for the exact skill sequence and exit gate; this is the gate this
+kit must pass before it is considered ready for external client project work.
+
 The Odoo 17/18/19 inner runtime controller is documented in
 [`sandbox/README.md`](sandbox/README.md). Phase gates remain authoritative in
 [`docs/docker-sandbox/tasks.md`](docs/docker-sandbox/tasks.md).
