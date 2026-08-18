@@ -264,6 +264,50 @@ module), with every step's output captured as session artifacts under
   targeted per-module runs, based on the measured single-module time/resource
   cost above.
 
+### Progress record (2026-08-18, real evidence — see `docs/docker-sandbox/phase-8/live-test.md`)
+
+Pilot module `edit_remove_pricelist_rule` (17.0 -> 18.0), executed inside
+Docker Sandbox `phase8-pilot` (Codex agent) on the Ubuntu KVM host:
+
+- [x] Step 1 — Dependency/context intake (static analysis; live XML-RPC/MCP
+  pass not yet performed — flagged gap, not silently dropped).
+- [x] Step 2 — Coding standard (0 violations against Odoo 18 standard).
+- [x] Step 3 — Planning (`/plan-analysis`) — real Codex run produced
+  `requirements.md`, `design.md`, `tasks.md`, `module_meta.md`; corrected a
+  real bug (wrong model name) from an earlier hand-drafted plan.
+- [x] Step 4 — Install/update lifecycle via `sandboxctl module ... install`
+  exclusively (no raw `odoo-bin`); `Module loaded in 0.19s, 71 queries`, no
+  errors.
+- [x] Step 5 — Coding loop (`/start-coding`) — Codex implemented
+  `models/price_list.py`, `views/price_list_view.xml`,
+  `data/remove_price_list_rule.xml`; static checks passed.
+- [x] Step 6 — Backend testing — Codex wrote 8 real `TransactionCase` tests;
+  ran via `sandboxctl module ... test`: **0 failed, 0 error(s) of 8 tests**
+  against a live Odoo 18 database, including pricing-recomputation
+  correctness after rule deletion.
+- [ ] Step 7 — Live UI evidence (`Agent-browser-skill` screenshots against
+  the sandboxed instance's published port) — **not yet performed**.
+- [x] Step 8 — Frontend testing — confirmed N/A (module has no JS/OWL/QWeb
+  assets), not assumed.
+- [ ] Step 9 — Documentation regeneration (`/testing {version} {module}`
+  regenerating `static/description/index.html`) — **not yet performed**.
+- [ ] Step 10 — Context handoff and fresh-session resume verification —
+  **not yet performed**.
+
+The finished module was synced from the sandbox to the canonical
+`vpcs_apps_cloud_18` module-store repository (branch `18.0`), merging in the
+pre-existing commercial manifest fields the from-scratch plan/coding steps
+did not know to preserve. `./scripts/validate.sh` passed 73/73 on the local
+macOS workstation after the sync.
+
+**Not yet a PASS of the exit gate below** — steps 7, 9, and 10 remain
+outstanding and must be completed and evidenced before Phase 8 can be
+marked done. Also resolved along the way: the Codex sandbox's OAuth token
+was expired at session start; fixed via a host-level `sbx secret set openai
+--oauth` re-authentication (see `plugin/skills/DockerSandboxMultiCliAdapter/
+SKILL.md` for the exact reusable procedure, including the SSH port-forward
+workaround for the OAuth callback on a remote VPS).
+
 ### LIVE TEST (Ubuntu 24.04+ KVM validation host)
 
 Run one full pilot module through all 10 sequence steps end-to-end inside a
