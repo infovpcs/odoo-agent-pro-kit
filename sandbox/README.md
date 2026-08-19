@@ -23,6 +23,9 @@ Each Odoo 17/18/19 development image build verifies the official image's
 renderer version Odoo requires for styled PDFs with headers and footers; do not
 replace it with an arbitrary distribution package. Compose-backed module tests
 keep HTTP enabled so report rendering can retrieve Odoo's own CSS and assets.
+The controller also sets `report.url=http://localhost:8069` in each sandbox
+database, avoiding an externally tunneled `web.base.url` that wkhtmltopdf
+cannot reach from inside the Odoo container.
 Odoo 17 and 18 lifecycle checks use the documented XML-RPC endpoints. Odoo 19
 uses its JSON-2 endpoint with a one-day, session-generated API key; the key and
 the distinct XML-RPC password remain only in the ignored mode-`0600`

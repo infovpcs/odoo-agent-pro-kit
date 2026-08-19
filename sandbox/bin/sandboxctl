@@ -90,6 +90,7 @@ def configure_api_credentials(session, protocol, dbname):
         "import datetime, os",
         "user = env.ref('base.user_admin')",
         "user.password = os.environ['ODOO_API_PASSWORD']",
+        "env['ir.config_parameter'].sudo().set_param('report.url', 'http://localhost:8069')",
     ]
     if protocol == "json2":
         script += [
