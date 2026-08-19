@@ -471,7 +471,7 @@ PY
 compose_module_operation() {
     local requested="$1" modules="$2"
     local operation="$requested" flag="--update" rc=0
-    local test_args=()
+    local test_args=() http_args=(--no-http)
     local started operation_log module
     started=$(date +%s)
     operation_log="$TEST_LOG_DIR/${requested}_$(date '+%Y%m%d_%H%M%S').log"
@@ -483,14 +483,19 @@ compose_module_operation() {
         echo "Module $module is already installed in $DATABASE; resolving install request to update."
     fi
     [ "$operation" = "install" ] && flag="--init"
-    [ "$operation" = "test" ] && test_args=(--test-enable)
+    if [ "$operation" = "test" ]; then
+        test_args=(--test-enable)
+        # QWeb PDF rendering fetches report assets from Odoo itself.  Disabling
+        # HTTP makes wkhtmltopdf emit unstyled output or hang on localhost.
+        http_args=()
+    fi
 
     if [ "$rc" -eq 0 ]; then
         compose_run stop "$COMPOSE_SERVICE" >>"$operation_log" 2>&1 || rc=$?
     fi
     if [ "$rc" -eq 0 ]; then
         compose_run run --rm -T "$COMPOSE_SERVICE" odoo --config "$CONFIG_FILE" --database "$DATABASE" \
-            "$flag" "$modules" "${test_args[@]}" --stop-after-init --no-http >>"$operation_log" 2>&1 || rc=$?
+            "$flag" "$modules" "${test_args[@]}" --stop-after-init "${http_args[@]}" >>"$operation_log" 2>&1 || rc=$?
     fi
     compose_run up -d --wait --wait-timeout "${ODOO_READY_TIMEOUT:-180}" "$COMPOSE_SERVICE" >>"$operation_log" 2>&1 || [ "$rc" -ne 0 ] || rc=$?
     emit_operation_result "$operation" "$module" "$started" "$rc" "$operation_log"

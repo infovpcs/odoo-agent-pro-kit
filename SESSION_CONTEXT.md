@@ -865,6 +865,14 @@ that consumes stable Community releases instead of forking this repository.
 - Docker Sandbox kits and SSH are evolving and require CLI capability/version
   checks.
 - Odoo image and API behavior must be verified independently for 17/18/19.
+- 2026-08-19 PDF runtime remediation: Odoo's official source-install guidance
+  requires wkhtmltopdf 0.12.6 for headers/footers. Docker Sandbox builds now
+  assert both wkhtmltopdf and wkhtmltoimage are patched-Qt 0.12.6 for Odoo
+  17/18/19; local amd64 builds and runtime checks passed for all three at
+  0.12.6.1. The `hr_payroll_invoice` unstyled-PDF investigation showed the
+  renderer was already present; the test runner's `--no-http` prevented report
+  CSS/assets from being served. Compose test operations now keep HTTP enabled;
+  install/update retain `--no-http`.
 - Nested Docker has meaningful disk and memory cost; limits must be measured.
 - Clone-mode changes can be lost during destruction without commit/patch export.
 - Odoo Enterprise sources and customer data require strict private boundaries.

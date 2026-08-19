@@ -18,6 +18,11 @@ sandbox/bin/sandboxctl destroy <session-id>
 
 Version-specific image locks, Dockerfiles, addons paths, PostgreSQL dependency,
 and RPC protocol live in `config/versions.yaml` and `config/images.lock`.
+Each Odoo 17/18/19 development image build verifies the official image's
+`wkhtmltopdf` and `wkhtmltoimage` 0.12.6 patched-Qt executables. This is the
+renderer version Odoo requires for styled PDFs with headers and footers; do not
+replace it with an arbitrary distribution package. Compose-backed module tests
+keep HTTP enabled so report rendering can retrieve Odoo's own CSS and assets.
 Odoo 17 and 18 lifecycle checks use the documented XML-RPC endpoints. Odoo 19
 uses its JSON-2 endpoint with a one-day, session-generated API key; the key and
 the distinct XML-RPC password remain only in the ignored mode-`0600`

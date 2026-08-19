@@ -106,6 +106,9 @@ not contain API keys, Odoo source checkouts, databases, or custom modules.
 Build `odoo-dev:17`, `odoo-dev:18`, and `odoo-dev:19` from the corresponding
 official Odoo image, adding only development/test dependencies, a healthcheck,
 and a small entrypoint. Release manifests pin the final images by digest.
+Every 17/18/19 image build verifies Odoo's required `wkhtmltopdf` and
+`wkhtmltoimage` 0.12.6 patched-Qt renderer. Report-rendering tests must retain
+HTTP because wkhtmltopdf fetches CSS and other assets from Odoo itself.
 
 Do not use `pip install odoo-bin` as the runtime source. The current local setup
 uses Odoo Git checkouts while the official image uses packaged Odoo; tests must
