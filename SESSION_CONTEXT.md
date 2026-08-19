@@ -872,7 +872,9 @@ that consumes stable Community releases instead of forking this repository.
   0.12.6.1. The `hr_payroll_invoice` unstyled-PDF investigation showed the
   renderer was already present; the test runner's `--no-http` prevented report
   CSS/assets from being served. Compose test operations now keep HTTP enabled;
-  install/update retain `--no-http`.
+  install/update retain `--no-http`. The corrected Odoo 18 sandbox test passed
+  both actual QWeb PDF renders; authenticated live-browser requests returned
+  `%PDF-` Payment Advice (22,453 bytes) and Payslip (22,553 bytes) responses.
 - Nested Docker has meaningful disk and memory cost; limits must be measured.
 - Clone-mode changes can be lost during destruction without commit/patch export.
 - Odoo Enterprise sources and customer data require strict private boundaries.
