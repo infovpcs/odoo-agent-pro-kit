@@ -878,6 +878,10 @@ that consumes stable Community releases instead of forking this repository.
   Frontend review then identified an unstyled print: `web.base.url` was the
   external tunnel, so the controller now configures internal
   `report.url=http://localhost:8069`; the post-fix real-PDF test passed.
+  The user then confirmed from the Odoo frontend that both reports print with
+  the expected styling. This closes the renderer/style defect; only the
+  separate payroll action-form screenshot and role/vendor-bill evidence remain
+  before treating `hr_payroll_invoice` itself as fully closed.
 - Nested Docker has meaningful disk and memory cost; limits must be measured.
 - Clone-mode changes can be lost during destruction without commit/patch export.
 - Odoo Enterprise sources and customer data require strict private boundaries.
