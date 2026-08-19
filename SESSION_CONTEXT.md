@@ -30,9 +30,9 @@ Before changing files:
 - Branch base: `main` at commit `12368b7` (post-Phase-7, additive 0.2.0/0.3.0 work)
 - Last context update: 2026-08-19 (Asia/Kolkata, Phase 8 pilot module
   `edit_remove_pricelist_rule` completed all 10 sandboxed sequence steps
-  with real evidence, including a real bug fix found via live UI testing;
-  Phase 8's broader exit gate — second module, Enterprise-dependency test,
-  timing measurement, design note, go/no-go decision — remains outstanding)
+  with real evidence; the architecture now also records the reusable
+  execution-evidence -> InfoVPCS OKF -> future-agent-session feedback loop;
+  Phase 8's broader exit gate remains outstanding)
 
 ## Objective
 
@@ -86,6 +86,15 @@ that consumes stable Community releases instead of forking this repository.
     authoritative documents and removed to prevent conflicting instructions.
 
 ## Completed
+
+- [x] Synchronized the current project architecture with the maintainer's
+  InfoVPCS/Obsidian knowledge workflow. `docs/architecture.excalidraw` and
+  its rendered PNG now show how session/results/test evidence is curated
+  into an OKF v0.1 bundle (`wiki/`, `topics/`, `index.md`, `log.md`) and
+  reused by a fresh agent session without treating raw runtime artifacts as
+  OKF documents. The PNG was rendered with the repository's pinned
+  Excalidraw environment and visually inspected; the companion vault update
+  was kept in the separate `infovpcs` repository.
 
 - [x] Reviewed the existing repository, local Odoo bootstrap, module manager,
   MCP configuration, hooks, fleet workflow, and agent integrations.
@@ -312,6 +321,11 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Current state
 
+- `main` was clean and matched `origin/main` at release tag `0.3.2`
+  (`1895ee7`) when this documentation-sync session began. This session only
+  changes the architecture source/render and this context record; it does
+  not advance or close any Phase 8 checklist item.
+
 - Phase 8 pilot module (`edit_remove_pricelist_rule`) now has all 10
   sequence steps complete with real evidence. Step 7 (live UI evidence)
   found and fixed a real `KeyError: <NewId ...>` bug in
@@ -337,19 +351,12 @@ that consumes stable Community releases instead of forking this repository.
   account `info@vperfectcs.com`); no further per-sandbox OAuth setup is
   needed. The SSH-port-forward OAuth-callback workaround is documented in
   `plugin/skills/DockerSandboxMultiCliAdapter/SKILL.md`.
-- Currently staged/uncommitted this session (docs and evidence only, plus
-  one module bugfix) in `odoo-agent-pro-kit`: `docs/docker-sandbox/tasks.md`
-  (steps 7/9/10 marked complete), `docs/docker-sandbox/phase-8/live-test.md`
-  (steps 7/9/10 narrative), `docs/docker-sandbox/phase-8/step7-evidence/`
-  (2 screenshots), `docs/docker-sandbox/phase-8/step9-evidence/` (regenerated
-  docs/handoff files pulled from the sandbox), and this file. The
-  `edit_remove_pricelist_rule` module bugfix (`counts.get(pricelist.id, 0)`
-  in `models/price_list.py`) lives in the separate `vpcs_apps_cloud_18`
-  repository (branch `18.0`), also uncommitted as of this session's end,
-  not in this repository.
-- Per the user's explicit push policy, none of this is pushed to
-  `origin/main` yet; it commits locally only until Phase 8's exit gate
-  passes and security checks are clean, then everything pushes together.
+- The pilot evidence, release `0.3.2`, and the separate
+  `vpcs_apps_cloud_18` NewId bug fix were already committed and pushed
+  before this session (`1895ee7` here; `1f60e0f` in the module store).
+  The user explicitly authorized this knowledge/architecture sync to be
+  committed and pushed in both repositories even though the broader Phase
+  8 exit gate remains open.
 
 - Phase 7 is complete and release PR #2 is the reviewed integration vehicle.
   The user authorized pushing the branch and merging after validation/review.
@@ -799,13 +806,12 @@ that consumes stable Community releases instead of forking this repository.
 
 ### Immediate
 
-- **Push policy (explicit user instruction, 2026-08-18):** commit locally
-  after each unit of work as usual, but do NOT push to `origin/main` until
-  all security checks pass AND the in-progress module development/Phase 8
-  work is verified working smoothly end to end. Push everything together
-  at that point, not incrementally. This session's Phase 8 planning
-  (`97c1b19`) and the dynamic context-handoff guard (0.3.1) are both
-  committed locally only.
+- **Push policy update (explicit user instruction, 2026-08-19):** the earlier
+  hold from 2026-08-18 was satisfied for the completed pilot/release work,
+  which is now on `origin/main` through `1895ee7`. The user explicitly
+  authorized this scoped architecture + InfoVPCS knowledge synchronization
+  to be committed and pushed now; that permission does not close or waive
+  the remaining Phase 8 exit gate.
 - No immediate blocker remains for VPS live-inference pipeline testing —
   resolved this session (see Completed above). The remaining gap is
   narrower: only `odoo19-dev` has run a live slash command end-to-end;
