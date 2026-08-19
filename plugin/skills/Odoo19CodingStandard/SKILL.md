@@ -117,6 +117,20 @@ models.execute_kw(db, uid, pw, model, 'search', [[domain]], {'limit': 1})
 - Performance: add indexes for heavy domains; avoid N+1 via `.mapped()`/prefetch; batch ops.
 - SQL Computed Fields (19.3+/SaaS): `compute_sql='_compute_sql_myfield'` on a field avoids a stored column while keeping GROUP BY / ORDER BY / search at DB level. Pair with `compute='_compute_myfield'` for Python fallback. See dedicated section below.
 
+## Compute methods on smart-button/counter fields: guard against `NewId`
+
+A compute (e.g. a related-record count feeding a form smart button) that
+builds a `dict` via `read_group()`/`search_count()` keyed by `self.id`, then
+does a raw dict lookup like `counts[record.id]`, throws
+`KeyError: <NewId 0x... instance>` the moment a user opens a brand-new,
+unsaved form — the in-memory `NewId` record is never a key in that dict
+because it has no matching related rows yet. Always use `counts.get(record.id, 0)`
+(or equivalent `.get()` with a safe default) in any compute that indexes a
+`read_group`/aggregate result by record id. This is a real, reproducible bug
+class — verified live in production Odoo 18 code, not theoretical (see
+`docs/docker-sandbox/phase-8/live-test.md` step 7 in odoo-agent-pro-kit), and
+applies identically in Odoo 19.
+
 ## Controllers And Routes
 
 ### Production mindset

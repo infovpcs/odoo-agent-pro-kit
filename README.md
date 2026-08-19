@@ -110,7 +110,14 @@ rules, backend/frontend testing, live browser evidence, and dynamic
 context-handoff/session-reset — runs correctly end to end **inside a Docker
 Sandbox microVM**, using the real VPCSCloud Apps Store 17.0→18.0/19.0
 module migration backlog as the proving ground rather than a synthetic
-fixture. See [`docs/docker-sandbox/tasks.md`](docs/docker-sandbox/tasks.md)
+fixture. The pilot module (`edit_remove_pricelist_rule`, 18.0) has completed
+all 10 sequence steps with real evidence, including sandbox-native live UI
+evidence and a fresh-session context-handoff resume test; artifacts are under
+[`docs/docker-sandbox/phase-8/`](docs/docker-sandbox/phase-8/live-test.md).
+Phase 8's broader exit gate — a second Tier-1 module migrated inside a
+sandbox, an Enterprise-dependency test, timing/resource measurement, the
+standalone Phase 8 design note, and the go/no-go batching decision — remains
+open. See [`docs/docker-sandbox/tasks.md`](docs/docker-sandbox/tasks.md)
 "Phase 8" for the exact skill sequence and exit gate; this is the gate this
 kit must pass before it is considered ready for external client project work.
 
