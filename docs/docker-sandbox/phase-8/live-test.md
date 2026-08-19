@@ -528,3 +528,71 @@ measurement, the standalone Phase 8 design note, and the go/no-go batching
 decision — none of which are complete yet. Phase 8 is **not** being marked
 done in `tasks.md`'s top-level checklist; only the pilot module's steps 1-10
 are marked `[x]`.
+
+## Second Tier-1 module — `hr_document_report` closeout (2026-08-19)
+
+Target environment: this Ubuntu Docker Sandbox, inner Compose session
+`phase8-hr-document-report`, Odoo 18.0 and PostgreSQL 15. Install, update, and
+test operations used `sandbox/bin/sandboxctl module` exclusively.
+
+1. Dependency intake: source/target evidence is in
+   `vpcs_apps_cloud_18/hr_document_report/docs/module_meta.md` and
+   `docs/implementation_evidence.md`. The only dependency is Community `hr`;
+   no Enterprise dependency or Enterprise source was present.
+2. Coding standard: final static compile, manifest, XML, prohibited-pattern,
+   and whitespace checks passed as recorded in `implementation_evidence.md`.
+3. Planning: module `docs/requirements.md`, `docs/design.md`, `docs/tasks.md`,
+   and `docs/module_meta.md` record the 17.0 -> 18.0 plan.
+4. Lifecycle: install succeeded in 43.069s. Final update after adding manifest
+   `"license": "LGPL-3"` succeeded; result
+   `.sandbox/sessions/phase8-hr-document-report/results/update-1787136867-25781.json`.
+5. Coding loop: migrated models, ACLs, Odoo 18 views, safe placeholder renderer,
+   and report templates are under `vpcs_apps_cloud_18/hr_document_report/`.
+6. Backend: final result
+   `.sandbox/sessions/phase8-hr-document-report/results/test-1787136882-26200.json`;
+   correlated `odoo.log` reports `0 failed, 0 error(s) of 6 tests`.
+7. Live UI: manual Mac browser through SSH tunnel plus sandbox `socat`
+   (`8108` -> `8069`) logged in as admin. Menu `136` / action
+   `ir.actions.act_window,195` showed two configurations. Employee `24`,
+   `PDF Safety <script>unsafe()</script>`, showed two assignments and working
+   PDF buttons; script text rendered literally and never executed. Evidence:
+   `docs/docker-sandbox/phase-8/step7-hr-document-report-evidence/documents-tab-and-pdf-buttons.png`
+   (copied to the local Mac repo; intentionally absent from this sandbox).
+   Report records 17/18 returned `%PDF-` data of 9,050/24,160 bytes.
+8. Frontend: N/A by inventory. Files are
+   `views/document_template.xml`, `views/hr_document_views.xml`, and
+   `views/hr_employee_views.xml`; no `static/src`, JavaScript, OWL, asset
+   bundle, or interactive client QWeb exists.
+9. Documentation: a fresh `codex exec "/testing 18.0 hr_document_report"`
+   invocation regenerated `docs/coverage_summary.md` and
+   `static/description/index.html`. Its initial handoff retained stale evidence,
+   which was corrected from the confirmed final record; backend/browser tests
+   were not rerun or fabricated.
+10. Handoff/reset: outer sandbox start `2026-08-19T10:07:34Z`; inner session
+    creation `2026-08-19T10:19:56.574697Z`; resource capture
+    `2026-08-19T11:06:29Z` (58m55s outer, 46m32s inner). Odoo/PostgreSQL
+    cumulative CPU was 40.197s/142.675s; memory peaks 245.3/255.2 MiB; active
+    volumes 118.9 MB; session artifacts 616 KB. The first fresh resume attempt
+    exposed stale handoff state and failed. After correction, brand-new Codex
+    session `01a019b5-94a2-7c61-a9ef-6a7c3cd3b1af` read only
+    `docs/module_meta.md` and `sessions/context_handoff.json` and correctly
+    reported the module/version, `/testing`, 10/10 complete, and the four
+    remaining phase-level gates.
+
+This closes the second-Tier-1-module deliverable only. Phase 8 is **not PASS**:
+the Enterprise-dependency-module test, separate resource-sizing writeup,
+standalone Phase 8 design note, and go/no-go batching decision remain.
+
+Final clean-shell validation:
+
+```text
+env -i HOME="$HOME" PATH="$PWD/.venv/bin:/usr/local/bin:/usr/bin:/bin" \
+  /bin/bash --noprofile --norc -c './scripts/validate.sh'
+73 passed in 1.00s
+21 skill file(s) validated
+OK: all repository validation checks passed.
+```
+
+Sandbox artifact/contracts/rollback, Compose, shell, Python, and whitespace
+checks passed. Live `sbx` kit validation was skipped because `sbx` is not
+available inside this sandbox process.

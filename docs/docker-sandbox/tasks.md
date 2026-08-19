@@ -255,6 +255,10 @@ module), with every step's output captured as session artifacts under
   the `edit_remove_pricelist_rule` pilot) through the full 10-step sequence,
   with every step's artifact path recorded in
   `docs/docker-sandbox/phase-8/live-test.md`.
+- [x] A second Tier-1 module, `hr_document_report` (17.0 -> 18.0), completed
+  its ten-step sequence inside Docker Sandbox `phase8-hr-document-report`,
+  including 6/6 backend tests, live UI/PDF evidence, frontend N/A inventory,
+  documentation regeneration, resource capture, and fresh-process resume.
 - [ ] Confirmation that the already-completed `edit_remove_pricelist_rule`
   local-workspace pilot's outstanding gap (blocked browser screenshot) is
   closed via the sandbox-native `Agent-browser-skill` path in this phase,
@@ -338,6 +342,30 @@ live-verified Hermes + `openrouter/free`/Hetzner fallback inference chain
 or any step that falls back to bare local execution instead of the sandbox
 controller, is a blocker — not a pass. Record exact commands, artifact
 paths, timings, and any deviation from the documented sequence.
+
+Second-module result (2026-08-19): `hr_document_report` was migrated and
+installed successfully in Odoo 18 session `phase8-hr-document-report` through
+`sandboxctl module` (exit 0, 43.069s). Update passed in 17.675s wall time;
+the final 6-test TransactionCase suite passed with `0 failed, 0 error(s)` in
+17.624s wall time; and both standalone (9,050 bytes) and company-layout
+(24,160 bytes) final live PDF routes returned HTTP 200. Clean `.venv` validation
+passed 73/73, and `/testing` regenerated the coverage summary and description.
+The live browser confirmed two configurations, two employee assignments,
+working PDF buttons, and literal/non-executing script text. The final manifest
+declares `LGPL-3`; frontend testing is N/A by inventory. `/testing` regenerated
+the documentation/handoff, closeout resource counters were captured, and a
+brand-new Codex process resumed accurately from only `module_meta.md` and
+`context_handoff.json`. This closes the second-module deliverable.
+See `vpcs_apps_cloud_18/hr_document_report/docs/implementation_evidence.md`.
+
+Final clean-shell `./scripts/validate.sh`: 73 tests passed in 1.00s, 21 skills
+validated, and artifact/contracts/rollback, Compose, shell, Python, and
+whitespace checks passed. Live `sbx` kit validation was skipped because `sbx`
+is unavailable inside this sandbox process.
+
+**The full Phase 8 exit gate remains OPEN**: the real Enterprise-dependency
+module test, separate wall-clock/resource sizing writeup, standalone Phase 8
+design note, and go/no-go batching decision are still required.
 
 Exit gate: one full pilot module passes the sequence above with recorded
 evidence for every step, the dynamic context handoff/session-reset check in

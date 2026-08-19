@@ -114,10 +114,13 @@ fixture. The pilot module (`edit_remove_pricelist_rule`, 18.0) has completed
 all 10 sequence steps with real evidence, including sandbox-native live UI
 evidence and a fresh-session context-handoff resume test; artifacts are under
 [`docs/docker-sandbox/phase-8/`](docs/docker-sandbox/phase-8/live-test.md).
-Phase 8's broader exit gate — a second Tier-1 module migrated inside a
-sandbox, an Enterprise-dependency test, timing/resource measurement, the
-standalone Phase 8 design note, and the go/no-go batching decision — remains
-open. See [`docs/docker-sandbox/tasks.md`](docs/docker-sandbox/tasks.md)
+The second Tier-1 deliverable, `hr_document_report`, has also completed its
+ten-step Odoo 18 sandbox sequence: 6/6 TransactionCase tests, live UI/XSS and
+both PDF-layout checks, frontend N/A inventory, regenerated `/testing` docs,
+resource capture, and fresh-process handoff resume. Phase 8's broader exit gate
+remains open for the Enterprise-dependency-module test, separate resource
+sizing writeup, standalone design note, and go/no-go batching decision. See
+[`docs/docker-sandbox/tasks.md`](docs/docker-sandbox/tasks.md)
 "Phase 8" for the exact skill sequence and exit gate; this is the gate this
 kit must pass before it is considered ready for external client project work.
 

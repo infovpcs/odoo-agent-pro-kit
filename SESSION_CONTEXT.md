@@ -28,11 +28,9 @@ Before changing files:
   planning
 - Active branch: `main`
 - Branch base: `main` at commit `12368b7` (post-Phase-7, additive 0.2.0/0.3.0 work)
-- Last context update: 2026-08-19 (Asia/Kolkata, Phase 8 pilot module
-  `edit_remove_pricelist_rule` completed all 10 sandboxed sequence steps
-  with real evidence; the architecture now also records the reusable
-  execution-evidence -> InfoVPCS OKF -> future-agent-session feedback loop;
-  Phase 8's broader exit gate remains outstanding)
+- Last context update: 2026-08-19 (UTC, `hr_document_report` completed the
+  second Tier-1 ten-step sandbox sequence; Phase 8 remains open for Enterprise
+  detection, the separate sizing writeup, design note, and batching decision)
 
 ## Objective
 
@@ -86,15 +84,6 @@ that consumes stable Community releases instead of forking this repository.
     authoritative documents and removed to prevent conflicting instructions.
 
 ## Completed
-
-- [x] Synchronized the current project architecture with the maintainer's
-  InfoVPCS/Obsidian knowledge workflow. `docs/architecture.excalidraw` and
-  its rendered PNG now show how session/results/test evidence is curated
-  into an OKF v0.1 bundle (`wiki/`, `topics/`, `index.md`, `log.md`) and
-  reused by a fresh agent session without treating raw runtime artifacts as
-  OKF documents. The PNG was rendered with the repository's pinned
-  Excalidraw environment and visually inspected; the companion vault update
-  was kept in the separate `infovpcs` repository.
 
 - [x] Reviewed the existing repository, local Odoo bootstrap, module manager,
   MCP configuration, hooks, fleet workflow, and agent integrations.
@@ -319,13 +308,33 @@ that consumes stable Community releases instead of forking this repository.
   Phase 8's broader exit gate (second module, Enterprise-dependency test,
   timing measurement, design note, go/no-go decision) is still open.
 
+- [x] (Phase 8, second Tier-1 module complete, 2026-08-19) Closed
+  `hr_document_report` (17.0 -> 18.0) in target session
+  `phase8-hr-document-report`: final manifest `LGPL-3`; 6/6 TransactionCase
+  tests; Community-only `hr`; live UI/XSS and 9,050/24,160-byte PDF evidence;
+  frontend N/A by inventory; `/testing` docs; resource capture; and a new Codex
+  process that resumed from only `module_meta.md` and `context_handoff.json`.
+  The first fresh attempt exposed stale handoff state and was not counted as a
+  pass. At 2026-08-19T11:06:29Z, outer/inner wall time was 58m55s/46m32s;
+  Odoo/PostgreSQL cumulative CPU 40.197s/142.675s and memory peaks
+  245.3/255.2 MiB. No commit or push was made.
+
 ## Current state
 
-- `main` was clean and matched `origin/main` at release tag `0.3.2`
-  (`1895ee7`) when this documentation-sync session began. This session only
-  changes the architecture source/render and this context record; it does
-  not advance or close any Phase 8 checklist item.
-
+- Phase 8 second module `hr_document_report` is complete for the Tier-1
+  deliverable. Expanded security and representative Odoo 17 data-upgrade
+  matrices were not executed and are not claimed.
+- Artifact-only handoff validation ran from a clean shell on 2026-08-19 without
+  rerunning Odoo backend or browser tests:
+  `env -i HOME="$HOME" PATH="$PWD/.venv/bin:/usr/local/bin:/usr/bin:/bin" bash
+  --noprofile --norc -c './scripts/validate.sh'`. Result: 73 repository tests
+  passed in 1.08s, 21 skills validated, Sandbox contracts/rollback, Compose,
+  shell syntax, Python syntax, and whitespace checks passed; `sbx` kit live
+  validation was skipped because `sbx` is unavailable in this shell.
+- Final post-closeout clean-shell validation also passed: 73 tests in 1.00s,
+  21 skills, artifact/contracts/rollback, Compose, shell, Python, and whitespace
+  checks. Live `sbx` kit validation was skipped because `sbx` is unavailable
+  inside this sandbox process.
 - Phase 8 pilot module (`edit_remove_pricelist_rule`) now has all 10
   sequence steps complete with real evidence. Step 7 (live UI evidence)
   found and fixed a real `KeyError: <NewId ...>` bug in
@@ -338,12 +347,10 @@ that consumes stable Community releases instead of forking this repository.
   brand-new Codex session correctly resumes module state from only the
   `AGENTS.md`/`context_handoff.json` handoff artifacts. Full narrative in
   `docs/docker-sandbox/phase-8/live-test.md`.
-- Phase 8's pilot-module checklist is done, but the phase's broader exit
-  gate is NOT yet met: still outstanding are a second Tier-1 module
-  migrated inside a Docker Sandbox session end-to-end, an
-  Enterprise-dependency module test, wall-clock/resource timing
-  measurement for one full run, the standalone Phase 8 design note, and
-  the go/no-go batching decision (see `docs/docker-sandbox/tasks.md`
+- Both Tier-1 module sequences are done, but the broader Phase 8 exit gate is
+  NOT met: still outstanding are the Enterprise-dependency-module test, the
+  separate wall-clock/resource sizing writeup, the standalone Phase 8 design
+  note, and the go/no-go batching decision (see `docs/docker-sandbox/tasks.md`
   "Scope: platform/orchestration coverage to validate" and
   "Deliverables" sections).
 - The Docker Sandbox Codex agent's proxy OAuth credential is now globally
@@ -351,12 +358,19 @@ that consumes stable Community releases instead of forking this repository.
   account `info@vperfectcs.com`); no further per-sandbox OAuth setup is
   needed. The SSH-port-forward OAuth-callback workaround is documented in
   `plugin/skills/DockerSandboxMultiCliAdapter/SKILL.md`.
-- The pilot evidence, release `0.3.2`, and the separate
-  `vpcs_apps_cloud_18` NewId bug fix were already committed and pushed
-  before this session (`1895ee7` here; `1f60e0f` in the module store).
-  The user explicitly authorized this knowledge/architecture sync to be
-  committed and pushed in both repositories even though the broader Phase
-  8 exit gate remains open.
+- Currently staged/uncommitted this session (docs and evidence only, plus
+  one module bugfix) in `odoo-agent-pro-kit`: `docs/docker-sandbox/tasks.md`
+  (steps 7/9/10 marked complete), `docs/docker-sandbox/phase-8/live-test.md`
+  (steps 7/9/10 narrative), `docs/docker-sandbox/phase-8/step7-evidence/`
+  (2 screenshots), `docs/docker-sandbox/phase-8/step9-evidence/` (regenerated
+  docs/handoff files pulled from the sandbox), and this file. The
+  `edit_remove_pricelist_rule` module bugfix (`counts.get(pricelist.id, 0)`
+  in `models/price_list.py`) lives in the separate `vpcs_apps_cloud_18`
+  repository (branch `18.0`), also uncommitted as of this session's end,
+  not in this repository.
+- Per the user's explicit push policy, none of this is pushed to
+  `origin/main` yet; it commits locally only until Phase 8's exit gate
+  passes and security checks are clean, then everything pushes together.
 
 - Phase 7 is complete and release PR #2 is the reviewed integration vehicle.
   The user authorized pushing the branch and merging after validation/review.
@@ -806,12 +820,13 @@ that consumes stable Community releases instead of forking this repository.
 
 ### Immediate
 
-- **Push policy update (explicit user instruction, 2026-08-19):** the earlier
-  hold from 2026-08-18 was satisfied for the completed pilot/release work,
-  which is now on `origin/main` through `1895ee7`. The user explicitly
-  authorized this scoped architecture + InfoVPCS knowledge synchronization
-  to be committed and pushed now; that permission does not close or waive
-  the remaining Phase 8 exit gate.
+- **Push policy (explicit user instruction, 2026-08-18):** commit locally
+  after each unit of work as usual, but do NOT push to `origin/main` until
+  all security checks pass AND the in-progress module development/Phase 8
+  work is verified working smoothly end to end. Push everything together
+  at that point, not incrementally. This session's Phase 8 planning
+  (`97c1b19`) and the dynamic context-handoff guard (0.3.1) are both
+  committed locally only.
 - No immediate blocker remains for VPS live-inference pipeline testing —
   resolved this session (see Completed above). The remaining gap is
   narrower: only `odoo19-dev` has run a live slash command end-to-end;
@@ -856,28 +871,19 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Next task
 
-The `edit_remove_pricelist_rule` pilot module's full 10-step sandboxed
-sequence is now complete with real evidence (see the Phase 8 Completed entry
-and `docs/docker-sandbox/phase-8/live-test.md`). Phase 8's broader exit gate
-is **not yet met** — close it next:
+Both Tier-1 module sequences are complete. Phase 8's broader exit gate is
+**not yet met**. The sole next task is to close the remaining phase-level
+evidence package:
 
-1. Migrate a **second** Tier-1 (17.0-only) VPCSCloud Apps Store module
-   through the same full 10-step sequence **inside a Docker Sandbox
-   session** (re-provision `phase8-pilot` on the Ubuntu KVM validation host
-   if it was torn down; the global OAuth credential persists, no
-   re-authentication needed). Record every step's artifact path in
-   `docs/docker-sandbox/phase-8/live-test.md`.
-2. Confirm the pipeline behaves correctly for a module with a real Odoo
+1. Confirm the pipeline behaves correctly for a module with a real Odoo
    **Enterprise dependency** — dependency detection must flag it without
    ever fetching, bundling, or committing licensed Enterprise source.
-3. Measure and record wall-clock time and Sandbox resource usage for one
-   full single-module run through all 10 steps, to size future batch runs
-   within the Phase 7-measured host capacity (2-vCPU/15-GiB Oracle host:
-   max ~2 constrained concurrent sessions).
-4. Write the standalone Phase 8 design note
+2. Turn the captured `hr_document_report` measurements into the separate
+   resource-sizing writeup against the Phase 7 host capacity.
+3. Write the standalone Phase 8 design note
    (`docs/docker-sandbox/phase-8/design.md`) naming the canonical skill
    invocation order, referenced from `CommandingSystem/SKILL.md`.
-5. Record a go/no-go decision on batching the remaining ~45 backlog modules
+4. Record a go/no-go decision on batching the remaining ~45 backlog modules
    through this sequence, based on the measured single-module cost above.
 
 Update `docs/docker-sandbox/tasks.md`'s "Scope"/"Deliverables" checkboxes and
