@@ -51,7 +51,7 @@ Registers 7 `odoo_*` model-discovery tools (in-process, no separate MCP
 server/port needed), the `/plan-analysis`, `/start-coding`, `/testing`,
 `/fleet` slash commands, session-start Odoo workspace detection, and all 20
 bundled skills under the `odoo-agent-pro-kit:` namespace. See
-[CHANGELOG.md](CHANGELOG.md) 0.3.0 for details, or run
+[CHANGELOG.md](CHANGELOG.md) 0.3.2 for details, or run
 `hermes plugins doctor plugin --ci` from a clone to verify locally first.
 
 **Codex:** copy `context-templates/AGENTS.md` into your project root (Codex

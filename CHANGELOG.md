@@ -3,6 +3,47 @@
 All notable changes to `odoo-agent-pro-kit` are documented here. Versions
 track the `plugin/.claude-plugin/plugin.json` `version` field.
 
+## 0.3.2 — 2026-08-19
+
+### Added
+
+- **Phase 8 pilot marked complete** — the canonical 10-step skill-orchestrated
+  migration pipeline ran end to end **inside a Docker Sandbox microVM** on the
+  real VPCSCloud Apps Store 17.0→18.0 module `edit_remove_pricelist_rule`
+  (sandbox session `phase8-pricelist-18`). Evidence is in
+  `docs/docker-sandbox/phase-8/live-test.md`:
+  - Step 7 (live UI): a real `KeyError<NewId>` bug was found and fixed in
+    `_compute_pricelist_rule_count`, verified via a live sandboxed browser
+    session.
+  - Step 9 (docs): `/testing` regenerated `coverage_summary.md`,
+    `static/description/index.html`, and the `CLAUDE.md`/`GEMINI.md`/
+    `AGENTS.md` context-handoff files inside the sandbox.
+  - Step 10 (resume): a brand-new Codex session with no continuation from the
+    writing session resumed correctly from only `CLAUDE.md` +
+    `docs/tasks.md`, proving the context-handoff design survives a real
+    session reset.
+  - `sandboxctl module ... test` exited 0 with 0 failed / 0 error of 8.
+- **NewId compute pitfall documented in the coding-standard skills** —
+  `Odoo17CodingStandard`, `Odoo18CodingStandard`, and `Odoo19CodingStandard`
+  each gained a "Compute methods on smart-button/counter fields: guard against
+  `NewId`" section: any compute that indexes a `read_group()`/`search_count()`
+  result by record id must use `counts.get(record.id, 0)` (never `counts[id]`),
+  or opening a brand-new unsaved form throws `KeyError: <NewId 0x...>`. This is
+  the exact bug class fixed in the pilot, not a theoretical rule.
+- **Architecture diagram refreshed** (`docs/architecture.excalidraw` +
+  `docs/architecture.png`) — a new Phase 8 section below the Deployment
+  section shows the 10-step timeline, the pilot evidence box, and the still-open
+  broader exit-gate box (second sandboxed module, Enterprise-dependency case,
+  timing/resource measurement, design note, go/no-go). Rendered with the
+  `excalidraw-diagram` skill's Playwright/Chromium renderer and visually
+  verified for no overlap or clipping.
+
+### Documentation
+
+- `README.md` — Phase 8 status now reads "pilot complete" with a link to
+  `live-test.md`; the broader exit-gate items remain listed as open.
+- `CHANGELOG.md` — this entry.
+
 ## Unreleased — Phase 8 planning
 
 ### Added
