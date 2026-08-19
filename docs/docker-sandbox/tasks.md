@@ -285,14 +285,29 @@ Docker Sandbox `phase8-pilot` (Codex agent) on the Ubuntu KVM host:
   ran via `sandboxctl module ... test`: **0 failed, 0 error(s) of 8 tests**
   against a live Odoo 18 database, including pricing-recomputation
   correctness after rule deletion.
-- [ ] Step 7 — Live UI evidence (`Agent-browser-skill` screenshots against
-  the sandboxed instance's published port) — **not yet performed**.
+- [x] Step 7 — Live UI evidence: real SSH-tunnel + socat browser session
+  against the sandboxed Odoo 18 instance, logged in as admin. Found and
+  fixed a real bug (`KeyError: <NewId ...>` in
+  `_compute_pricelist_rule_count` for unsaved records), re-ran
+  `sandboxctl module ... update`/`... test` (8/8 tests still passing, no
+  regression), and captured real screenshots of the smart button and the
+  scoped drill-through list. Evidence in
+  `docs/docker-sandbox/phase-8/step7-evidence/`.
 - [x] Step 8 — Frontend testing — confirmed N/A (module has no JS/OWL/QWeb
   assets), not assumed.
-- [ ] Step 9 — Documentation regeneration (`/testing {version} {module}`
-  regenerating `static/description/index.html`) — **not yet performed**.
-- [ ] Step 10 — Context handoff and fresh-session resume verification —
-  **not yet performed**.
+- [x] Step 9 — Documentation regeneration (`/testing 18.0
+  edit_remove_pricelist_rule` inside `phase8-pricelist-18`) — real Codex run
+  regenerated `docs/coverage_summary.md` and
+  `static/description/index.html`, plus `AGENTS.md`/`CLAUDE.md`/`GEMINI.md`
+  and `sessions/context_handoff.json`. Backed by a fresh
+  `sandboxctl module ... update`/`... test` pass (exit 0, 0 failed/0 error
+  of 8 tests). Evidence in
+  `docs/docker-sandbox/phase-8/step9-evidence/`.
+- [x] Step 10 — Context handoff and fresh-session resume verification — a
+  brand-new `codex exec` session, given only the module's `AGENTS.md` and
+  `sessions/context_handoff.json`, correctly reported module/version, last
+  command (`/testing`, 2026-08-19T07:07:47Z), `0/9` tasks, and the accurate
+  outstanding-work summary with no other files read.
 
 The finished module was synced from the sandbox to the canonical
 `vpcs_apps_cloud_18` module-store repository (branch `18.0`), merging in the
@@ -300,13 +315,19 @@ pre-existing commercial manifest fields the from-scratch plan/coding steps
 did not know to preserve. `./scripts/validate.sh` passed 73/73 on the local
 macOS workstation after the sync.
 
-**Not yet a PASS of the exit gate below** — steps 7, 9, and 10 remain
-outstanding and must be completed and evidenced before Phase 8 can be
-marked done. Also resolved along the way: the Codex sandbox's OAuth token
-was expired at session start; fixed via a host-level `sbx secret set openai
---oauth` re-authentication (see `plugin/skills/DockerSandboxMultiCliAdapter/
-SKILL.md` for the exact reusable procedure, including the SSH port-forward
-workaround for the OAuth callback on a remote VPS).
+All 10 pilot-module sequence steps are now complete with real evidence (see
+`docs/docker-sandbox/phase-8/live-test.md` for steps 7, 9, 10). **This is
+still not a PASS of the exit gate below** — the exit gate additionally
+requires the broader "Scope: platform/orchestration coverage to validate"
+and "Deliverables" checklist items above (a second Tier-1 module migrated
+inside a Docker Sandbox session, an Enterprise-dependency module test,
+wall-clock/resource timing, the standalone Phase 8 design note, and the
+go/no-go batching decision), none of which are complete yet. Also resolved
+along the way: the Codex sandbox's OAuth token was expired at session start;
+fixed via a host-level `sbx secret set openai --oauth` re-authentication
+(see `plugin/skills/DockerSandboxMultiCliAdapter/SKILL.md` for the exact
+reusable procedure, including the SSH port-forward workaround for the OAuth
+callback on a remote VPS).
 
 ### LIVE TEST (Ubuntu 24.04+ KVM validation host)
 

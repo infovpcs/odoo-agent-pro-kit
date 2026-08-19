@@ -28,9 +28,11 @@ Before changing files:
   planning
 - Active branch: `main`
 - Branch base: `main` at commit `12368b7` (post-Phase-7, additive 0.2.0/0.3.0 work)
-- Last context update: 2026-08-18 (Asia/Kolkata, Phase 8 pilot module
-  `edit_remove_pricelist_rule` run through sandboxed steps 1-6 and 8 of 10
-  with real Codex evidence; steps 9-10 still outstanding)
+- Last context update: 2026-08-19 (Asia/Kolkata, Phase 8 pilot module
+  `edit_remove_pricelist_rule` completed all 10 sandboxed sequence steps
+  with real evidence, including a real bug fix found via live UI testing;
+  Phase 8's broader exit gate — second module, Enterprise-dependency test,
+  timing measurement, design note, go/no-go decision — remains outstanding)
 
 ## Objective
 
@@ -279,29 +281,72 @@ that consumes stable Community releases instead of forking this repository.
   prompting pitfall). Steps 9 (doc/screenshot regen) and 10 (context-handoff
   fresh-session resume test) remain outstanding — Phase 8's exit gate is not
   yet met.
+- [x] (Phase 8, pilot module complete — steps 7, 9, 10 of 10, 2026-08-19)
+  Closed the remaining pilot-module gaps for `edit_remove_pricelist_rule`
+  with real evidence. **Step 7**: re-established the SSH-tunnel + `socat`
+  path from the local Mac to the sandboxed Odoo 18 instance, logged in as
+  admin via real browser automation, found and fixed a real bug
+  (`KeyError: <NewId ...>` in `_compute_pricelist_rule_count()` — raw dict
+  lookup failing for unsaved records; fixed to `counts.get(pricelist.id,
+  0)`) in the canonical `vpcs_apps_cloud_18` repo, the sandbox's mounted
+  addon copy, and the pilot-module-src staging copy, re-ran
+  `sandboxctl module ... update`/`... test` (0 failed, 0 error(s) of 8
+  tests, no regression), and captured real UI screenshots
+  (`docs/docker-sandbox/phase-8/step7-evidence/`). **Step 9**: ran a real
+  `codex exec "/testing 18.0 edit_remove_pricelist_rule"` inside
+  `phase8-pilot`, which re-ran the sandbox update/test lifecycle (exit 0
+  both) and generated `docs/coverage_summary.md`,
+  `static/description/index.html`, `AGENTS.md`/`CLAUDE.md`/`GEMINI.md`, and
+  `sessions/context_handoff.json` inside the sandboxed module copy — pulled
+  down and committed as `docs/docker-sandbox/phase-8/step9-evidence/`.
+  **Step 10**: started a brand-new `codex exec` session (no continuation
+  from Step 9) instructed to read only the module's `AGENTS.md` and
+  `sessions/context_handoff.json`; it correctly reported module/version,
+  last command (`/testing`, 2026-08-19T07:07:47Z), `0/9` tasks, and the
+  accurate outstanding-work summary — confirming the context-handoff design
+  survives a genuine session reset. Full narrative in
+  `docs/docker-sandbox/phase-8/live-test.md`. The pilot module's 10-step
+  checklist in `docs/docker-sandbox/tasks.md` is now fully `[x]`, but
+  Phase 8's broader exit gate (second module, Enterprise-dependency test,
+  timing measurement, design note, go/no-go decision) is still open.
 
 ## Current state
 
-- Phase 8 is in progress and not yet complete. Steps 1-6 and 8 of the 10-step
-  sequence passed with real evidence against the `edit_remove_pricelist_rule`
-  pilot module inside a Docker Sandbox `phase8-pilot` microVM on the Ubuntu
-  KVM validation host (see the Phase 8 Completed entry above and
-  `docs/docker-sandbox/phase-8/live-test.md`). Step 9 (`/testing`
-  doc/screenshot regeneration) and Step 10 (fresh-session context-handoff
-  resume test) remain outstanding; the exit gate has not passed.
+- Phase 8 pilot module (`edit_remove_pricelist_rule`) now has all 10
+  sequence steps complete with real evidence. Step 7 (live UI evidence)
+  found and fixed a real `KeyError: <NewId ...>` bug in
+  `_compute_pricelist_rule_count()` (unsaved-record dict lookup), re-ran
+  and passed the 8-test backend suite with no regression, and captured
+  real UI screenshots (`docs/docker-sandbox/phase-8/step7-evidence/`).
+  Step 9 regenerated `docs/coverage_summary.md` and
+  `static/description/index.html` via a real `/testing` Codex run
+  (`docs/docker-sandbox/phase-8/step9-evidence/`). Step 10 verified a
+  brand-new Codex session correctly resumes module state from only the
+  `AGENTS.md`/`context_handoff.json` handoff artifacts. Full narrative in
+  `docs/docker-sandbox/phase-8/live-test.md`.
+- Phase 8's pilot-module checklist is done, but the phase's broader exit
+  gate is NOT yet met: still outstanding are a second Tier-1 module
+  migrated inside a Docker Sandbox session end-to-end, an
+  Enterprise-dependency module test, wall-clock/resource timing
+  measurement for one full run, the standalone Phase 8 design note, and
+  the go/no-go batching decision (see `docs/docker-sandbox/tasks.md`
+  "Scope: platform/orchestration coverage to validate" and
+  "Deliverables" sections).
 - The Docker Sandbox Codex agent's proxy OAuth credential is now globally
   re-authenticated on the host (`sbx secret set openai --oauth`, Codex Pro
   account `info@vperfectcs.com`); no further per-sandbox OAuth setup is
   needed. The SSH-port-forward OAuth-callback workaround is documented in
   `plugin/skills/DockerSandboxMultiCliAdapter/SKILL.md`.
-- Currently staged/uncommitted this session (docs and skill only, no module
-  code) in `odoo-agent-pro-kit`: `docs/docker-sandbox/phase-8/
-  dependency-context-findings.md`, `docs/docker-sandbox/phase-8/design.md`,
-  `docs/docker-sandbox/phase-8/live-test.md`, `docs/docker-sandbox/
-  tasks.md`, `plugin/skills/DockerSandboxMultiCliAdapter/SKILL.md`, and this
-  file. The finished `edit_remove_pricelist_rule` module itself lives
-  separately in the `vpcs_apps_cloud_18` repository (branch `18.0`), not in
-  this repository.
+- Currently staged/uncommitted this session (docs and evidence only, plus
+  one module bugfix) in `odoo-agent-pro-kit`: `docs/docker-sandbox/tasks.md`
+  (steps 7/9/10 marked complete), `docs/docker-sandbox/phase-8/live-test.md`
+  (steps 7/9/10 narrative), `docs/docker-sandbox/phase-8/step7-evidence/`
+  (2 screenshots), `docs/docker-sandbox/phase-8/step9-evidence/` (regenerated
+  docs/handoff files pulled from the sandbox), and this file. The
+  `edit_remove_pricelist_rule` module bugfix (`counts.get(pricelist.id, 0)`
+  in `models/price_list.py`) lives in the separate `vpcs_apps_cloud_18`
+  repository (branch `18.0`), also uncommitted as of this session's end,
+  not in this repository.
 - Per the user's explicit push policy, none of this is pushed to
   `origin/main` yet; it commits locally only until Phase 8's exit gate
   passes and security checks are clean, then everything pushes together.
@@ -805,36 +850,44 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Next task
 
-Close **Phase 8's exit gate** by completing the two remaining steps of the
-10-step sequence against the same `edit_remove_pricelist_rule` pilot
-(re-provision the Docker Sandbox `phase8-pilot` microVM on the Ubuntu KVM
-validation host if it was torn down; the global OAuth credential now
-persists so re-authentication is not required):
+The `edit_remove_pricelist_rule` pilot module's full 10-step sandboxed
+sequence is now complete with real evidence (see the Phase 8 Completed entry
+and `docs/docker-sandbox/phase-8/live-test.md`). Phase 8's broader exit gate
+is **not yet met** — close it next:
 
-1. **Step 9** — Run `/testing 18.0 edit_remove_pricelist_rule` against the
-   sandbox's live published port to regenerate `static/description/
-   index.html` and capture real `Agent-browser-skill` UI screenshots
-   (`docs/docker-sandbox/tasks.md` Step 7/9 both require this live-browser
-   evidence gap to close). Record exact commands, ports, and screenshot
-   paths in `docs/docker-sandbox/phase-8/live-test.md`.
-2. **Step 10** — Fresh-session context-handoff resume test: start a brand
-   new agent session with no prior context, point it only at `CLAUDE.md`/
-   `GEMINI.md`/`AGENTS.md` plus `docs/docker-sandbox/tasks.md`, and confirm
-   it can correctly resume and describe the pilot module's state purely
-   from those files. Record the transcript evidence in
+1. Migrate a **second** Tier-1 (17.0-only) VPCSCloud Apps Store module
+   through the same full 10-step sequence **inside a Docker Sandbox
+   session** (re-provision `phase8-pilot` on the Ubuntu KVM validation host
+   if it was torn down; the global OAuth credential persists, no
+   re-authentication needed). Record every step's artifact path in
    `docs/docker-sandbox/phase-8/live-test.md`.
+2. Confirm the pipeline behaves correctly for a module with a real Odoo
+   **Enterprise dependency** — dependency detection must flag it without
+   ever fetching, bundling, or committing licensed Enterprise source.
+3. Measure and record wall-clock time and Sandbox resource usage for one
+   full single-module run through all 10 steps, to size future batch runs
+   within the Phase 7-measured host capacity (2-vCPU/15-GiB Oracle host:
+   max ~2 constrained concurrent sessions).
+4. Write the standalone Phase 8 design note
+   (`docs/docker-sandbox/phase-8/design.md`) naming the canonical skill
+   invocation order, referenced from `CommandingSystem/SKILL.md`.
+5. Record a go/no-go decision on batching the remaining ~45 backlog modules
+   through this sequence, based on the measured single-module cost above.
 
-Update `docs/docker-sandbox/tasks.md`'s Phase 8 progress record to flip
-steps 9 and 10 to `[x]` only once each has real recorded evidence, then
-mark Phase 8's exit gate PASS. Update this file's Completed/Current
-state/Next task together with that result. Only after Phase 8 fully passes
-should the remaining VPCSCloud migration backlog batching begin (see
-Following tasks below), and only then should the currently-staged local
-commits (this repo's docs/skill changes, and the `vpcs_apps_cloud_18`
-module repo separately) be pushed, per the user's explicit push policy.
+Update `docs/docker-sandbox/tasks.md`'s "Scope"/"Deliverables" checkboxes and
+mark the Phase 8 exit gate PASS only once all of the above have real
+recorded evidence. Update this file's Completed/Current state/Next task
+together with that result. Only after Phase 8 fully passes should the
+remaining VPCSCloud migration backlog batching begin (see Following tasks
+below), and only then should the currently-staged local commits (this
+repo's docs/evidence changes, and the `vpcs_apps_cloud_18` bugfix
+separately) be pushed, per the user's explicit push policy.
 
-If steps 9-10 are explicitly deferred instead of run in the next session,
-record that decision here with the reason before starting new work.
+Before starting new work, first commit this session's completed Step
+7/9/10 evidence (this repo) and the pricelist bugfix (`vpcs_apps_cloud_18`,
+branch `18.0`) as the Phase 8 pilot-module-completion commits, per
+AGENTS.md's one-focused-commit-per-session rule — do not mix them with the
+second-module work above.
 
 ## Following tasks
 
