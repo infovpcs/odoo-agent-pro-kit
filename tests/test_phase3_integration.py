@@ -23,7 +23,17 @@ def test_compose_executor_emits_result_and_progress(tmp_path):
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
     docker = fake_bin / "docker"
-    docker.write_text("#!/usr/bin/env bash\nprintf '%s\\n' \"$*\" >> \"$FAKE_DOCKER_LOG\"\nexit 0\n")
+    docker.write_text(
+        "#!/usr/bin/env bash\n"
+        "printf '%s\\n' \"$*\" >> \"$FAKE_DOCKER_LOG\"\n"
+        "if [[ \"$*\" == *psql* ]] && [[ -f \"$FAKE_INSTALLED_FLAG\" ]]; then\n"
+        "    echo 1\n"
+        "fi\n"
+        "if [[ \"$*\" == *'run --rm'* ]]; then\n"
+        "    touch \"$FAKE_INSTALLED_FLAG\"\n"
+        "fi\n"
+        "exit 0\n"
+    )
     docker.chmod(0o755)
     compose_file = tmp_path / "compose.yaml"
     env_file = tmp_path / "runtime.env"
@@ -34,6 +44,7 @@ def test_compose_executor_emits_result_and_progress(tmp_path):
     env = os.environ.copy()
     env.update({
         "PATH": f"{fake_bin}:{env['PATH']}", "FAKE_DOCKER_LOG": str(tmp_path / "docker.log"),
+        "FAKE_INSTALLED_FLAG": str(tmp_path / "installed.flag"),
         "ODOO_EXECUTOR": "compose", "ODOO_VERSION": "19", "ODOO_DB_NAME": "sandbox_db",
             "ODOO_EXEC_CONFIG_FILE": "/etc/odoo/odoo.conf", "ODOO_LOG_DIR": str(logs),
         "ODOO_RESULTS_DIR": str(results), "ODOO_PROGRESS_FILE": str(tmp_path / "progress.json"),
@@ -57,6 +68,49 @@ def test_compose_executor_emits_result_and_progress(tmp_path):
     assert "stop odoo" in calls
     assert "run --rm -T odoo odoo" in calls
     assert "up -d --wait --wait-timeout 180 odoo" in calls
+
+
+def test_compose_executor_fails_when_module_not_actually_installed(tmp_path):
+    """Odoo's -i/-u CLI path skips an unresolvable dependency with only a
+    warning and still exits 0; the operation result must not report
+    'succeeded' unless the module actually reached ir_module_module.state
+    == 'installed'. Simulates a module stuck at 'to install' (e.g. a
+    missing Enterprise dependency) by having the fake psql check report
+    not-installed."""
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    docker = fake_bin / "docker"
+    docker.write_text(
+        "#!/usr/bin/env bash\n"
+        "printf '%s\\n' \"$*\" >> \"$FAKE_DOCKER_LOG\"\n"
+        "exit 0\n"
+    )
+    docker.chmod(0o755)
+    compose_file = tmp_path / "compose.yaml"
+    env_file = tmp_path / "runtime.env"
+    compose_file.write_text("services: {}\n")
+    env_file.write_text("POSTGRES_USER=odoo_runtime\n")
+    results = tmp_path / "results"
+    logs = tmp_path / "logs"
+    env = os.environ.copy()
+    env.update({
+        "PATH": f"{fake_bin}:{env['PATH']}", "FAKE_DOCKER_LOG": str(tmp_path / "docker.log"),
+        "ODOO_EXECUTOR": "compose", "ODOO_VERSION": "19", "ODOO_DB_NAME": "sandbox_db",
+        "ODOO_EXEC_CONFIG_FILE": "/etc/odoo/odoo.conf", "ODOO_LOG_DIR": str(logs),
+        "ODOO_RESULTS_DIR": str(results), "ODOO_PROGRESS_FILE": str(tmp_path / "progress.json"),
+        "SESSION_ID": "19-fixture-test", "COMPOSE_FILE": str(compose_file),
+        "COMPOSE_ENV_FILE": str(env_file), "POSTGRES_USER": "odoo_runtime",
+    })
+    proc = subprocess.run(
+        ["bash", str(ROOT / "odoo_local_setup/manage_modules.sh"), "install", "account_report_template"],
+        env=env, cwd=ROOT, capture_output=True, text=True,
+    )
+    assert proc.returncode != 0
+    result_files = list(results.glob("install-*.json"))
+    assert len(result_files) == 1
+    data = json.loads(result_files[0].read_text())
+    assert data["status"] == "failed"
+    assert data["error"]["code"] == "install_failed"
 
 
 def test_session_start_prefers_manifest(tmp_path):

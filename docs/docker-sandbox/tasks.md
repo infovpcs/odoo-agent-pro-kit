@@ -256,6 +256,23 @@ module), with every step's output captured as session artifacts under
   `docs/docker-sandbox/phase-8/enterprise-dependency-evidence/`. Sandbox
   session and outer Sandbox were fully destroyed after evidence capture; no
   orphaned containers/volumes remained.
+
+  Supplemental real-client-project evidence (2026-08-20): re-verified with
+  a genuine GitHub-access client repository, `Aptusinfotech/aptus` (staging
+  branch, Odoo.sh-hosted 19.0), module `account_report_template` (depends
+  on the real Enterprise Accounting app `accountant`/`account_accountant`
+  across the 17.0/18.0/19.0 name split). This run surfaced an additional
+  real finding: `sandboxctl module ... install` returns CLI exit 0 via
+  Odoo's `-i` skip-with-warning path when a dependency is missing (unlike
+  the ORM `button_install()` hard-failure path exercised by the
+  `real_estate` test above) — the authoritative signal is
+  `ir_module_module.state`, confirmed stuck at `to install` with the
+  Enterprise dependency `uninstallable`, consistently reproduced across all
+  three Odoo versions (17.0/18.0/19.0) in a reverse-migration test of the
+  same module, with zero Enterprise source ever fetched or mounted in any
+  of the three sandbox runs. Full evidence and the CLI-exit-code caveat are
+  documented in
+  `docs/docker-sandbox/phase-8/aptus-enterprise-dependency-evidence/README.md`.
 - [x] Measure and record wall-clock time and Sandbox resource usage for one
   full single-module run through all 10 steps, to size future batch runs
   within the Phase 7-measured host capacity limits (2-vCPU/15-GiB Oracle

@@ -1,0 +1,4 @@
+name                     |     state     |                                                                                    summary
+-------------------------+---------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+accountant              | uninstallable | {"en_US": "Accounting, Taxes, Budgets, Assets..."}
+account_report_template | to install    | {"en_US": "Created dynamic Profit & Loss (P&L) and Balance Sheet reports compliant with the Oman reporting format, enabling automated and standardized financial reporting."}

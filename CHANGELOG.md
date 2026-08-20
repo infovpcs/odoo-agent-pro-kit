@@ -3,6 +3,26 @@
 All notable changes to `odoo-agent-pro-kit` are documented here. Versions
 track the `plugin/.claude-plugin/plugin.json` `version` field.
 
+## 0.3.3 — 2026-08-20
+
+### Fixed
+
+- **`manage_modules.sh` no longer reports a false "succeeded" install/update
+  when Odoo silently skips an unresolvable module dependency.** Odoo's
+  `-i`/`-u` CLI path treats a missing dependency (e.g. an Enterprise-only
+  app like `accountant`/`account_accountant`/`account_reports`) as a
+  skip-with-warning, not a hard error, and still exits 0 — leaving the
+  target module stuck at `ir_module_module.state == 'to install'` forever.
+  The Compose executor now re-checks `module_is_installed` for the target
+  module after every `install`/`update` operation and fails the structured
+  operation result (`install_failed`/`update_failed`) when the module never
+  actually reached `installed`. Discovered via real testing against a
+  client project (`account_report_template`, depends on the real Enterprise
+  Accounting app) reproduced consistently across Odoo 17.0/18.0/19.0; a new
+  regression test (`test_compose_executor_fails_when_module_not_actually_installed`)
+  covers it. See `docs/docker-sandbox/phase-8/aptus-enterprise-dependency-evidence/`
+  for the full evidence trail.
+
 ## 0.3.2 — 2026-08-19
 
 ### Added

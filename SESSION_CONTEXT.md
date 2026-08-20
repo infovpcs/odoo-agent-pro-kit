@@ -355,6 +355,48 @@ that consumes stable Community releases instead of forking this repository.
   hook detection, version→skill mapping resolution, `sandboxctl module`
   sole-entrypoint audit, context-handoff/`context_guard.py` behavior-change
   proof).
+- (2026-08-20, supplemental) Re-verified the Enterprise-dependency-detection
+  finding against a real client project with the user's own GitHub-level
+  access: `Aptusinfotech/aptus` (staging branch, Odoo.sh 19.0),
+  `account_report_template` (depends on the real Enterprise Accounting app
+  `accountant`/`account_accountant`, confirmed `OEEL-1`-licensed across the
+  user's own licensed 17.0/18.0/19.0 Enterprise source clones at
+  `~/workspace/17_local_project/ent-17`, `~/workspace/18_local_Project/
+  ent-18`, `~/workspace/ent-19`). Discovered and documented a real pipeline
+  gap: `sandboxctl module ... install` reports CLI exit 0 ("succeeded") when
+  Odoo's `-i` install-list path skips an unresolvable dependency with only a
+  warning — the true signal is `ir_module_module.state`, which stayed stuck
+  at `to install` (Enterprise dep `uninstallable`) in all three sandbox
+  runs. Reused one Docker Sandbox session across a full reverse-migration
+  test (19.0 -> 18.0 -> 17.0) of the same module, hand-migrating only the
+  manifest's Enterprise-dependency name per version's Odoo Accounting-app
+  split (`accountant` for 18.0/19.0, `account_accountant` for 17.0); no
+  other code changes were needed, confirmed by inspecting the relevant
+  `account.report` model fields, the `account.view_account_form` XML
+  anchor, and the OWL `selection_field.js` path across all three versions
+  in the user's local source trees before testing. Zero Enterprise source
+  was ever fetched or mounted in any of the three sandbox runs (verified by
+  filesystem search each time). All sandbox sessions destroyed cleanly after
+  evidence capture (no orphans); the two pre-existing sandbox sessions on
+  the host were untouched. No client source was committed to this
+  repository — only manifests/dependency-chain summaries and operation
+  results. Full evidence in
+  `docs/docker-sandbox/phase-8/aptus-enterprise-dependency-evidence/`.
+- (2026-08-20) Fixed the pipeline gap discovered above: `manage_modules.sh`'s
+  Compose executor now re-checks `module_is_installed` for the target module
+  after every `install`/`update` operation and marks the structured
+  operation result `failed` (`install_failed`/`update_failed`) when the
+  module never actually reached `ir_module_module.state == 'installed'` —
+  previously a silently-skipped Enterprise (or any missing) dependency could
+  leave a false "succeeded" result. Added regression test
+  `test_compose_executor_fails_when_module_not_actually_installed` and fixed
+  the existing fixture-based test's fake `docker`/`psql` stub to reflect the
+  new post-check. Bumped plugin version 0.3.2 -> 0.3.3
+  (`plugin/plugin.yaml`, `plugin/.claude-plugin/plugin.json`), documented in
+  `CHANGELOG.md` and `README.md`. `./scripts/validate.sh` passed clean: 74
+  tests, 21 skills, artifacts/contracts/rollback, Compose, shell/Python
+  syntax, and whitespace checks. Committed and pushed to `origin/main` with
+  the user's explicit authorization this session.
 - Phase 8 second module `hr_document_report` is complete for the Tier-1
   deliverable. Expanded security and representative Odoo 17 data-upgrade
   matrices were not executed and are not claimed.

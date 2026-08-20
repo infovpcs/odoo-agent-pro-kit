@@ -498,6 +498,18 @@ compose_module_operation() {
             "$flag" "$modules" "${test_args[@]}" --stop-after-init "${http_args[@]}" >>"$operation_log" 2>&1 || rc=$?
     fi
     compose_run up -d --wait --wait-timeout "${ODOO_READY_TIMEOUT:-180}" "$COMPOSE_SERVICE" >>"$operation_log" 2>&1 || [ "$rc" -ne 0 ] || rc=$?
+    # Odoo's -i/-u CLI path treats an unresolvable module dependency as a
+    # skip-with-warning, not a hard error, so a clean exit code alone does
+    # not prove the requested module actually reached the "installed"
+    # state (e.g. a missing Enterprise dependency leaves it stuck at
+    # "to install" while the CLI still exits 0). Verify the true database
+    # state for install/update operations before reporting success.
+    if [ "$rc" -eq 0 ] && { [ "$operation" = "install" ] || [ "$operation" = "update" ]; }; then
+        if ! module_is_installed "$module"; then
+            rc=1
+            echo "Module $module did not reach 'installed' state after $operation (check for missing/uninstallable dependencies)" >>"$operation_log"
+        fi
+    fi
     emit_operation_result "$operation" "$module" "$started" "$rc" "$operation_log"
     return "$rc"
 }

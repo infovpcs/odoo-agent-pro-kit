@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0.0",
+  "session_id": "phase8-aptus-ent-test",
+  "operation_id": "install-1787208081-1973",
+  "operation": "install",
+  "module": "account_report_template",
+  "odoo_version": "19.0",
+  "attempt": 1,
+  "status": "succeeded_cli_wrapper_but_blocked_in_odoo",
+  "started_at": "2026-08-20T06:40:40Z",
+  "finished_at": "2026-08-20T06:41:21.389286Z",
+  "duration_ms": 41389,
+  "exit_code": 0,
+  "note": "sandboxctl module install reported exit 0 (the -i install CLI path treats a missing dependency as skip-with-warning, not a hard error). The true database state is authoritative: ir_module_module shows account_report_template stuck in 'to install' and accountant as 'uninstallable' -- the module never reached installed state. See db-module-state.txt and odoo-install-warning.txt.",
+  "db_module_state": {
+    "accountant": "uninstallable",
+    "account_report_template": "to install"
+  }
+}

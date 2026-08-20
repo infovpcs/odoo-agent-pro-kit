@@ -51,7 +51,7 @@ Registers 7 `odoo_*` model-discovery tools (in-process, no separate MCP
 server/port needed), the `/plan-analysis`, `/start-coding`, `/testing`,
 `/fleet` slash commands, session-start Odoo workspace detection, and all 20
 bundled skills under the `odoo-agent-pro-kit:` namespace. See
-[CHANGELOG.md](CHANGELOG.md) 0.3.2 for details, or run
+[CHANGELOG.md](CHANGELOG.md) 0.3.3 for details, or run
 `hermes plugins doctor plugin --ci` from a clone to verify locally first.
 
 **Codex:** copy `context-templates/AGENTS.md` into your project root (Codex
@@ -117,9 +117,18 @@ evidence and a fresh-session context-handoff resume test; artifacts are under
 The second Tier-1 deliverable, `hr_document_report`, has also completed its
 ten-step Odoo 18 sandbox sequence: 6/6 TransactionCase tests, live UI/XSS and
 both PDF-layout checks, frontend N/A inventory, regenerated `/testing` docs,
-resource capture, and fresh-process handoff resume. Phase 8's broader exit gate
-remains open for the Enterprise-dependency-module test, separate resource
-sizing writeup, standalone design note, and go/no-go batching decision. See
+resource capture, and fresh-process handoff resume. The real Odoo
+Enterprise-dependency-module test has also passed, using both an internal
+fixture module and a real client project's module that depends on the
+Enterprise Accounting app — reproduced consistently across Odoo
+17.0/18.0/19.0 with zero Enterprise source ever fetched or mounted; this
+also surfaced and fixed a real pipeline gap where `manage_modules.sh` could
+report a false "succeeded" when Odoo silently skips an unresolvable
+dependency (see CHANGELOG 0.3.3). Wall-clock/resource sizing for a full
+single-module run is also recorded. Phase 8's broader exit gate remains open
+for the standalone design note, the `edit_remove_pricelist_rule`
+sandbox-native browser-evidence confirmation, and the go/no-go batching
+decision. See
 [`docs/docker-sandbox/tasks.md`](docs/docker-sandbox/tasks.md)
 "Phase 8" for the exact skill sequence and exit gate; this is the gate this
 kit must pass before it is considered ready for external client project work.

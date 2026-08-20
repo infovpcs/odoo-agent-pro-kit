@@ -1,0 +1,2 @@
+[phase8-aptus-ent-test/19.0/sandbox_fixture/odoo] 2026-08-20 06:40:45,798 1 WARNING sandbox_db odoo.modules.module_graph: module account_report_template: some depends are not loaded (accountant), skipped
+[phase8-aptus-ent-test/19.0/sandbox_fixture/odoo] 2026-08-20 06:41:12,296 1 ERROR sandbox_db odoo.modules.loading: Some modules have inconsistent states, some dependencies may be missing: ['account_report_template']
