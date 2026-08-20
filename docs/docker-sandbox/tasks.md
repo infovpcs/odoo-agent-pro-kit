@@ -235,14 +235,35 @@ module), with every step's output captured as session artifacts under
   least one step of the sequence, not only for `/start-coding` — and that a
   genuinely fresh session (new process, not the same context) resumes
   correctly from the written handoff without operator intervention.
-- [ ] Confirm the pipeline behaves correctly for a module with a real
+- [x] Confirm the pipeline behaves correctly for a module with a real
   **Odoo Enterprise dependency** (not just Community-only modules) —
   dependency detection must flag it without ever fetching, bundling, or
-  committing licensed Enterprise source.
-- [ ] Measure and record wall-clock time and Sandbox resource usage for one
+  committing licensed Enterprise source. Verified 2026-08-20 inside Docker
+  Sandbox `phase8-enterprise-dep-test` (Odoo 17.0, Ubuntu KVM host): ported
+  `vpcs_apps_cloud_17/real_estate` (`depends: purchase, sale_subscription,
+  website_crm, web_studio, sale_renting_crm` — all four non-`purchase`/
+  `website_crm` deps are genuine Odoo Enterprise-only apps) into the
+  session's `/mnt/extra-addons` and ran `sandboxctl module ... install`
+  exclusively. Odoo's own dependency resolver failed the install with a
+  structured `install_failed` operation result (exit 255) and the exact
+  `UserError`: "You try to install module 'real_estate' that depends on
+  module 'sale_renting_crm'. But the latter module is not available in
+  your system." A redacted diagnostic bundle was captured automatically on
+  failure. A post-failure `find` across the entire sandbox filesystem for
+  any Enterprise module name (`sale_renting`, `sale_subscription`,
+  `web_studio`) returned zero matches — no Enterprise source was ever
+  fetched, mounted, or present. Evidence in
+  `docs/docker-sandbox/phase-8/enterprise-dependency-evidence/`. Sandbox
+  session and outer Sandbox were fully destroyed after evidence capture; no
+  orphaned containers/volumes remained.
+- [x] Measure and record wall-clock time and Sandbox resource usage for one
   full single-module run through all 10 steps, to size future batch runs
   within the Phase 7-measured host capacity limits (2-vCPU/15-GiB Oracle
-  host: max ~2 constrained concurrent sessions).
+  host: max ~2 constrained concurrent sessions). Recorded for
+  `hr_document_report` (2026-08-19T11:06:29Z): outer/inner wall time
+  58m55s/46m32s; Odoo/PostgreSQL cumulative CPU 40.197s/142.675s; memory
+  peaks 245.3/255.2 MiB. See `SESSION_CONTEXT.md` "second Tier-1 module
+  complete" entry.
 
 ### Deliverables
 

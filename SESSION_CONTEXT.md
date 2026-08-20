@@ -321,6 +321,40 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Current state
 
+- (2026-08-20) Closed the Phase 8 "real Odoo Enterprise dependency" platform/
+  orchestration checklist item with real evidence. Created a fresh Docker
+  Sandbox session `phase8-enterprise-dep-test` (Odoo 17.0) on the Ubuntu KVM
+  validation host, ported `vpcs_apps_cloud_17/real_estate`
+  (`depends: purchase, sale_subscription, website_crm, web_studio,
+  sale_renting_crm`) into `/mnt/extra-addons`, and ran
+  `sandboxctl module ... install` exclusively (no raw `odoo-bin`/manual
+  Enterprise fetch). Odoo's own resolver correctly failed the install with a
+  structured `install_failed` operation result and the exact `UserError`
+  naming the missing Enterprise dependency `sale_renting_crm`. A redacted
+  diagnostic bundle was captured automatically. A post-failure filesystem
+  `find` for any Enterprise module name returned zero matches, confirming no
+  Enterprise source was ever fetched, mounted, or present. Evidence saved to
+  `docs/docker-sandbox/phase-8/enterprise-dependency-evidence/`
+  (`install-operation-result.json`, `odoo-install-failure.txt`, and the raw
+  redacted diagnostic bundle tarball). The sandbox session and outer Sandbox
+  were fully destroyed afterward (`--allow-unexported`, since it was a
+  disposable test fixture with no work product to preserve); `sbx ls`,
+  `docker ps -a`, and `docker volume ls` confirmed no orphans, and the two
+  pre-existing sandbox sessions on the host
+  (`phase8-hr-document-report`, `phase8-hr-payroll-invoice`) were left
+  untouched. Also flipped the wall-clock/resource-sizing checklist item to
+  `[x]` in `docs/docker-sandbox/tasks.md` — that evidence was already
+  captured for `hr_document_report` in this file's prior entry and only
+  needed the checkbox/citation, not new work. Local `.venv` `validate.sh` was
+  not re-run this session (no code changed, only docs/evidence).
+- Phase 8's exit gate is still NOT fully met. Remaining open items: the
+  Phase 8 design note (`docs/docker-sandbox/phase-8/design.md`, not yet
+  created), the `edit_remove_pricelist_rule` sandbox-native browser-evidence
+  confirmation deliverable, the go/no-go batching decision, and the four
+  remaining "platform/orchestration coverage" checklist items (session-start
+  hook detection, version→skill mapping resolution, `sandboxctl module`
+  sole-entrypoint audit, context-handoff/`context_guard.py` behavior-change
+  proof).
 - Phase 8 second module `hr_document_report` is complete for the Tier-1
   deliverable. Expanded security and representative Odoo 17 data-upgrade
   matrices were not executed and are not claimed.

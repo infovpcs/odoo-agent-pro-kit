@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0.0",
+  "session_id": "phase8-enterprise-dep-test",
+  "operation_id": "install-1787206018-989",
+  "operation": "install",
+  "module": "real_estate",
+  "attempt": 1,
+  "status": "failed",
+  "started_at": "2026-08-20T06:06:46Z",
+  "finished_at": "2026-08-20T06:06:59.000138Z",
+  "duration_ms": 13000,
+  "exit_code": 255,
+  "message": null,
+  "logs": [
+    "/home/ubuntu/workspace/odoo-agent-pro-kit/.sandbox/sessions/phase8-enterprise-dep-test/logs/test_results/install_20260820_060646.log"
+  ],
+  "artifacts": [],
+  "error": {
+    "code": "install_failed",
+    "summary": "install failed; inspect /home/ubuntu/workspace/odoo-agent-pro-kit/.sandbox/sessions/phase8-enterprise-dep-test/logs/test_results/install_20260820_060646.log",
+    "diagnostic_bundle": null
+  }
+}

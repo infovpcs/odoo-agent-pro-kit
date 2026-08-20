@@ -1,0 +1,44 @@
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo] 2026-08-20 06:06:50,431 1 INFO ? odoo: Odoo version 17.0-20260810
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo] 2026-08-20 06:06:50,431 1 INFO ? odoo: Using configuration file at /etc/odoo/odoo.conf
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo] 2026-08-20 06:06:50,431 1 INFO ? odoo: addons paths: ['/usr/lib/python3/dist-packages/odoo/addons', '/var/lib/odoo/addons/17.0', '/mnt/extra-addons']
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo] 2026-08-20 06:06:50,431 1 INFO ? odoo: database: odoo_runtime@db:5432
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo] 2026-08-20 06:06:50,774 1 INFO sandbox_db odoo.modules.loading: loading 1 modules...
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo] 2026-08-20 06:06:50,801 1 INFO sandbox_db odoo.modules.loading: updating modules list
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo] 2026-08-20 06:06:51,901 1 WARNING sandbox_db odoo.modules.module: Missing `license` key in manifest for 'real_estate', defaulting to LGPL-3
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo] 2026-08-20 06:06:52,301 1 INFO sandbox_db odoo.addons.base.models.ir_module: ALLOW access to module.button_install on ['Real Estate'] to user __system__ #1 via n/a
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo] 2026-08-20 06:06:52,316 1 WARNING sandbox_db odoo.modules.loading: Transient module states were reset
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo] 2026-08-20 06:06:52,316 1 ERROR sandbox_db odoo.modules.registry: Failed to load registry
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo] Traceback (most recent call last):
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]   File "/usr/lib/python3/dist-packages/odoo/modules/registry.py", line 97, in new
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]     odoo.modules.load_modules(registry, force_demo, status, update_module)
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]   File "/usr/lib/python3/dist-packages/odoo/modules/loading.py", line 452, in load_modules
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]     modules.button_install()
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]   File "<decorator-gen-76>", line 2, in button_install
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]   File "/usr/lib/python3/dist-packages/odoo/addons/base/models/ir_module.py", line 77, in check_and_log
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]     return method(self, *args, **kwargs)
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]   File "/usr/lib/python3/dist-packages/odoo/addons/base/models/ir_module.py", line 427, in button_install
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]     modules._state_update('to install', ['uninstalled'])
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]   File "/usr/lib/python3/dist-packages/odoo/addons/base/models/ir_module.py", line 393, in _state_update
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]     raise UserError(_("You try to install module %r that depends on module %r.\nBut the latter module is not available in your system.", module.name, dep.name))
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo] odoo.exceptions.UserError: You try to install module 'real_estate' that depends on module 'sale_renting_crm'.
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo] But the latter module is not available in your system.
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo] 2026-08-20 06:06:52,322 1 CRITICAL sandbox_db odoo.service.server: Failed to initialize database `sandbox_db`.
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo] Traceback (most recent call last):
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]   File "/usr/lib/python3/dist-packages/odoo/service/server.py", line 1422, in preload_registries
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]     registry = Registry.new(dbname, update_module=update_module)
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]   File "<decorator-gen-16>", line 2, in new
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]   File "/usr/lib/python3/dist-packages/odoo/tools/func.py", line 87, in locked
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]     return func(inst, *args, **kwargs)
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]   File "/usr/lib/python3/dist-packages/odoo/modules/registry.py", line 97, in new
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]     odoo.modules.load_modules(registry, force_demo, status, update_module)
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]   File "/usr/lib/python3/dist-packages/odoo/modules/loading.py", line 452, in load_modules
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]     modules.button_install()
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]   File "<decorator-gen-76>", line 2, in button_install
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]   File "/usr/lib/python3/dist-packages/odoo/addons/base/models/ir_module.py", line 77, in check_and_log
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]     return method(self, *args, **kwargs)
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]   File "/usr/lib/python3/dist-packages/odoo/addons/base/models/ir_module.py", line 427, in button_install
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]     modules._state_update('to install', ['uninstalled'])
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]   File "/usr/lib/python3/dist-packages/odoo/addons/base/models/ir_module.py", line 393, in _state_update
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo]     raise UserError(_("You try to install module %r that depends on module %r.\nBut the latter module is not available in your system.", module.name, dep.name))
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo] odoo.exceptions.UserError: You try to install module 'real_estate' that depends on module 'sale_renting_crm'.
+[phase8-enterprise-dep-test/17.0/sandbox_fixture/odoo] But the latter module is not available in your system.
