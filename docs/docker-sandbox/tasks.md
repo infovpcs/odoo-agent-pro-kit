@@ -284,27 +284,47 @@ module), with every step's output captured as session artifacts under
 
 ### Deliverables
 
-- [ ] A written **Phase 8 design note**
+- [x] A written **Phase 8 design note**
   (`docs/docker-sandbox/phase-8/design.md`) naming the exact skill
   invocation order above as the canonical sequence, referenced from
-  `CommandingSystem/SKILL.md` so it is not only documented here.
-- [ ] At least one Tier-1 (17.0-only) VPCSCloud Apps Store module migrated
+  `CommandingSystem/SKILL.md` so it is not only documented here. Generalized
+  2026-08-20 from the pilot-scoped draft to the canonical Phase 8 design
+  note: full 10-step sequence, Enterprise-dependency handling (including the
+  `manage_modules.sh` 0.3.3 fix), reference-run summaries for all three
+  completed test runs, and the go/no-go batching decision below.
+  `CommandingSystem/SKILL.md` "Phase 8" now cites it directly.
+- [x] At least one Tier-1 (17.0-only) VPCSCloud Apps Store module migrated
   **inside a Docker Sandbox session** (not the bare local workspace used for
-  the `edit_remove_pricelist_rule` pilot) through the full 10-step sequence,
-  with every step's artifact path recorded in
-  `docs/docker-sandbox/phase-8/live-test.md`.
+  the earlier ad hoc pilot) through the full 10-step sequence, with every
+  step's artifact path recorded in `docs/docker-sandbox/phase-8/live-test.md`.
+  Satisfied by `edit_remove_pricelist_rule` (17.0 -> 18.0), executed inside
+  Docker Sandbox `phase8-pilot`/inner session `phase8-pricelist-18` — see
+  "Progress record" below for the full 10-step evidence trail.
 - [x] A second Tier-1 module, `hr_document_report` (17.0 -> 18.0), completed
   its ten-step sequence inside Docker Sandbox `phase8-hr-document-report`,
   including 6/6 backend tests, live UI/PDF evidence, frontend N/A inventory,
   documentation regeneration, resource capture, and fresh-process resume.
-- [ ] Confirmation that the already-completed `edit_remove_pricelist_rule`
+- [x] Confirmation that the already-completed `edit_remove_pricelist_rule`
   local-workspace pilot's outstanding gap (blocked browser screenshot) is
   closed via the sandbox-native `Agent-browser-skill` path in this phase,
-  not worked around locally.
-- [ ] A go/no-go decision, recorded in `SESSION_CONTEXT.md`, on batching the
+  not worked around locally. Closed 2026-08-19: a real SSH-tunnel + `socat`
+  browser session against the sandboxed Odoo 18 instance (`phase8-pilot`)
+  captured real screenshots of the smart button and drill-through list
+  (`docs/docker-sandbox/phase-8/step7-evidence/`), and in the process found
+  and fixed a real `KeyError: <NewId ...>` bug — see
+  `docs/docker-sandbox/phase-8/live-test.md` "Step 7 — Live UI evidence —
+  COMPLETE".
+- [x] A go/no-go decision, recorded in `SESSION_CONTEXT.md`, on batching the
   remaining ~45 backlog modules through this proven sequence versus doing
   targeted per-module runs, based on the measured single-module time/resource
-  cost above.
+  cost above. **Decision: GO, phased/staggered** — see
+  `docs/docker-sandbox/phase-8/design.md` "Go/no-go: batching the remaining
+  ~45 backlog modules" for the full rationale and recommended batching
+  shape (triage pass first, then Community-only modules at ≤2 concurrent
+  sandbox sessions per the Phase 7 capacity limit, Enterprise-dependent
+  modules handled as a separate explicitly-flagged batch, and the four
+  still-open platform/orchestration checklist items re-run before
+  committing to full-scale batching).
 
 ### Progress record (2026-08-18, real evidence — see `docs/docker-sandbox/phase-8/live-test.md`)
 
@@ -401,9 +421,14 @@ validated, and artifact/contracts/rollback, Compose, shell, Python, and
 whitespace checks passed. Live `sbx` kit validation was skipped because `sbx`
 is unavailable inside this sandbox process.
 
-**The full Phase 8 exit gate remains OPEN**: the real Enterprise-dependency
-module test, separate wall-clock/resource sizing writeup, standalone Phase 8
-design note, and go/no-go batching decision are still required.
+**The full Phase 8 exit gate remains OPEN**: all four Deliverables are now
+complete (design note, first sandbox-native Tier-1 module, second Tier-1
+module, browser-evidence gap closure, and the go/no-go batching decision).
+The remaining blockers are the four "platform/orchestration coverage"
+checklist items above the Deliverables section: session-start hook
+detection, version→skill mapping resolution, `sandboxctl module`
+sole-entrypoint audit, and `context_guard.py` live-usage-hook
+behavior-change proof.
 
 Exit gate: one full pilot module passes the sequence above with recorded
 evidence for every step, the dynamic context handoff/session-reset check in

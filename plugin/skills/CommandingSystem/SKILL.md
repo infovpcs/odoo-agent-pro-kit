@@ -171,7 +171,9 @@ the Sandbox's real published port → `Odoo_Custom_Frontend_Testing` →
 session resumes purely from `CLAUDE.md` + `docs/tasks.md`. This sequence
 must run inside a Docker Sandbox microVM, not the bare local workspace.
 Full detail, scope checklist, and exit gate: `docs/docker-sandbox/tasks.md`
-"Phase 8".
+"Phase 8". The canonical sequence, execution-environment contract, and
+reference-run history are recorded in
+`docs/docker-sandbox/phase-8/design.md`.
 
 **Dynamic context-usage handoff, throughout the sequence:** any step above
 can independently trigger the handoff guard (`plugin/context_guard.py`,

@@ -28,9 +28,10 @@ Before changing files:
   planning
 - Active branch: `main`
 - Branch base: `main` at commit `12368b7` (post-Phase-7, additive 0.2.0/0.3.0 work)
-- Last context update: 2026-08-19 (UTC, `hr_document_report` completed the
-  second Tier-1 ten-step sandbox sequence; Phase 8 remains open for Enterprise
-  detection, the separate sizing writeup, design note, and batching decision)
+- Last context update: 2026-08-20 (UTC, Phase 8 design note generalized to
+  canonical status, all four Deliverables checked off including the GO
+  phased-batching decision; four platform/orchestration checklist items
+  remain the sole exit-gate blocker)
 
 ## Objective
 
@@ -347,14 +348,28 @@ that consumes stable Community releases instead of forking this repository.
   captured for `hr_document_report` in this file's prior entry and only
   needed the checkbox/citation, not new work. Local `.venv` `validate.sh` was
   not re-run this session (no code changed, only docs/evidence).
-- Phase 8's exit gate is still NOT fully met. Remaining open items: the
-  Phase 8 design note (`docs/docker-sandbox/phase-8/design.md`, not yet
-  created), the `edit_remove_pricelist_rule` sandbox-native browser-evidence
-  confirmation deliverable, the go/no-go batching decision, and the four
-  remaining "platform/orchestration coverage" checklist items (session-start
-  hook detection, version→skill mapping resolution, `sandboxctl module`
-  sole-entrypoint audit, context-handoff/`context_guard.py` behavior-change
-  proof).
+- Phase 8's exit gate is still NOT fully met. All four **Deliverables** are
+  now complete (2026-08-20): the design note (`docs/docker-sandbox/
+  phase-8/design.md`, generalized from a pilot-scoped draft to the
+  canonical sequence + Enterprise-dependency handling + all three
+  reference-run summaries + the go/no-go decision, referenced from
+  `CommandingSystem/SKILL.md`), the first sandbox-native Tier-1 module
+  (`edit_remove_pricelist_rule`, already-existing evidence just needed the
+  checkbox), the second Tier-1 module (`hr_document_report`), the
+  `edit_remove_pricelist_rule` browser-evidence gap closure (already
+  satisfied by existing Step 7 evidence), and the go/no-go batching
+  decision: **GO, phased/staggered** — triage the ~45-module backlog
+  statically first (Community-only vs Enterprise-dependent), batch
+  Community-only modules at ≤2 concurrent sandbox sessions (Phase 7's
+  measured host capacity limit), handle Enterprise-dependent modules as a
+  separate explicitly-flagged batch, and re-run the four remaining
+  platform/orchestration checklist items before committing to full-scale
+  batching. Full rationale in `docs/docker-sandbox/phase-8/design.md`
+  "Go/no-go". The remaining blockers for Phase 8's exit gate are the four
+  "platform/orchestration coverage" checklist items: session-start hook
+  detection, version→skill mapping resolution, `sandboxctl module`
+  sole-entrypoint audit, and `context_guard.py` live-usage-hook
+  behavior-change proof.
 - (2026-08-20, supplemental) Re-verified the Enterprise-dependency-detection
   finding against a real client project with the user's own GitHub-level
   access: `Aptusinfotech/aptus` (staging branch, Odoo.sh 19.0),

@@ -125,10 +125,14 @@ Enterprise Accounting app — reproduced consistently across Odoo
 also surfaced and fixed a real pipeline gap where `manage_modules.sh` could
 report a false "succeeded" when Odoo silently skips an unresolvable
 dependency (see CHANGELOG 0.3.3). Wall-clock/resource sizing for a full
-single-module run is also recorded. Phase 8's broader exit gate remains open
-for the standalone design note, the `edit_remove_pricelist_rule`
-sandbox-native browser-evidence confirmation, and the go/no-go batching
-decision. See
+single-module run is also recorded. The standalone Phase 8 design note
+(`docs/docker-sandbox/phase-8/design.md`) is complete and the go/no-go
+batching decision is **GO, phased/staggered** — see the design note's
+"Go/no-go" section for the full rationale. Phase 8's broader exit gate
+remains open for the four platform/orchestration coverage checklist items
+(session-start hook detection, version→skill mapping resolution,
+`sandboxctl module` sole-entrypoint audit, and `context_guard.py`
+live-usage-hook behavior-change proof). See
 [`docs/docker-sandbox/tasks.md`](docs/docker-sandbox/tasks.md)
 "Phase 8" for the exact skill sequence and exit gate; this is the gate this
 kit must pass before it is considered ready for external client project work.
