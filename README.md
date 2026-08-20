@@ -51,7 +51,7 @@ Registers 7 `odoo_*` model-discovery tools (in-process, no separate MCP
 server/port needed), the `/plan-analysis`, `/start-coding`, `/testing`,
 `/fleet` slash commands, session-start Odoo workspace detection, and all 20
 bundled skills under the `odoo-agent-pro-kit:` namespace. See
-[CHANGELOG.md](CHANGELOG.md) 0.3.3 for details, or run
+[CHANGELOG.md](CHANGELOG.md) 0.4.0 for details, or run
 `hermes plugins doctor plugin --ci` from a clone to verify locally first.
 
 **Codex:** copy `context-templates/AGENTS.md` into your project root (Codex
@@ -103,14 +103,14 @@ Community members with that hardware can follow the
 report results or bugs through the dedicated issue template, and propose tested
 runbook or compatibility fixes by pull request.
 
-Phase 8 (in progress) proves the full skill-orchestrated development
+Phase 8 (complete) proved the full skill-orchestrated development
 lifecycle — dependency/context intake, coding-standard application,
 `/plan-analysis` → `/start-coding` → `/testing`, install/update lifecycle
 rules, backend/frontend testing, live browser evidence, and dynamic
 context-handoff/session-reset — runs correctly end to end **inside a Docker
 Sandbox microVM**, using the real VPCSCloud Apps Store 17.0→18.0/19.0
 module migration backlog as the proving ground rather than a synthetic
-fixture. The pilot module (`edit_remove_pricelist_rule`, 18.0) has completed
+fixture. The pilot module (`edit_remove_pricelist_rule`, 18.0) completed
 all 10 sequence steps with real evidence, including sandbox-native live UI
 evidence and a fresh-session context-handoff resume test; artifacts are under
 [`docs/docker-sandbox/phase-8/`](docs/docker-sandbox/phase-8/live-test.md).
@@ -128,14 +128,16 @@ dependency (see CHANGELOG 0.3.3). Wall-clock/resource sizing for a full
 single-module run is also recorded. The standalone Phase 8 design note
 (`docs/docker-sandbox/phase-8/design.md`) is complete and the go/no-go
 batching decision is **GO, phased/staggered** — see the design note's
-"Go/no-go" section for the full rationale. Phase 8's broader exit gate
-remains open for the four platform/orchestration coverage checklist items
-(session-start hook detection, version→skill mapping resolution,
-`sandboxctl module` sole-entrypoint audit, and `context_guard.py`
-live-usage-hook behavior-change proof). See
-[`docs/docker-sandbox/tasks.md`](docs/docker-sandbox/tasks.md)
-"Phase 8" for the exact skill sequence and exit gate; this is the gate this
-kit must pass before it is considered ready for external client project work.
+"Go/no-go" section for the full rationale. All five platform/orchestration
+coverage checklist items are also verified with real evidence — session-start
+hook detection, version→skill mapping resolution, `sandboxctl module`
+sole-entrypoint audit (which also found and fixed a real gap in the
+`OdooTools{17,18,19}` skills), the `context_guard.py` dynamic-handoff write
+path, and the session-start context-load read path — closing **Phase 8's
+exit gate in full** (see CHANGELOG 0.4.0 and
+[`docs/docker-sandbox/phase-8/orchestration-coverage-evidence.md`](docs/docker-sandbox/phase-8/orchestration-coverage-evidence.md)).
+See [`docs/docker-sandbox/tasks.md`](docs/docker-sandbox/tasks.md)
+"Phase 8" for the exact skill sequence and exit gate.
 
 The Odoo 17/18/19 inner runtime controller is documented in
 [`sandbox/README.md`](sandbox/README.md). Phase gates remain authoritative in

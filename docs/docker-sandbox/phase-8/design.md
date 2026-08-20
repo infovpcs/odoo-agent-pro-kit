@@ -1,10 +1,11 @@
 # Phase 8 Design: Full-Coverage Skill-Orchestrated Migration Pipeline
 
-Status: canonical sequence proven. Exit gate remains open pending the four
-"platform/orchestration coverage" checklist items in
-`docs/docker-sandbox/tasks.md` (Phase 8) — session-start hook detection,
-version→skill mapping resolution, `sandboxctl module` sole-entrypoint audit,
-and `context_guard.py` live-usage-hook behavior-change proof.
+Status: complete (2026-08-20). All Deliverables and all five
+platform/orchestration coverage checklist items in
+`docs/docker-sandbox/tasks.md` Phase 8 are verified with real evidence. See
+`docs/docker-sandbox/phase-8/orchestration-coverage-evidence.md` for the
+session-start hook, version→skill mapping, sole-entrypoint, and
+context-handoff (write + read) verification.
 
 ## Purpose
 

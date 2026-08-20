@@ -16,7 +16,7 @@ Use Odoo 18.0 tooling to accelerate development, testing, and review.
 ## Core tools
 - Scaffold: `odoo-bin scaffold <module> <addons_path>` (respect 18 standards).
 - Shell: `odoo-bin shell -d <db>` for inspection; avoid destructive writes.
-- Tests: `odoo-bin -d <db> --test-tags <tag>`; isolate modules.
+- Tests: inside a Docker Sandbox session, use `sandbox/bin/sandboxctl module <session> test <module>` exclusively — never invoke raw `odoo-bin -d <db> --test-tags <tag>` for an install/update/test lifecycle gate (see `DockerSandboxOperations/SKILL.md`). Local (non-Sandbox) mode uses `manage_modules.sh test <module>` instead.
 - Lint: pylint-odoo/black if enabled.
 - Data: export/import reference data; avoid manual prod edits.
 - Performance: log queries; profile hotspots; add indexes/domains accordingly.

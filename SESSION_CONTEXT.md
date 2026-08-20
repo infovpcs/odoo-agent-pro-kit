@@ -28,10 +28,9 @@ Before changing files:
   planning
 - Active branch: `main`
 - Branch base: `main` at commit `12368b7` (post-Phase-7, additive 0.2.0/0.3.0 work)
-- Last context update: 2026-08-20 (UTC, Phase 8 design note generalized to
-  canonical status, all four Deliverables checked off including the GO
-  phased-batching decision; four platform/orchestration checklist items
-  remain the sole exit-gate blocker)
+- Last context update: 2026-08-20 (UTC, Phase 8 exit gate MET — all
+  Deliverables and all five platform/orchestration coverage checklist items
+  verified with real evidence; Phase 8 is complete)
 
 ## Objective
 
@@ -348,28 +347,50 @@ that consumes stable Community releases instead of forking this repository.
   captured for `hr_document_report` in this file's prior entry and only
   needed the checkbox/citation, not new work. Local `.venv` `validate.sh` was
   not re-run this session (no code changed, only docs/evidence).
-- Phase 8's exit gate is still NOT fully met. All four **Deliverables** are
-  now complete (2026-08-20): the design note (`docs/docker-sandbox/
-  phase-8/design.md`, generalized from a pilot-scoped draft to the
-  canonical sequence + Enterprise-dependency handling + all three
-  reference-run summaries + the go/no-go decision, referenced from
-  `CommandingSystem/SKILL.md`), the first sandbox-native Tier-1 module
-  (`edit_remove_pricelist_rule`, already-existing evidence just needed the
-  checkbox), the second Tier-1 module (`hr_document_report`), the
-  `edit_remove_pricelist_rule` browser-evidence gap closure (already
-  satisfied by existing Step 7 evidence), and the go/no-go batching
-  decision: **GO, phased/staggered** — triage the ~45-module backlog
-  statically first (Community-only vs Enterprise-dependent), batch
-  Community-only modules at ≤2 concurrent sandbox sessions (Phase 7's
-  measured host capacity limit), handle Enterprise-dependent modules as a
-  separate explicitly-flagged batch, and re-run the four remaining
-  platform/orchestration checklist items before committing to full-scale
-  batching. Full rationale in `docs/docker-sandbox/phase-8/design.md`
-  "Go/no-go". The remaining blockers for Phase 8's exit gate are the four
-  "platform/orchestration coverage" checklist items: session-start hook
-  detection, version→skill mapping resolution, `sandboxctl module`
-  sole-entrypoint audit, and `context_guard.py` live-usage-hook
-  behavior-change proof.
+- **Phase 8's exit gate is now MET (2026-08-20).** All four **Deliverables**
+  are complete: the design note (`docs/docker-sandbox/phase-8/design.md`,
+  generalized from a pilot-scoped draft to the canonical sequence +
+  Enterprise-dependency handling + all reference-run summaries + the
+  go/no-go decision, referenced from `CommandingSystem/SKILL.md`), the
+  first sandbox-native Tier-1 module (`edit_remove_pricelist_rule`,
+  already-existing evidence just needed the checkbox), the second Tier-1
+  module (`hr_document_report`), the `edit_remove_pricelist_rule`
+  browser-evidence gap closure (already satisfied by existing Step 7
+  evidence), and the go/no-go batching decision: **GO, phased/staggered** —
+  triage the ~45-module backlog statically first (Community-only vs
+  Enterprise-dependent), batch Community-only modules at ≤2 concurrent
+  sandbox sessions (Phase 7's measured host capacity limit), handle
+  Enterprise-dependent modules as a separate explicitly-flagged batch. Full
+  rationale in `docs/docker-sandbox/phase-8/design.md` "Go/no-go".
+
+  All five "platform/orchestration coverage" checklist items are also now
+  verified with real evidence
+  (`docs/docker-sandbox/phase-8/orchestration-coverage-evidence.md`):
+  session-start hook detection (both the shell hook and native Hermes hook,
+  three real cases: live Docker Sandbox `session.json`, bare local
+  Odoo-version directory, genuinely empty directory — all three correct);
+  version→skill mapping resolution (verified inside a live Docker Sandbox
+  session that all nine mapped skill directories resolve); `sandboxctl
+  module` sole-entrypoint audit (found and fixed a real gap —
+  `OdooTools{17,18,19}/SKILL.md`'s "Tests" bullet recommended raw
+  `odoo-bin --test-tags` with no caveat; fixed to route through
+  `sandboxctl module ... test` exclusively, with a new regression test
+  enforcing it going forward); `context_guard.py` write path (called the
+  real `maybe_handle_context_pressure` hook directly with real usage data
+  against a seeded 5-task module; correctly computed the size-adjusted
+  threshold, triggered at 70.3% usage, wrote all three handoff files with
+  accurate state, deduped a same-bucket re-trigger, and a brand-new
+  zero-context Hermes subagent given only the two handoff files correctly
+  resumed); and session-start context-load read path (a fresh zero-context
+  subagent, given only a real `CLAUDE.md` with no explicit skip instruction
+  plus `docs/tasks.md`, correctly identified which completed tasks to skip
+  and correctly sequenced the remaining tasks — measurable behavior change,
+  not self-report). All Docker Sandbox sessions used this session
+  (`phase8-enterprise-dep-test`, `phase8-aptus-ent-test`,
+  `phase8-orchestration-test`) were destroyed after evidence capture with
+  no orphans; the two pre-existing sessions on the host
+  (`phase8-hr-document-report`, `phase8-hr-payroll-invoice`) were untouched
+  throughout.
 - (2026-08-20, supplemental) Re-verified the Enterprise-dependency-detection
   finding against a real client project with the user's own GitHub-level
   access: `Aptusinfotech/aptus` (staging branch, Odoo.sh 19.0),

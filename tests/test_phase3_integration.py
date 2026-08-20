@@ -139,3 +139,18 @@ def test_lifecycle_skills_use_controller_and_forbid_raw_odoo_bin():
         text = (ROOT / relative).read_text()
         assert "sandboxctl module" in text
         assert "Do not" in text and "odoo-bin" in text
+
+
+def test_odoo_tools_skills_route_test_lifecycle_through_sandboxctl():
+    """OdooTools17/18/19 mention raw odoo-bin for scaffold/shell (fine, those
+    aren't lifecycle-gate operations), but the Tests bullet specifically must
+    route through sandboxctl module ... test, not raw odoo-bin --test-tags,
+    matching the sole-entrypoint rule audited for Phase 8."""
+    for relative in (
+        "plugin/skills/OdooTools17/SKILL.md",
+        "plugin/skills/OdooTools18/SKILL.md",
+        "plugin/skills/OdooTools19/SKILL.md",
+    ):
+        text = (ROOT / relative).read_text()
+        assert "sandboxctl module" in text
+        assert "never invoke raw" in text and "odoo-bin" in text

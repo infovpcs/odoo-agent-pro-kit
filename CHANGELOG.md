@@ -3,6 +3,52 @@
 All notable changes to `odoo-agent-pro-kit` are documented here. Versions
 track the `plugin/.claude-plugin/plugin.json` `version` field.
 
+## 0.4.0 — 2026-08-20
+
+### Added
+
+- **Phase 8 exit gate is now MET — the full skill-orchestrated migration
+  pipeline is client-ready.** All four Deliverables and all five
+  "platform/orchestration coverage" checklist items in
+  `docs/docker-sandbox/tasks.md` Phase 8 are complete with real evidence:
+  - Standalone Phase 8 design note (`docs/docker-sandbox/phase-8/design.md`)
+    generalized to the canonical sequence, Enterprise-dependency handling,
+    all reference-run summaries, and the go/no-go batching decision
+    (**GO, phased/staggered**), referenced directly from
+    `CommandingSystem/SKILL.md`.
+  - Session-start hook detection verified for both the shell hook
+    (`plugin/hooks/session_start.sh`) and the native Hermes hook
+    (`_on_session_start`) across three real cases: a live Docker Sandbox
+    session, a bare local Odoo-version workspace, and a genuinely empty
+    directory.
+  - Version→skill mapping table verified to resolve correctly for all
+    three Odoo versions inside a live Docker Sandbox session.
+  - `sandboxctl module` sole-entrypoint audit found and fixed a real gap:
+    `OdooTools{17,18,19}/SKILL.md`'s "Tests" bullet recommended raw
+    `odoo-bin --test-tags` with no caveat, unlike every other
+    lifecycle-touching skill. Fixed to route through
+    `sandboxctl module ... test` exclusively, with a new regression test
+    (`test_odoo_tools_skills_route_test_lifecycle_through_sandboxctl`)
+    enforcing it going forward.
+  - `context_guard.py`'s dynamic context-usage handoff guard verified on
+    both the write side (real threshold computation, real handoff write,
+    real dedup on re-trigger) and the read side (a fresh, zero-context
+    Hermes subagent given only the written `CLAUDE.md` — with no explicit
+    skip instruction — correctly identified which completed tasks to skip
+    and correctly sequenced the remaining tasks, proving the context-load
+    design measurably changes agent behavior on resume).
+  - Full evidence:
+    `docs/docker-sandbox/phase-8/orchestration-coverage-evidence.md`.
+- **Real Odoo Enterprise-dependency-module test passed twice**, once
+  against an internal fixture module (`real_estate`, 17.0, ORM
+  hard-failure path) and once against a real client project's module
+  (`account_report_template`, depends on the real Enterprise Accounting
+  app, CLI skip-with-warning path) — reproduced consistently across Odoo
+  17.0/18.0/19.0 in a reverse-migration test, with zero Enterprise source
+  ever fetched or mounted in any run. See
+  `docs/docker-sandbox/phase-8/enterprise-dependency-evidence/` and
+  `docs/docker-sandbox/phase-8/aptus-enterprise-dependency-evidence/`.
+
 ## 0.3.3 — 2026-08-20
 
 ### Fixed

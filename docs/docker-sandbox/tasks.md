@@ -152,7 +152,7 @@ deterministic terminal or recoverable state.
 Exit gate: all requirements acceptance scenarios pass, artifacts are pinned,
 and rollback plus cleanup are demonstrated.
 
-## Phase 8: Full-coverage skill-orchestrated migration pipeline (client-readiness proof)
+## Phase 8: Full-coverage skill-orchestrated migration pipeline (client-readiness proof) — complete
 
 Purpose: prove that this repository's complete skill set, dynamic context
 handoff, and Docker Sandbox microVM execution model together form a mature,
@@ -215,26 +215,61 @@ module), with every step's output captured as session artifacts under
 
 ### Scope: platform/orchestration coverage to validate
 
-- [ ] Confirm `plugin/__init__.py`'s `on_session_start` hook correctly
+- [x] Confirm `plugin/__init__.py`'s `on_session_start` hook correctly
   detects an Odoo Sandbox workspace vs. a bare local workspace and loads the
-  right skill subset without manual selection.
-- [ ] Confirm the version -> skill mapping table in `CommandingSystem/
+  right skill subset without manual selection. Verified 2026-08-20 against
+  both the shell hook (`plugin/hooks/session_start.sh`) and the native
+  Hermes hook (`_on_session_start`) across three real cases: a live Docker
+  Sandbox `session.json`, a bare local Odoo-version directory, and a
+  genuinely empty directory — all three produced the correct detection
+  (sandbox / local / silent no-op). See
+  `docs/docker-sandbox/phase-8/orchestration-coverage-evidence.md` item 1.
+- [x] Confirm the version -> skill mapping table in `CommandingSystem/
   SKILL.md` resolves correctly for all three versions inside a sandbox
-  session (not just documented).
-- [ ] Confirm `sandbox/bin/sandboxctl module` is the sole install/update/test
+  session (not just documented). Verified 2026-08-20 inside Docker Sandbox
+  `phase8-orchestration-test`: all nine mapped skill directories
+  (`Odoo{17,18,19}CodingStandard`, `OdooTools{17,18,19}`,
+  `Odoo{17,18,19}ExistingDependencyContext`) exist and are readable from the
+  sandbox's mounted repo clone. See
+  `docs/docker-sandbox/phase-8/orchestration-coverage-evidence.md` item 2.
+- [x] Confirm `sandbox/bin/sandboxctl module` is the sole install/update/test
   entrypoint used across the full sequence above — no direct `odoo-bin`
-  calls bypass it.
-- [ ] Confirm session-start context load (`CLAUDE.md` read before skill
+  calls bypass it. Audit found and fixed a real gap 2026-08-20:
+  `OdooTools{17,18,19}/SKILL.md`'s "Tests" bullet recommended raw
+  `odoo-bin --test-tags` with no caveat, unlike every other lifecycle skill.
+  Fixed to route through `sandboxctl module ... test` exclusively, with a
+  new regression test
+  (`test_odoo_tools_skills_route_test_lifecycle_through_sandboxctl`)
+  enforcing it going forward. See
+  `docs/docker-sandbox/phase-8/orchestration-coverage-evidence.md` item 3.
+- [x] Confirm session-start context load (`CLAUDE.md` read before skill
   loading, per `context_handoff_workflow.md`) actually changes agent
   behavior on a real second run of the same module (measurable: it skips
-  already-completed tasks rather than re-deriving them).
-- [ ] Confirm the dynamic context-usage handoff guard
+  already-completed tasks rather than re-deriving them). Verified
+  2026-08-20: a brand-new, zero-context Hermes subagent, given only a real
+  `context_writer.py`-format `CLAUDE.md` (2/5 tasks done, with command
+  history naming the completed tasks) and `docs/tasks.md`, and with no
+  explicit skip instruction, correctly named both completed tasks as
+  skip-worthy (citing their auto-test pass counts) and correctly sequenced
+  the three remaining tasks as next work. See
+  `docs/docker-sandbox/phase-8/orchestration-coverage-evidence.md` item 5.
+- [x] Confirm the dynamic context-usage handoff guard
   (`plugin/context_guard.py`, fired on the real per-turn `post_api_request`
   usage hook) actually writes `CLAUDE.md`/`GEMINI.md`/`AGENTS.md` and nudges
   the agent when usage crosses its module-size-adjusted threshold — for at
   least one step of the sequence, not only for `/start-coding` — and that a
   genuinely fresh session (new process, not the same context) resumes
   correctly from the written handoff without operator intervention.
+  Verified 2026-08-20 by calling the real `maybe_handle_context_pressure`
+  hook function directly with real usage data against a seeded 5-task
+  module directory: correctly computed the size-adjusted threshold (65% for
+  a 5-task module), triggered on 70.3% usage, wrote all three handoff files
+  plus `sessions/context_handoff.json` with the accurate task/usage/trigger
+  state, injected the nudge message, correctly deduped a same-bucket
+  re-trigger, and — independently, via a brand-new zero-context Hermes
+  subagent given only the two handoff files — correctly resumed with the
+  right module/version/task-count/last-command/trigger state. See
+  `docs/docker-sandbox/phase-8/orchestration-coverage-evidence.md` item 4.
 - [x] Confirm the pipeline behaves correctly for a module with a real
   **Odoo Enterprise dependency** (not just Community-only modules) —
   dependency detection must flag it without ever fetching, bundling, or
@@ -421,19 +456,26 @@ validated, and artifact/contracts/rollback, Compose, shell, Python, and
 whitespace checks passed. Live `sbx` kit validation was skipped because `sbx`
 is unavailable inside this sandbox process.
 
-**The full Phase 8 exit gate remains OPEN**: all four Deliverables are now
-complete (design note, first sandbox-native Tier-1 module, second Tier-1
-module, browser-evidence gap closure, and the go/no-go batching decision).
-The remaining blockers are the four "platform/orchestration coverage"
-checklist items above the Deliverables section: session-start hook
-detection, version→skill mapping resolution, `sandboxctl module`
-sole-entrypoint audit, and `context_guard.py` live-usage-hook
-behavior-change proof.
+**The full Phase 8 exit gate is now MET (2026-08-20)**: all four Deliverables
+are complete (design note, first sandbox-native Tier-1 module, second
+Tier-1 module, browser-evidence gap closure, and the go/no-go batching
+decision), and all five "platform/orchestration coverage" checklist items
+are verified with real evidence — session-start hook detection (both shell
+and native hook, three real cases), version→skill mapping resolution
+(inside a live sandbox session), `sandboxctl module` sole-entrypoint audit
+(found and fixed a real gap in `OdooTools{17,18,19}/SKILL.md`), the
+`context_guard.py` live-usage-hook write path (real threshold computation,
+real handoff write, real dedup), and the session-start context-load read
+path (a fresh subagent measurably skipped completed work based purely on
+`CLAUDE.md`, with no explicit instruction to do so). See
+`docs/docker-sandbox/phase-8/orchestration-coverage-evidence.md` for full
+evidence on all five items.
 
 Exit gate: one full pilot module passes the sequence above with recorded
 evidence for every step, the dynamic context handoff/session-reset check in
 step 10 is independently verified (not self-reported by the same
 uninterrupted session), and the go/no-go batching decision is recorded.
+**MET.**
 
 ## Definition of done for every implementation task
 

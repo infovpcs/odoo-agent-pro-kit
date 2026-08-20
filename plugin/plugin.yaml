@@ -6,7 +6,7 @@
 # plugin is installed via `hermes plugins install` — see register(ctx) in
 # __init__.py for what actually gets wired up.
 name: odoo-agent-pro-kit
-version: "0.3.3"
+version: "0.4.0"
 description: >-
   Odoo 17/18/19 custom application development lifecycle for Hermes: native
   odoo_* MCP-equivalent tools (model/field/relationship discovery over live
