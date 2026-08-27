@@ -55,6 +55,36 @@ def test_picks_newest(tmp_path, monkeypatch):
     assert r.status == "succeeded"
 
 
+def test_finds_session_via_kit_root_env(tmp_path, monkeypatch):
+    """Module edited outside the kit repo: ODOO_KIT_SANDBOX_ROOT points home."""
+    monkeypatch.delenv("ODOO_RESULTS_DIR", raising=False)
+    kit = tmp_path / "odoo-agent-pro-kit"
+    results = kit / ".sandbox" / "sessions" / "mig-x-18" / "results"
+    _write(results, "test", "mymod", "succeeded")
+    monkeypatch.setenv("ODOO_KIT_SANDBOX_ROOT", str(kit))
+
+    module_dir = tmp_path / "vpcs_apps_cloud_18" / "mymod"
+    module_dir.mkdir(parents=True)
+    r = sandbox_result.read_operation_result(
+        "sandbox/bin/sandboxctl module mig-x-18 test mymod", module_dir)
+    assert r is not None and r.status == "succeeded" and r.module_state_ok is True
+
+
+def test_named_session_beats_newest_dir(tmp_path, monkeypatch):
+    monkeypatch.delenv("ODOO_RESULTS_DIR", raising=False)
+    kit = tmp_path / "kit"
+    (kit / ".sandbox").mkdir(parents=True)
+    _write(kit / ".sandbox" / "sessions" / "old-sess" / "results", "install", "mymod", "failed")
+    want = kit / ".sandbox" / "sessions" / "wanted-sess" / "results"
+    _write(want, "install", "mymod", "succeeded")
+    import os
+    os.utime(kit / ".sandbox" / "sessions" / "wanted-sess", (1, 1))  # make it the OLDEST
+    monkeypatch.setenv("ODOO_KIT_SANDBOX_ROOT", str(kit))
+    r = sandbox_result.read_operation_result(
+        "sandboxctl module wanted-sess install mymod", tmp_path)
+    assert r is not None and r.status == "succeeded"
+
+
 def test_malformed_session_json_uses_fallback_dir(tmp_path, monkeypatch):
     """Harden against non-dict JSON values in .sandbox/session.json"""
     monkeypatch.delenv("ODOO_RESULTS_DIR", raising=False)

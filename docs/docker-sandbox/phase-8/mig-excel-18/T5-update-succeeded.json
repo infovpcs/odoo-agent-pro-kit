@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0.0",
+  "session_id": "mig-excel-18",
+  "operation_id": "update-1787828357-73403",
+  "operation": "update",
+  "module": "excel_sheet_data_import",
+  "attempt": 1,
+  "status": "succeeded",
+  "started_at": "2026-08-27T10:58:59Z",
+  "finished_at": "2026-08-27T10:59:17.364251Z",
+  "duration_ms": 18364,
+  "exit_code": 0,
+  "message": null,
+  "logs": [
+    "/Users/vinusoft85/workspace/odoo-agent-pro-kit/.sandbox/sessions/mig-excel-18/logs/test_results/update_20260827_162859.log"
+  ],
+  "artifacts": [],
+  "error": null
+}

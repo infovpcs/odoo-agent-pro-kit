@@ -27,8 +27,8 @@ def test_contributor_hook_all_events_exit_0_on_empty():
 def test_plugin_versions_match():
     j = json.loads((_ROOT / "plugin" / ".claude-plugin" / "plugin.json").read_text())
     y = (_ROOT / "plugin" / "plugin.yaml").read_text()
-    assert j["version"] == "0.5.0"
-    assert 'version: "0.5.0"' in y
+    assert j["version"] == "0.5.1"
+    assert 'version: "0.5.1"' in y
 
 
 def test_plugin_yaml_lists_five_hooks():

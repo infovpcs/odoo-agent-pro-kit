@@ -1,0 +1,12 @@
+ .../excel_sheet_data_import/__manifest__.py        |   4 +-
+ .../__pycache__/__manifest__.cpython-312.pyc}      | Bin 0 -> 1761 bytes
+ .../__pycache__/excel_sheet.cpython-312.pyc}       | Bin 0 -> 15491 bytes
+ .../models/__pycache__/ir_model.cpython-312.pyc}   | Bin 0 -> 579 bytes
+ .../excel_sheet_data_import/models/excel_sheet.py  | 104 ++++++++++++++-------
+ .../security/ir.model.access.csv                   |   2 +-
+ .../excel_sheet_data_import/tests/__init__.py}     |   1 +
+ .../tests/__pycache__/__init__.cpython-312.pyc}    | Bin 0 -> 159 bytes
+ .../__pycache__/test_excel_import.cpython-312.pyc} | Bin 0 -> 6277 bytes
+ .../tests/test_excel_import.py}                    | 102 ++++++++++++++++++++
+ .../views/excel_spreadsheet_views.xml              |   6 +-
+ 20 files changed, 540 insertions(+), 39 deletions(-)

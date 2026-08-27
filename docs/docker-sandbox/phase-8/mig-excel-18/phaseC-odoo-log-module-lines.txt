@@ -1,0 +1,60 @@
+316:2026-08-27 10:54:19,776 1 INFO sandbox_db odoo.modules.loading: loading excel_sheet_data_import/security/security.xml 
+317:2026-08-27 10:54:19,865 1 INFO sandbox_db odoo.modules.loading: loading excel_sheet_data_import/security/ir.model.access.csv 
+318:2026-08-27 10:54:19,884 1 WARNING sandbox_db odoo.addons.base.models.ir_model: Rule all.read.excel.spreadsheet.import has no group, this is a deprecated feature. Every access-granting rule should specify a group. 
+319:2026-08-27 10:54:19,893 1 INFO sandbox_db odoo.modules.loading: loading excel_sheet_data_import/views/excel_spreadsheet_views.xml 
+354:odoo.tools.convert.ParseError: while parsing /mnt/extra-addons/excel_sheet_data_import/views/excel_spreadsheet_views.xml:46
+403:2026-08-27 10:55:10,422 1 INFO sandbox_db odoo.modules.loading: Loading module excel_sheet_data_import (2/13) 
+404:2026-08-27 10:55:10,520 1 INFO sandbox_db odoo.modules.registry: module excel_sheet_data_import: creating or updating database tables 
+405:2026-08-27 10:55:10,622 1 INFO sandbox_db odoo.modules.loading: loading excel_sheet_data_import/security/security.xml 
+406:2026-08-27 10:55:10,707 1 INFO sandbox_db odoo.modules.loading: loading excel_sheet_data_import/security/ir.model.access.csv 
+407:2026-08-27 10:55:10,724 1 WARNING sandbox_db odoo.addons.base.models.ir_model: Rule all.read.excel.spreadsheet.import has no group, this is a deprecated feature. Every access-granting rule should specify a group. 
+408:2026-08-27 10:55:10,732 1 INFO sandbox_db odoo.modules.loading: loading excel_sheet_data_import/views/excel_spreadsheet_views.xml 
+409:2026-08-27 10:55:10,848 1 INFO sandbox_db odoo.modules.loading: Module excel_sheet_data_import loaded in 0.43s, 195 queries (+195 other) 
+467:2026-08-27 10:57:04,659 1 INFO sandbox_db odoo.modules.loading: Loading module excel_sheet_data_import (2/13) 
+468:2026-08-27 10:57:04,759 1 INFO sandbox_db odoo.modules.registry: module excel_sheet_data_import: creating or updating database tables 
+469:2026-08-27 10:57:04,825 1 INFO sandbox_db odoo.modules.loading: loading excel_sheet_data_import/security/security.xml 
+470:2026-08-27 10:57:05,091 1 INFO sandbox_db odoo.modules.loading: loading excel_sheet_data_import/security/ir.model.access.csv 
+471:2026-08-27 10:57:05,120 1 INFO sandbox_db odoo.modules.loading: loading excel_sheet_data_import/views/excel_spreadsheet_views.xml 
+472:2026-08-27 10:57:05,247 1 INFO sandbox_db odoo.modules.loading: Module excel_sheet_data_import loaded in 0.59s, 182 queries (+182 other) 
+520:2026-08-27 10:58:05,173 1 INFO sandbox_db odoo.modules.loading: Loading module excel_sheet_data_import (2/13) 
+521:2026-08-27 10:58:05,284 1 INFO sandbox_db odoo.modules.registry: module excel_sheet_data_import: creating or updating database tables 
+522:2026-08-27 10:58:05,355 1 INFO sandbox_db odoo.modules.loading: loading excel_sheet_data_import/security/security.xml 
+523:2026-08-27 10:58:05,508 1 INFO sandbox_db odoo.modules.loading: loading excel_sheet_data_import/security/ir.model.access.csv 
+524:2026-08-27 10:58:05,546 1 INFO sandbox_db odoo.modules.loading: loading excel_sheet_data_import/views/excel_spreadsheet_views.xml 
+525:2026-08-27 10:58:05,681 1 INFO sandbox_db odoo.modules.loading: Module excel_sheet_data_import loaded in 0.51s, 182 queries (+182 other) 
+568:2026-08-27 10:58:27,684 1 INFO sandbox_db odoo.modules.loading: Loading module excel_sheet_data_import (2/13) 
+569:2026-08-27 10:58:27,941 1 INFO sandbox_db odoo.modules.registry: module excel_sheet_data_import: creating or updating database tables 
+570:2026-08-27 10:58:28,014 1 INFO sandbox_db odoo.modules.loading: loading excel_sheet_data_import/security/security.xml 
+571:2026-08-27 10:58:28,126 1 INFO sandbox_db odoo.modules.loading: loading excel_sheet_data_import/security/ir.model.access.csv 
+572:2026-08-27 10:58:28,160 1 INFO sandbox_db odoo.modules.loading: loading excel_sheet_data_import/views/excel_spreadsheet_views.xml 
+573:2026-08-27 10:58:28,289 1 INFO sandbox_db odoo.modules.loading: Module excel_sheet_data_import loaded in 0.60s, 182 queries (+182 other) 
+580:2026-08-27 10:58:29,471 1 INFO sandbox_db odoo.addons.excel_sheet_data_import.tests.test_excel_import: Starting TestExcelSheetImport.test_auto_create_x_field ... 
+581:2026-08-27 10:58:29,694 1 INFO sandbox_db odoo.addons.excel_sheet_data_import.tests.test_excel_import: Starting TestExcelSheetImport.test_csv_create ... 
+582:2026-08-27 10:58:29,754 1 INFO sandbox_db odoo.addons.excel_sheet_data_import.tests.test_excel_import: Starting TestExcelSheetImport.test_csv_update_no_duplicate ... 
+583:2026-08-27 10:58:29,791 1 INFO sandbox_db odoo.addons.excel_sheet_data_import.tests.test_excel_import: Starting TestExcelSheetImport.test_guard_bad_extension ... 
+584:2026-08-27 10:58:29,819 1 INFO sandbox_db odoo.addons.excel_sheet_data_import.tests.test_excel_import: Starting TestExcelSheetImport.test_guard_model_not_flagged ... 
+585:2026-08-27 10:58:29,849 1 INFO sandbox_db odoo.addons.excel_sheet_data_import.tests.test_excel_import: Starting TestExcelSheetImport.test_install_smoke ... 
+586:2026-08-27 10:58:29,858 1 INFO sandbox_db odoo.addons.excel_sheet_data_import.tests.test_excel_import: Starting TestExcelSheetImport.test_xlsx_create ... 
+589:2026-08-27 10:58:30,049 1 INFO sandbox_db odoo.tests.stats: excel_sheet_data_import: 9 tests 0.59s 190 queries 
+590:2026-08-27 10:58:30,050 1 INFO sandbox_db odoo.tests.result: 0 failed, 0 error(s) of 7 tests when loading database 'sandbox_db' 
+633:2026-08-27 10:59:08,233 1 INFO sandbox_db odoo.modules.loading: Loading module excel_sheet_data_import (2/13) 
+634:2026-08-27 10:59:08,328 1 INFO sandbox_db odoo.modules.registry: module excel_sheet_data_import: creating or updating database tables 
+635:2026-08-27 10:59:08,393 1 INFO sandbox_db odoo.modules.loading: loading excel_sheet_data_import/security/security.xml 
+636:2026-08-27 10:59:08,501 1 INFO sandbox_db odoo.modules.loading: loading excel_sheet_data_import/security/ir.model.access.csv 
+637:2026-08-27 10:59:08,525 1 INFO sandbox_db odoo.modules.loading: loading excel_sheet_data_import/views/excel_spreadsheet_views.xml 
+638:2026-08-27 10:59:08,631 1 INFO sandbox_db odoo.modules.loading: Module excel_sheet_data_import loaded in 0.40s, 182 queries (+182 other) 
+681:2026-08-27 10:59:25,607 1 INFO sandbox_db odoo.modules.loading: Loading module excel_sheet_data_import (2/13) 
+682:2026-08-27 10:59:25,711 1 INFO sandbox_db odoo.modules.registry: module excel_sheet_data_import: creating or updating database tables 
+683:2026-08-27 10:59:25,774 1 INFO sandbox_db odoo.modules.loading: loading excel_sheet_data_import/security/security.xml 
+684:2026-08-27 10:59:25,881 1 INFO sandbox_db odoo.modules.loading: loading excel_sheet_data_import/security/ir.model.access.csv 
+685:2026-08-27 10:59:25,909 1 INFO sandbox_db odoo.modules.loading: loading excel_sheet_data_import/views/excel_spreadsheet_views.xml 
+686:2026-08-27 10:59:26,037 1 INFO sandbox_db odoo.modules.loading: Module excel_sheet_data_import loaded in 0.43s, 182 queries (+182 other) 
+693:2026-08-27 10:59:27,270 1 INFO sandbox_db odoo.addons.excel_sheet_data_import.tests.test_excel_import: Starting TestExcelSheetImport.test_auto_create_x_field ... 
+694:2026-08-27 10:59:27,498 1 INFO sandbox_db odoo.addons.excel_sheet_data_import.tests.test_excel_import: Starting TestExcelSheetImport.test_csv_create ... 
+695:2026-08-27 10:59:27,536 1 INFO sandbox_db odoo.addons.excel_sheet_data_import.tests.test_excel_import: Starting TestExcelSheetImport.test_csv_update_no_duplicate ... 
+696:2026-08-27 10:59:27,571 1 INFO sandbox_db odoo.addons.excel_sheet_data_import.tests.test_excel_import: Starting TestExcelSheetImport.test_guard_bad_extension ... 
+697:2026-08-27 10:59:27,595 1 INFO sandbox_db odoo.addons.excel_sheet_data_import.tests.test_excel_import: Starting TestExcelSheetImport.test_guard_model_not_flagged ... 
+698:2026-08-27 10:59:27,615 1 INFO sandbox_db odoo.addons.excel_sheet_data_import.tests.test_excel_import: Starting TestExcelSheetImport.test_install_smoke ... 
+699:2026-08-27 10:59:27,622 1 INFO sandbox_db odoo.addons.excel_sheet_data_import.tests.test_excel_import: Starting TestExcelSheetImport.test_xlsx_create ... 
+702:2026-08-27 10:59:27,749 1 INFO sandbox_db odoo.tests.stats: excel_sheet_data_import: 9 tests 0.48s 190 queries 
+703:2026-08-27 10:59:27,750 1 INFO sandbox_db odoo.tests.result: 0 failed, 0 error(s) of 7 tests when loading database 'sandbox_db' 

@@ -112,15 +112,26 @@ def test_block_reason_goes_to_stderr(tmp_path, capsys):
 
 
 def test_warn_lint_goes_to_stdout_not_block(tmp_path, monkeypatch, capsys):
+    # L2 (attrs=) is warn-severity on 18 -> stdout, rc 0. (<tree> is block on 18.)
+    monkeypatch.setenv("DEFAULT_ODOO_VERSION", "18")
+    mod = _module(tmp_path)
+    rc = _run("PostToolUse", {"cwd": str(mod), "tool_name": "Write",
+                              "tool_input": {"file_path": str(mod / "views" / "v.xml"),
+                                             "content": '<odoo><field name="x" attrs="{}"/></odoo>'}})
+    captured = capsys.readouterr()
+    assert rc == 0
+    assert "L2" in captured.out
+    assert captured.err == ""
+
+
+def test_posttooluse_blocks_tree_on_18(tmp_path, monkeypatch):
+    # Recent Odoo 18 builds removed <tree> entirely -> block, not warn.
     monkeypatch.setenv("DEFAULT_ODOO_VERSION", "18")
     mod = _module(tmp_path)
     rc = _run("PostToolUse", {"cwd": str(mod), "tool_name": "Write",
                               "tool_input": {"file_path": str(mod / "views" / "v.xml"),
                                              "content": "<odoo><tree/></odoo>"}})
-    captured = capsys.readouterr()
-    assert rc == 0
-    assert "L1" in captured.out
-    assert captured.err == ""
+    assert rc == 2
 
 
 def test_userpromptsubmit_gates_module_named_in_arg_from_parent(tmp_path):

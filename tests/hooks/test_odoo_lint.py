@@ -16,9 +16,11 @@ def test_l1_tree_blocks_on_19():
     assert "L1" in _rules(f) and _sev(f, "L1") == "block"
 
 
-def test_l1_tree_warns_on_18():
+def test_l1_tree_blocks_on_18():
+    # Recent Odoo 18 builds removed <tree> entirely (hard ParseError), so L1
+    # is block-severity for 18 as well as 19.
     f = odoo_lint.lint("mymod/views/x.xml", "<tree/>", "18")
-    assert _sev(f, "L1") == "warn"
+    assert _sev(f, "L1") == "block"
 
 
 def test_l1_tree_ok_on_17():

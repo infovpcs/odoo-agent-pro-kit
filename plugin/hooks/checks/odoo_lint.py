@@ -9,7 +9,7 @@ from .common import Finding
 #   applies_to: "xml" | "controller" | "model"
 _RULES = [
     ("L1", re.compile(r"<tree[\s>/]"),
-     {"18": "warn", "19": "block"},
+     {"18": "block", "19": "block"},
      "<tree> view element", "Replace <tree> with <list>.", "xml"),
     ("L2", re.compile(r"\battrs\s*=|\bstates\s*="),
      {"18": "warn", "19": "block"},

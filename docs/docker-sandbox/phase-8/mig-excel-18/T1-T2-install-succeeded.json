@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0.0",
+  "session_id": "mig-excel-18",
+  "operation_id": "install-1787828118-69911",
+  "operation": "install",
+  "module": "excel_sheet_data_import",
+  "attempt": 1,
+  "status": "succeeded",
+  "started_at": "2026-08-27T10:55:01Z",
+  "finished_at": "2026-08-27T10:55:18.975484Z",
+  "duration_ms": 17976,
+  "exit_code": 0,
+  "message": null,
+  "logs": [
+    "/Users/vinusoft85/workspace/odoo-agent-pro-kit/.sandbox/sessions/mig-excel-18/logs/test_results/install_20260827_162501.log"
+  ],
+  "artifacts": [],
+  "error": null
+}

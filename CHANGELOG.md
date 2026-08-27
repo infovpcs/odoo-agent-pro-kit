@@ -3,6 +3,36 @@
 All notable changes to `odoo-agent-pro-kit` are documented here. Versions
 track the `plugin/.claude-plugin/plugin.json` `version` field.
 
+## 0.5.1 — 2026-08-27
+
+Fixes from the first full live pipeline run against a real pending-migration
+module (`excel_sheet_data_import`, 17.0 → 18.0, in Docker Sandbox session
+`mig-excel-18`; evidence under `docs/docker-sandbox/phase-8/mig-excel-18/`).
+
+### Changed
+
+- **Linter rule L1 (`<tree>`) is now `block` severity on Odoo 18**, not just
+  19. Recent 18.0 builds (verified on 18.0-20260810) removed `<tree>`
+  entirely — it is a hard `ParseError: Invalid view type: 'tree'`, not a
+  deprecation warning. `plugin/hooks/checks/odoo_lint.py`.
+- **`checks/sandbox_result` now finds the results directory when the edited
+  module lives outside the kit checkout.** It captures the session id from
+  `sandboxctl module <session> …`, honours a new `ODOO_KIT_SANDBOX_ROOT`
+  environment variable pointing at the kit checkout, and falls back to the
+  newest `.sandbox/sessions/*/results/` directory. Previously the PostToolUse
+  "do not mark the task complete" advisory only fired when the agent ran from
+  the kit repo root.
+
+### Known limitations
+
+- `/testing`'s browser flow targets `http://localhost:<port>`, but the Docker
+  Sandbox publishes no port and `sandboxctl` has no `publish` verb, so the
+  agent-browser screenshot/GIF flow cannot reach a live session. A loopback
+  `socat` bridge carries JSON-RPC but the web client's asset/websocket load
+  stalls through a proxy. Tracked for a future `sandboxctl publish` verb +
+  an RPC-based frontend-check path for sandbox mode
+  (`docs/docker-sandbox/phase-8/mig-excel-18/README.md`).
+
 ## 0.5.0 — 2026-08-27
 
 ### Added

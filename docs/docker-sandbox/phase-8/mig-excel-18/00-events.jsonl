@@ -1,0 +1,4 @@
+{"timestamp": "2026-08-27T10:47:42.677577Z", "session_id": "mig-excel-18", "status": "provisioning"}
+{"timestamp": "2026-08-27T10:47:53.544826Z", "session_id": "mig-excel-18", "status": "starting"}
+{"timestamp": "2026-08-27T10:49:14.857117Z", "session_id": "mig-excel-18", "status": "ready"}
+{"timestamp": "2026-08-27T10:49:53.783306Z", "session_id": "mig-excel-18", "status": "recoverable"}

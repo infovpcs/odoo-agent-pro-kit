@@ -1,0 +1,22 @@
+# Phase D — /testing 18 — live web-request validation (session mig-excel-18)
+
+Browser web-client boot did not complete through the loopback socat bridge
+(Odoo asset bundles + /websocket stall on a single-hop proxy; no port is
+published by design). Validation was done at the JSON-RPC / web-controller
+layer instead, which covers the migration-relevant surface.
+
+## get_views — migrated views render server-side (Odoo 18)
+- list OK: <list string="Excel Spreadsheet Import">                 <field name="
+- form OK: <form string="Excel Spreadsheet Import">                 <header>     
+- search OK: <search string="Excel Spreadsheet Import"><field name="name"/></search
+
+## menus
+- Excel Sheet/Sheet
+- Excel Sheet/Sheet/Sheet Import
+- Excel Sheet
+
+## end-to-end (live authenticated web request, admin in migrated Manager group)
+- .xlsx import via new openpyxl path -> res.partner 'RpcXlsxPartner' created: True
+- x_rpc_note:char manual field auto-created on res.partner: True
+- migrated group_Api_manager resolves by xmlid; implied_ids -> group_Api_user: True
+- security correctly BLOCKS a user outside both groups from creating records: True (AccessError)

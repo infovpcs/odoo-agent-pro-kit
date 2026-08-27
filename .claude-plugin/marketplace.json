@@ -9,7 +9,7 @@
       "name": "odoo-agent-pro-kit",
       "source": "./plugin",
       "description": "Odoo 17/18/19 custom app development skills, commands, hooks, and MCP server for Claude Code.",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "author": {
         "name": "Vinay Rana",
         "url": "https://www.vperfectcs.com"

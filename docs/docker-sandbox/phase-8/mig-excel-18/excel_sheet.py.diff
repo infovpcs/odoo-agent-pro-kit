@@ -1,0 +1,144 @@
+diff --git a/Users/vinusoft85/workspace/vpcs_apps_cloud_17/excel_sheet_data_import/models/excel_sheet.py b/Users/vinusoft85/workspace/vpcs_apps_cloud_18/excel_sheet_data_import/models/excel_sheet.py
+index c6fc39d..40b0def 100644
+--- a/Users/vinusoft85/workspace/vpcs_apps_cloud_17/excel_sheet_data_import/models/excel_sheet.py
++++ b/Users/vinusoft85/workspace/vpcs_apps_cloud_18/excel_sheet_data_import/models/excel_sheet.py
+@@ -1,9 +1,8 @@
+ import base64
++import datetime
+ import xlrd
+ import os
+ import io
+-from io import StringIO
+-from xlrd import open_workbook
+ import tempfile
+ import binascii
+ import csv
+@@ -90,44 +89,84 @@ class ExcelSpreadsheetImport(models.Model):
+             filename,filetype = os.path.splitext(self.file_fname)
+ 
+             if filetype == '.xlsx' or filetype == '.xls':
+-                fp = tempfile.NamedTemporaryFile(delete= False, suffix=filetype)
++                fp = tempfile.NamedTemporaryFile(delete=False, suffix=filetype)
+                 fp.write(binascii.a2b_base64(self.file_select))
+-                workbook = xlrd.open_workbook(fp.name)
++                fp.close()
+ 
+-                try:
+-                    sheet = workbook.sheet_by_name(self.document_sheet)
+-                except Exception as e:
+-                    raise UserError(_("There is no sheet name '%s' in File. Please check properly." %self.document_sheet))
+-                
+-                header_row = 0
+-                try:
+-                    row = [c or '' for c in sheet.row_values(header_row)]
+-                except Exception as e:
+-                    raise ValidationError(_(
+-                        'Header cells seems empty!'))
+-
+-                master_row_field = row[0:int(self.domain_selection)]          
+-                
++                header, archive_lines = self._read_workbook_rows(fp.name, filetype)
+ 
+-                first_row = [] 
+-                for col in range(sheet.ncols):
+-                    first_row.append(sheet.cell_value(0,col) )
++                if not header:
++                    raise ValidationError(_('Header cells seems empty!'))
+ 
+-                archive_lines = []
+-                for row in range(1, sheet.nrows):
+-                    elm = {}
+-                    for col in range(sheet.ncols):
+-                        elm[first_row[col]]=sheet.cell_value(row,col)
+-                    archive_lines.append(elm)
++                master_row_field = header[0:int(self.domain_selection)]
+ 
+                 for i in archive_lines:
+                     self.check_field_exits(i)
+-                    self.import_data(i,master_row_field)
++                    self.import_data(i, master_row_field)
+ 
+                 return True
+             else:
+                 raise UserError(_('Invalid File Type!!!\n Select Proper File Format.'))
+ 
++    def _read_workbook_rows(self, path, filetype):
++        """Return ``(header_list, [row_dict, ...])`` for an .xls or .xlsx file.
++
++        .xls is read with ``xlrd`` (still bundled with Odoo 18). ``xlrd`` >= 2.0
++        dropped .xlsx support, so .xlsx is read with ``openpyxl``. Both paths
++        produce the same ``{column_header: cell_value}`` shape the importer
++        already expects.
++        """
++        self.ensure_one()
++        if filetype == '.xls':
++            workbook = xlrd.open_workbook(path)
++            try:
++                sheet = workbook.sheet_by_name(self.document_sheet)
++            except Exception:
++                raise UserError(_("There is no sheet name '%s' in File. Please check properly." % self.document_sheet))
++            if not sheet.nrows:
++                return [], []
++            header = [c or '' for c in sheet.row_values(0)]
++            rows = []
++            for r in range(1, sheet.nrows):
++                rows.append({header[c]: sheet.cell_value(r, c) for c in range(sheet.ncols)})
++            return header, rows
++
++        try:
++            import openpyxl
++        except ImportError:
++            raise UserError(_("Reading .xlsx files requires the 'openpyxl' Python package on the Odoo server."))
++        try:
++            workbook = openpyxl.load_workbook(path, data_only=True, read_only=True)
++        except Exception as e:
++            raise UserError(_("Could not read the Excel file: %s") % e)
++        if self.document_sheet not in workbook.sheetnames:
++            raise UserError(_("There is no sheet name '%s' in File. Please check properly." % self.document_sheet))
++        sheet = workbook[self.document_sheet]
++        data_rows = list(sheet.iter_rows(values_only=True))
++        workbook.close()
++        if not data_rows:
++            return [], []
++        header = [c if c is not None else '' for c in data_rows[0]]
++        rows = []
++        for values in data_rows[1:]:
++            rows.append({header[c]: (values[c] if c < len(values) else None) for c in range(len(header))})
++        return header, rows
++
++    def _coerce_date_value(self, value):
++        """Normalise a spreadsheet cell to an ISO date string.
++
++        - ``datetime``/``date`` (openpyxl already parses these) -> ``.isoformat()``
++        - ``int``/``float`` (xlrd serial date) -> converted via ``xlrd``
++        - anything else (CSV strings, already-ISO text) -> returned unchanged
++        """
++        if isinstance(value, datetime.datetime):
++            return value.date().isoformat()
++        if isinstance(value, datetime.date):
++            return value.isoformat()
++        if isinstance(value, (int, float)) and not isinstance(value, bool):
++            return xlrd.xldate_as_datetime(value, 0).date().isoformat()
++        return value
++
+ 
+     def show_notification(self):
+         notification = {
+@@ -225,14 +264,11 @@ class ExcelSpreadsheetImport(models.Model):
+                                 field_name: data[d],
+                             })
+                     else:
+-                        if product_find_field.ttype in ['date','datetime']:
+-                            datetime_date = xlrd.xldate_as_datetime(data[d], 0)
+-                            date_object = datetime_date.date()
+-                            string_date = date_object.isoformat()
++                        if product_find_field.ttype in ['date', 'datetime']:
+                             vals.update({
+-                                field_name: string_date,
++                                field_name: self._coerce_date_value(data[d]),
+                             })
+-                        else:     
++                        else:
+                             vals.update({
+                                 field_name: data[d],
+                             })
