@@ -321,8 +321,9 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Current state
 
-- **(Additive, 0.5.0) Deterministic pipeline hooks shipped** on branch
-  `feature/pipeline-hooks` (not merged). Adds `plugin/hooks/checks/` (shared
+- **(Additive, 0.5.0) Deterministic pipeline hooks shipped and merged to
+  local `main`** (merge `dc8b346`; not pushed to `origin`). Adds
+  `plugin/hooks/checks/` (shared
   pure-function check library: `guard`, `paths`, `gates`, `odoo_lint`,
   `sandbox_result`, `version`, `authz`, `common`), the Claude Code dispatcher
   `plugin/hooks/odoo_hook.py` (wired into all 7 events in
@@ -341,8 +342,23 @@ that consumes stable Community releases instead of forking this repository.
   manage_modules regexes, `resolve_module_dir` so command gates honour an
   explicit module arg, cross-runtime MultiEdit body extraction in `common`,
   inverted Stop reminder logic, plus fail-open / hooks-disabled / SessionEnd
-  dispatcher tests and doc corrections. 200 tests passing;
+  dispatcher tests and doc corrections. 201 tests passing;
   `./scripts/validate.sh` green.
+  **Verified on the Oracle KVM host (Hermes 0.20.4), 2026-08-27:** local `main`
+  (`4cc71c7`) fast-forward-synced to `~/odoo-agent-pro-kit` via git bundle (no
+  origin push), created `.venv` (pytest 9.1.1 + plugin deps), full suite
+  201 passed, `./scripts/validate.sh` green. Reinstalled the plugin 0.5.0 in
+  all three profiles (odoo17/18/19-dev) — `hermes plugins doctor
+  odoo-agent-pro-kit --ci` reports `7 tool(s), 5 hook(s)`, registration OK,
+  zero warnings, in every profile. Found and fixed two real Hermes-contract
+  bugs during verification (commit `4cc71c7`): the in-process `pre_tool_call`
+  callback must return `{"action":"block","message":…}` not the Claude-Code
+  `{"decision":"block","reason":…}` (only stdout hooks get that translation),
+  and the tool args arrive under the `args` kwarg not `tool_args`. A live
+  in-process check confirms `pre_tool_call` now actually blocks raw `odoo-bin`,
+  `git push`, and private-key writes while allowing clean commands; a live
+  `hermes -p odoo19-dev -z "…" --cli` agent turn returned `pong` with the
+  plugin loaded and the openrouter/hetzner fallback chain intact.
 - (2026-08-20) Closed the Phase 8 "real Odoo Enterprise dependency" platform/
   orchestration checklist item with real evidence. Created a fresh Docker
   Sandbox session `phase8-enterprise-dep-test` (Odoo 17.0) on the Ubuntu KVM
