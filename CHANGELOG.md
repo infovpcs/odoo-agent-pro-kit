@@ -22,6 +22,12 @@ module (`excel_sheet_data_import`, 17.0 → 18.0, in Docker Sandbox session
   newest `.sandbox/sessions/*/results/` directory. Previously the PostToolUse
   "do not mark the task complete" advisory only fired when the agent ran from
   the kit repo root.
+- **`docs/architecture.excalidraw` / `.png`**: new "Deterministic pipeline
+  hooks — one rule set, both runtimes" section between the Docker Sandbox
+  plane and Deployment — the 7-event dispatch → shared `checks/` library →
+  Claude Code (`hooks.json` → `odoo_hook.py`) and Hermes (`pre_tool_call` /
+  `post_tool_call`) → block / advisory / lint outcomes. Deploy caption and
+  version labels bumped to 0.5.1.
 
 ### Verified
 
