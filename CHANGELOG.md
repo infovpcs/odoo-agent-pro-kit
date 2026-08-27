@@ -23,15 +23,33 @@ module (`excel_sheet_data_import`, 17.0 → 18.0, in Docker Sandbox session
   "do not mark the task complete" advisory only fired when the agent ran from
   the kit repo root.
 
+### Verified
+
+- **`/testing` frontend phase, live.** Completed for `excel_sheet_data_import`
+  against sandbox `mig-excel-18` with `agent-browser` (headless Chrome/CDP) over
+  a loopback `socat` bridge — login, migrated `<list>` view, form + action
+  button, CSV upload, "Imported Successfully", zero console errors. The
+  `Odoo_Module_Documentation_Screenshot`, `Agent-browser-skill`, and
+  `CommandingSystem/testing_workflow` skills were rewritten to this verified
+  flow (named session, real login refs, `/odoo/action-…` URLs, the sandbox
+  bridge, secret hygiene).
+- **`/plan-analysis`, live on the Oracle Cloud VPS.** `odoo17-dev` and
+  `odoo18-dev` Hermes 0.20.5 profiles, plugin 0.5.1, `doctor --ci` clean
+  (7 tools / 5 hooks). Both dispatched `/plan-analysis` and produced a PRD
+  artifact. Evidence: `docs/docker-sandbox/phase-8/vps-plan-analysis/`.
+
 ### Known limitations
 
 - `/testing`'s browser flow targets `http://localhost:<port>`, but the Docker
-  Sandbox publishes no port and `sandboxctl` has no `publish` verb, so the
-  agent-browser screenshot/GIF flow cannot reach a live session. A loopback
-  `socat` bridge carries JSON-RPC but the web client's asset/websocket load
-  stalls through a proxy. Tracked for a future `sandboxctl publish` verb +
-  an RPC-based frontend-check path for sandbox mode
-  (`docs/docker-sandbox/phase-8/mig-excel-18/README.md`).
+  Sandbox publishes no port and `sandboxctl` has no `publish` verb. A one-line
+  `docker run … alpine/socat` bridge on the session's compose network is the
+  working stopgap (agent-browser drives it fine); a first-class
+  `sandboxctl publish <session>` verb would remove the manual step.
+- Hermes 0.20.5 `plugins install` blocks a reinstall from a `file://` source
+  over the `allowed-tools: ["mcp-odoo:*"]` wildcard in the
+  `Odoo{17,18,19}ExistingDependencyContext` skills (scan `privilege_escalation`
+  false-positive). Worked around by syncing plugin content into the profile
+  dirs directly; narrowing that grant is a later-release fix.
 
 ## 0.5.0 — 2026-08-27
 
