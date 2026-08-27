@@ -64,59 +64,102 @@ Comprehensive skill for automating screenshot capture, icon/banner generation, a
 
 ### 3. Screenshot Capture Workflow
 
-#### Step 1: Initialize Browser Session
+> **This is the verified flow** (agent-browser 0.35.x, Odoo 17/18/19, headless
+> Chrome via CDP). `@e1`, `@e2` … refs are assigned fresh by every
+> `snapshot -i` and go stale after any navigation — re-snapshot each time.
+
+#### Step 0: One-time setup + own session
 ```bash
-# Start browser with Odoo login
-agent-browser open "http://localhost:8069"
-agent-browser snapshot -i
-agent-browser fill @login "admin"
-agent-browser fill @password "admin"
-agent-browser click @submit_button
+npm i -g agent-browser && agent-browser install     # installs Chrome for CDP
+export AGENT_BROWSER_SESSION="$(agent-browser session id --scope worktree --prefix docshots)"
+AB(){ agent-browser --session "$AGENT_BROWSER_SESSION" "$@"; }
+AB set viewport 1600 1000
 ```
 
-#### Step 2: Navigate to Module
+#### Step 1: Resolve the Odoo URL + credentials
 ```bash
-# Open Apps menu
-agent-browser click @apps_menu
-agent-browser fill @search_apps "{module_name}"
-agent-browser click @module_card
+# --- Local Odoo (odoo_local_setup): port from the ROOT odoo.conf ---
+ODOO_PORT=$(grep '^xmlrpc_port' odoo.conf | tail -1 | awk '{print $NF}')
+BASE="http://localhost:${ODOO_PORT}"; DB=$(grep '^db_name' odoo.conf | awk '{print $NF}')
+PW="admin"          # local dev default
 
-# If already installed, navigate to module features
-agent-browser click @main_menu
-agent-browser click @{module_menu_item}
+# --- Docker Sandbox session (portless by design): bridge + real password ---
+# S=<session>; the odoo container is <compose_project>-odoo-1 on <project>_default
+docker run -d --rm --name "${S}-bridge" --network "${S}_default" \
+  -p 127.0.0.1:8718:8718 alpine/socat \
+  -d -d TCP-LISTEN:8718,fork,reuseaddr TCP:"${S}-odoo-1":8069
+BASE="http://127.0.0.1:8718"
+DB=$(grep '^db_name' ".sandbox/sessions/${S}/config/odoo.conf" | awk '{print $NF}')
+PW=$(grep '^ODOO_API_PASSWORD=' ".sandbox/sessions/${S}/runtime.env" | cut -d= -f2)
+
+curl -s -o /dev/null -w 'health %{http_code}\n' "$BASE/web/health"    # expect 200
 ```
 
-#### Step 3: Capture Screenshots (Sequential)
+#### Step 2: Log in
 ```bash
-# Capture main menu/dashboard
-agent-browser screenshot --full ./static/description/01_main_menu.png
-
-# Navigate to list view
-agent-browser click @{model_menu}
-agent-browser screenshot --full ./static/description/02_{model}_list.png
-
-# Open form view (create new)
-agent-browser click @create_button
-agent-browser screenshot --full ./static/description/03_create_{model}.png
-
-# Fill form with demo data
-agent-browser fill @{field1} "Demo Value"
-agent-browser fill @{field2} "Test Data"
-agent-browser screenshot --full ./static/description/04_{model}_form_filled.png
-
-# Capture special views (if applicable)
-agent-browser click @kanban_view
-agent-browser screenshot --full ./static/description/05_{model}_kanban.png
-
-# Settings page
-agent-browser open "http://localhost:{http_port}/web#action={settings_action_id}"
-agent-browser screenshot "docs/settings_view.png"
+AB open "$BASE/web/login"
+AB snapshot -i          # -> textbox "Email" [ref=e1], "Password" [ref=e2], button "Log in" [ref=e3]
+AB fill @e1 "admin"
+AB fill @e2 "$PW"
+AB click @e3
+sleep 4
+AB get url              # success -> ".../odoo" ; failure -> still "/web/login"
 ```
 
-#### Step 4: Close Browser
+#### Step 3: Navigate to the module (use the action xmlid, not `web#menu_id`)
 ```bash
-agent-browser close
+AB open "$BASE/odoo/action-{module_name}.{action_xmlid}"   # e.g. action-my_mod.action_my_model
+sleep 4
+AB snapshot -i
+AB errors               # must be empty — fail the run if the client logged JS errors
 ```
+
+#### Step 4: Capture screenshots (sequential, numbered)
+```bash
+AB screenshot ./static/description/01_main_menu.png
+# list view is the default; open a record for the form view
+AB snapshot -i                      # find the row cell ref, e.g. @e14
+AB click @e14 ; sleep 3
+AB screenshot ./static/description/02_form_view.png
+# create + fill
+AB click @e3 ; sleep 2              # "New"
+AB snapshot -i
+AB fill @e13 "Demo Value"           # name field ref from the fresh snapshot
+# Odoo binary/file widgets: the visible ref is a <label>; target the hidden input
+AB upload "input[type=file]" ./demo.csv ; sleep 2
+AB screenshot ./static/description/03_create_form.png
+# run an action button and capture the result notification
+AB click @e12 ; sleep 3            # e.g. "Sync Data Now" / "Confirm"
+AB snapshot -i | grep -iE 'notification|success|error'
+AB screenshot ./static/description/04_action_result.png
+```
+
+#### Step 5: Cross-check server-side (don't trust pixels alone)
+```bash
+# authenticate once, then confirm the action actually changed data
+curl -s -c /tmp/ck -H 'Content-Type: application/json' \
+  -d "{\"jsonrpc\":\"2.0\",\"method\":\"call\",\"params\":{\"db\":\"$DB\",\"login\":\"admin\",\"password\":\"$PW\"}}" \
+  "$BASE/web/session/authenticate" >/dev/null
+curl -s -b /tmp/ck -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","method":"call","params":{"model":"my.model","method":"search_count","args":[[]],"kwargs":{}}}' \
+  "$BASE/web/dataset/call_kw"
+```
+
+#### Step 6: Tear down
+```bash
+AB close --all
+docker rm -f "${S}-bridge" 2>/dev/null   # sandbox mode only
+rm -f /tmp/ck
+```
+
+**Gotchas learned the hard way**
+- `wait --load networkidle` never settles on Odoo (long-poll bus) — use `sleep 3-4`.
+- The Claude-in-Chrome extension stalls when proxied through the socat bridge;
+  `agent-browser` (direct CDP) does not — always use `agent-browser` for sandbox sessions.
+- `agent-browser screenshot <path>` takes the viewport; there is no `--full` in 0.35.x.
+- Never hard-code `admin/admin` — a sandbox session's password is random and lives
+  in `.sandbox/sessions/<s>/runtime.env` (`ODOO_API_PASSWORD`). `.sandbox/` is
+  git-ignored; never copy that file or its values into tracked files, logs, or docs.
 
 ### 4. Icon & Banner Generation
 
@@ -161,10 +204,10 @@ Create a professional banner for an Odoo module:
 
 #### Method 2: Screenshot-Based Icon
 ```bash
-# Capture module icon from UI
-agent-browser open "http://localhost:{http_port}/web#menu_id={module_menu_id}"
-agent-browser get box @module_icon  # Get icon element position
-agent-browser screenshot --clip {x},{y},{width},{height} ./icon_temp.png
+# Capture the module's app-drawer tile, then crop
+AB open "$BASE/odoo/apps"
+AB snapshot -i | grep -i "{module_title}"        # find the tile ref
+AB screenshot @e<ref> ./icon_temp.png            # element screenshot
 
 # Resize to 180x180 using ImageMagick or PIL
 convert ./icon_temp.png -resize 180x180 ./static/description/icon.png
@@ -354,10 +397,10 @@ def generate_index_html(module_data: dict) -> str:
 async def update_module_documentation(
     module_name: str,
     module_path: str,
-    odoo_url: str = "http://localhost:{http_port}",
+    base_url: str,          # resolved in Step 1 (local port OR sandbox bridge)
+    odoo_password: str,     # resolved in Step 1 — never a literal
+    action_xmlid: str,      # the module's main act_window xmlid
     progress_data: dict = None,
-    module_menu_id: int = None,
-    settings_action_id: int = None
 ) -> dict:
     """
     Complete documentation update on task completion.
@@ -365,10 +408,10 @@ async def update_module_documentation(
     Args:
         module_name: Technical name of the module
         module_path: Path to module directory
-        odoo_url: Odoo instance URL
+        base_url: Odoo base URL resolved in Step 1 (local port or sandbox bridge)
+        odoo_password: admin password resolved in Step 1 (never a literal)
+        action_xmlid: xmlid of the module's main act_window
         progress_data: Progress JSON with completed tasks
-        module_menu_id: The menu ID for the module's main entry point in Odoo.
-        settings_action_id: The action ID for the module's settings page in Odoo.
     
     Returns:
         dict: Summary of generated files
@@ -393,9 +436,11 @@ async def update_module_documentation(
     print("📸 Capturing screenshots...")
     screenshots = await capture_module_screenshots(
         module_name=module_name,
-        odoo_url=odoo_url,
+        base_url=base_url,
+        odoo_password=odoo_password,
+        action_xmlid=action_xmlid,
         output_dir=str(desc_path),
-        progress_data=progress_data
+        progress_data=progress_data,
     )
     
     # Step 3: Generate banner.png (composite of screenshots or AI)
@@ -437,9 +482,11 @@ async def update_module_documentation(
 
 async def capture_module_screenshots(
     module_name: str,
-    odoo_url: str,
+    base_url: str,
+    odoo_password: str,
+    action_xmlid: str,
     output_dir: str,
-    progress_data: dict
+    progress_data: dict,
 ) -> list:
     """
     Capture screenshots for each completed task/feature.
@@ -448,21 +495,24 @@ async def capture_module_screenshots(
         list: Screenshot metadata [{'filename': '01_*.png', 'title': '...', 'description': '...'}]
     """
     screenshots = []
-    
-    # Initialize browser
-    await run_bash(f'agent-browser open "{odoo_url}"')
-    
-    # Login
-    await run_bash('agent-browser snapshot -i')
-    await run_bash('agent-browser fill @login "admin"')
-    await run_bash('agent-browser fill @password "admin"')
-    await run_bash('agent-browser click @submit')
-    
-    # Screenshot 1: Main menu/dashboard
-    await run_bash(f'agent-browser open "{odoo_url}/web#menu_id={module_name}"')
+    sess = os.environ["AGENT_BROWSER_SESSION"]  # set once by the caller
+    ab = f'agent-browser --session {sess}'
+
+    # Login — refs come from a fresh snapshot; the login form is always e1/e2/e3
+    await run_bash(f'{ab} open "{base_url}/web/login"')
+    await run_bash(f'{ab} snapshot -i')            # e1=Email, e2=Password, e3=Log in
+    await run_bash(f'{ab} fill @e1 "admin"')
+    await run_bash(f'{ab} fill @e2 "{odoo_password}"')   # never a literal — see Step 1
+    await run_bash(f'{ab} click @e3')
+    await run_bash('sleep 4')
+
+    # Screenshot 1: module landing (action xmlid, NOT web#menu_id)
+    await run_bash(f'{ab} open "{base_url}/odoo/action-{module_name}.{action_xmlid}"')
+    await run_bash('sleep 4')
+    await run_bash(f'{ab} errors')                 # abort the run if non-empty
     screenshot_num = 1
     filename = f"{screenshot_num:02d}_main_menu.png"
-    await run_bash(f'agent-browser screenshot --full {output_dir}/{filename}')
+    await run_bash(f'{ab} screenshot {output_dir}/{filename}')
     screenshots.append({
         'filename': filename,
         'title': 'Main Menu & Dashboard',
@@ -475,29 +525,22 @@ async def capture_module_screenshots(
             screenshot_num += 1
             filename = f"{screenshot_num:02d}_{task['id']}.png"
             
-            # Navigate to relevant view (infer from task title)
-            if 'list' in task['title'].lower() or 'view' in task['title'].lower():
-                # Capture list view
-                model_name = extract_model_name(task['title'])
-                await run_bash(f'agent-browser open "{odoo_url}/web#model={model_name}&view_type=list"')
-            elif 'form' in task['title'].lower() or 'create' in task['title'].lower():
-                # Capture form view
-                model_name = extract_model_name(task['title'])
-                await run_bash(f'agent-browser open "{odoo_url}/web#model={model_name}&view_type=form"')
-            elif 'settings' in task['title'].lower():
-                # Capture settings
-                await run_bash(f'agent-browser open "{odoo_url}/web#action=base.action_res_config_settings"')
-            
-            await run_bash(f'agent-browser screenshot --full {output_dir}/{filename}')
+            # Navigate to the module action, then drill in with refs from a
+            # fresh snapshot (Odoo 17+ ignores web#model=/view_type= deep links).
+            await run_bash(f'{ab} open "{base_url}/odoo/action-{module_name}.{action_xmlid}"')
+            await run_bash('sleep 3')
+            if 'form' in task['title'].lower() or 'create' in task['title'].lower():
+                await run_bash(f'{ab} snapshot -i')      # then: {ab} click @e<row-or-New>
+            await run_bash('sleep 2')
+
+            await run_bash(f'{ab} screenshot {output_dir}/{filename}')
             screenshots.append({
                 'filename': filename,
                 'title': task['title'],
                 'description': task.get('description', f"Implementation of {task['title']}")
             })
-    
-    # Close browser
-    await run_bash('agent-browser close')
-    
+
+    await run_bash(f'{ab} close --all')
     return screenshots
 
 
@@ -558,8 +601,10 @@ if all(task['status'] == 'done' for task in progress_data['tasks']):
     doc_result = await update_module_documentation(
         module_name=progress_data['module_name'],
         module_path=config['custom_addons'] + '/' + progress_data['module_name'],
-        odoo_url='http://localhost:8069',
-        progress_data=progress_data
+        base_url=base_url,            # from Step 1
+        odoo_password=odoo_password,  # from Step 1
+        action_xmlid=progress_data['action_xmlid'],
+        progress_data=progress_data,
     )
     
     # Update progress with documentation status
@@ -577,10 +622,11 @@ if all(task['status'] == 'done' for task in progress_data['tasks']):
 ## Best Practices
 
 ### Screenshot Quality
-1. **Full Page Captures**: Use `--full` flag for complete context
-2. **Hide Dev Tools**: Close browser dev tools before capturing
-3. **Clean Data**: Use demo data that's readable and professional
-4. **Consistent Resolution**: Capture all screenshots at same viewport size (1920x1080 recommended)
+1. **Set the viewport once** (`AB set viewport 1600 1000`) and keep every capture at it
+2. **Re-snapshot after every navigation** — refs are stale otherwise
+3. **`AB errors` must be empty** before you accept a screenshot as passing
+4. **Clean Data**: use demo data that's readable and professional
+5. **Cross-check with JSON-RPC** (Step 5) — a screenshot proves rendering, not that the action worked
 
 ### Icon/Banner Design
 1. **Branding Consistency**: Use Odoo purple (#875A7B) as primary color
@@ -605,30 +651,36 @@ if all(task['status'] == 'done' for task in progress_data['tasks']):
 ```python
 try:
     doc_result = await update_module_documentation(...)
-except BrowserNotStartedError:
-    print("⚠️  Browser automation failed. Ensure agent-browser is installed.")
-    # Fallback: Generate icon from template only
-    icon_path = create_icon_from_template(module_name)
-except ImageGenerationError as e:
-    print(f"⚠️  AI image generation failed: {e}")
-    # Fallback: Use screenshot-based icon
-    icon_path = generate_icon_from_screenshot(module_name)
 except Exception as e:
-    print(f"❌ Documentation generation failed: {e}")
-    # Log error and continue without documentation
-    log_error(module_name, str(e))
+    # agent-browser not installed / login failed / bridge unreachable / JS errors
+    print(f"⚠️  Screenshot capture failed: {e}")
+    # Fallback 1: template icon (no browser needed)
+    icon_path = create_icon_from_template(module_name)
+    # Fallback 2: build index.html from PRD text only, no screenshot sections
+    html = generate_index_html({**module_data, "screenshots": []})
 ```
+
+Common concrete failures and fixes:
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `agent-browser: command not found` | not installed | `npm i -g agent-browser && agent-browser install` |
+| stuck on `/web/login` after submit | wrong password | sandbox: read `ODOO_API_PASSWORD` from `runtime.env`, don't assume `admin` |
+| blank page after `open .../action-...` | client still booting / JS error | `sleep` longer, then `AB errors`; if errors, the module has a real frontend bug |
+| `health 000` / connection refused | sandbox has no published port | start the `alpine/socat` bridge (Step 1) |
+| `Node is not a file input element` on `upload @eN` | Odoo binary widget ref is a `<label>` | `AB upload "input[type=file]" <path>` |
 
 ## Summary
 
 This skill enables:
-- ✅ Automatic screenshot capture on task completion
-- ✅ AI-powered icon and banner generation
-- ✅ Professional index.html generation with company branding
-- ✅ Integration with browser automation (agent-browser)
-- ✅ Integration with GitHub Copilot image generation
-- ✅ Fallback strategies for offline/failed generation
-- ✅ Version-specific screenshot capture (Odoo 17/18/19)
-- ✅ Progress tracking integration
+- ✅ Screenshot capture via `agent-browser` (headless Chrome/CDP) — the single
+  browser path for local Odoo **and** Docker Sandbox sessions (via a socat bridge)
+- ✅ Server-side JSON-RPC cross-checks so a passing screenshot also means the action worked
+- ✅ AI / screenshot / template icon + banner generation
+- ✅ Professional `index.html` generation with configurable branding
+- ✅ Secret hygiene: session passwords are read from git-ignored `.sandbox/` at
+  run time and never written into tracked files, logs, or the generated docs
+- ✅ Version-specific capture (Odoo 17/18/19), progress-tracking integration
 
-**Use this skill when**: Module development is complete and ready for documentation, or when updating existing module documentation with new features.
+**Use this skill when**: module development or migration is complete and ready
+for documentation, or when refreshing existing docs with new features.

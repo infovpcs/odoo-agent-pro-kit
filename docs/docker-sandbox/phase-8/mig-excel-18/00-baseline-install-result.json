@@ -12,12 +12,12 @@
   "exit_code": 1,
   "message": null,
   "logs": [
-    "/Users/vinusoft85/workspace/odoo-agent-pro-kit/.sandbox/sessions/mig-excel-18/logs/test_results/install_20260827_161934.log"
+    "<repo>/.sandbox/sessions/mig-excel-18/logs/test_results/install_20260827_161934.log"
   ],
   "artifacts": [],
   "error": {
     "code": "install_failed",
-    "summary": "install failed; inspect /Users/vinusoft85/workspace/odoo-agent-pro-kit/.sandbox/sessions/mig-excel-18/logs/test_results/install_20260827_161934.log",
+    "summary": "install failed; inspect <repo>/.sandbox/sessions/mig-excel-18/logs/test_results/install_20260827_161934.log",
     "diagnostic_bundle": null
   }
 }

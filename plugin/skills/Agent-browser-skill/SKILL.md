@@ -65,7 +65,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
 fi
 
 # Extract xmlrpc_port from config
-XMLRPC_PORT=$(grep "^xmlrpc_port" "$CONFIG_FILE" | awk '=' '{print $NF}' | tr -d ' ')
+XMLRPC_PORT=$(grep "^xmlrpc_port" "$CONFIG_FILE" | tail -1 | awk '{print $NF}' | tr -d ' ')
 
 if [ -z "$XMLRPC_PORT" ]; then
     echo "❌ xmlrpc_port not found in $CONFIG_FILE"
@@ -105,6 +105,34 @@ agent-browser open "$ODOO_URL/shop"
 ODOO_PORT=$(grep "xmlrpc_port" /path/to/config/odoo.conf.VERSION | tail -1 | awk '{print $NF}')
 agent-browser open http://localhost:$ODOO_PORT/web
 ```
+
+### Step 5: Odoo running inside a Docker Sandbox session
+
+A Docker Sandbox session (`sandbox/bin/sandboxctl`) publishes **no host port** by
+design, so there is no `localhost:<port>` to open. Bridge one loopback port to
+the session's Odoo container, then use that as your base URL:
+
+```bash
+S="<session-id>"                       # e.g. mig-excel-18
+docker run -d --rm --name "${S}-bridge" --network "${S}_default" \
+  -p 127.0.0.1:8718:8718 alpine/socat \
+  -d -d TCP-LISTEN:8718,fork,reuseaddr TCP:"${S}-odoo-1":8069
+BASE="http://127.0.0.1:8718"
+curl -s -o /dev/null -w '%{http_code}\n' "$BASE/web/health"     # expect 200
+
+# credentials are per-session and random — never assume admin/admin:
+PW=$(grep '^ODOO_API_PASSWORD=' ".sandbox/sessions/${S}/runtime.env" | cut -d= -f2)
+DB=$(grep '^db_name' ".sandbox/sessions/${S}/config/odoo.conf" | awk '{print $NF}')
+
+# ... drive with agent-browser as normal against $BASE ...
+
+docker rm -f "${S}-bridge"              # tear down when done
+```
+
+- `.sandbox/` is git-ignored — never copy `runtime.env`, `odoo.conf`, or their
+  values into tracked files, logs, screenshots, or generated docs.
+- Use `agent-browser` (direct CDP), **not** the Claude-in-Chrome extension: the
+  extension's asset/websocket load stalls through the proxy; agent-browser does not.
 
 ## When to use
 - Testing Odoo web pages and forms (login, create, update, delete)
@@ -380,16 +408,18 @@ ODOO_PORT=$(grep "^xmlrpc_port" /path/to/17_workspace/config/odoo.conf.17 | awk 
 ODOO_URL="http://localhost:$ODOO_PORT"
 
 # Step 1: Navigate to login page
-agent-browser open "$ODOO_URL/web"
+agent-browser open "$ODOO_URL/web/login"
 
-# Step 2: Get interactive elements
+# Step 2: Get interactive elements (verified on Odoo 17/18/19: the login form
+# is the first 3 refs)
 agent-browser snapshot -i
-# Output shows: textbox "Email" [ref=e14], textbox "Password" [ref=e16], button "Log in" [ref=e18]
+# Output: textbox "Email" [ref=e1], textbox "Password" [ref=e2], button "Log in" [ref=e3]
 
-# Step 3: Login with credentials
-agent-browser fill @e14 "admin"
-agent-browser fill @e16 "your_password"
-agent-browser click @e18
+# Step 3: Login (refs below are illustrative — always take them from YOUR snapshot)
+agent-browser fill @e1 "admin"
+agent-browser fill @e2 "$PW"          # sandbox: from runtime.env; local dev: "admin"
+agent-browser click @e3
+sleep 4                               # networkidle never settles on Odoo
 
 # Step 4: Wait for dashboard to load
 sleep 2  # More reliable than networkidle for Odoo

@@ -49,7 +49,31 @@ if not progress.get("backend_tests_passed"):
 
 ## STEP 2: Detect Odoo Port & Workspace
 
-**Always detect port dynamically from root `odoo.conf` (not from `config/odoo.conf.{version}`):**
+### If the module was built/tested in a Docker Sandbox session
+
+A sandbox session (`sandbox/bin/sandboxctl`) publishes **no host port**. Bridge
+one, and read the per-session (random) credentials — do NOT assume `admin/admin`:
+
+```bash
+S="<session-id>"     # the session used by /start-coding
+docker run -d --rm --name "${S}-bridge" --network "${S}_default" \
+  -p 127.0.0.1:8718:8718 alpine/socat \
+  -d -d TCP-LISTEN:8718,fork,reuseaddr TCP:"${S}-odoo-1":8069
+ODOO_URL="http://127.0.0.1:8718"
+DB_NAME=$(grep '^db_name' ".sandbox/sessions/${S}/config/odoo.conf" | awk '{print $NF}')
+ODOO_PW=$(grep '^ODOO_API_PASSWORD=' ".sandbox/sessions/${S}/runtime.env" | cut -d= -f2)
+curl -s -o /dev/null -w '%{http_code}\n' "$ODOO_URL/web/health"   # expect 200
+# tear down at the end: docker rm -f "${S}-bridge"
+```
+
+`.sandbox/` is git-ignored — never copy `runtime.env` / `odoo.conf` or their
+values into module files, `index.html`, screenshots, logs, or commits. Then jump
+to STEP 3 with `$ODOO_URL` / `$ODOO_PW`. Drive the browser with `agent-browser`
+(direct CDP), not the Claude-in-Chrome extension.
+
+### Local Odoo (odoo_local_setup)
+
+**Detect port dynamically from root `odoo.conf` (not from `config/odoo.conf.{version}`):**
 
 ```bash
 # Workspace root: resolve from env var first, then fall back to $HOME/odoo-workspaces

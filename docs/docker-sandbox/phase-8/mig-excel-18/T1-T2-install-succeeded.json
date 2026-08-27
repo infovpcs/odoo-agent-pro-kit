@@ -12,7 +12,7 @@
   "exit_code": 0,
   "message": null,
   "logs": [
-    "/Users/vinusoft85/workspace/odoo-agent-pro-kit/.sandbox/sessions/mig-excel-18/logs/test_results/install_20260827_162501.log"
+    "<repo>/.sandbox/sessions/mig-excel-18/logs/test_results/install_20260827_162501.log"
   ],
   "artifacts": [],
   "error": null
