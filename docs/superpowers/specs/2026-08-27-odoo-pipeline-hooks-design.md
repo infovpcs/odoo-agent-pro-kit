@@ -63,7 +63,7 @@ truth for both runtimes.
 | Module | Responsibility |
 | --- | --- |
 | `version.py` | `detect_odoo_version(cwd) -> "17" \| "18" \| "19" \| None`. Reuses the exact 3-tier detection already in `plugin/hooks/session_start.sh` and `plugin/context_guard.py::_module_version`: (1) `.sandbox/session.json` `odoo_version`; (2) a `17.0/18.0/19.0` sibling or child directory; (3) `docs/module_meta.md` version regex; then env `DEFAULT_ODOO_VERSION`; else `None`. |
-| `odoo_lint.py` | `lint(path: str, content: str, version: str) -> list[Finding]`. `Finding = {severity: "block"\|"warn", rule: str, line: int, message: str, fix: str}`. Rule table in section 5. Only inspects `*.py` and `*.xml` under a module tree. |
+| `odoo_lint.py` | `lint(path, content, version) -> list[Finding]`. `Finding` has `severity` (`block` or `warn`), `rule`, `line`, `message`, `fix`. Rule table in section 5. Only inspects `*.py` and `*.xml` under a module tree. |
 | `sandbox_result.py` | `read_operation_result(bash_command: str, cwd: Path) -> Result \| None`. Given a `sandboxctl module <session> (install\|update\|test) <module>` command string, locate the operation-result JSON it writes (path convention from `sandbox/schemas/` + `docs/docker-sandbox/design.md`), return `{status, module_state, reason, result_path}`. |
 | `guard.py` | `classify_bash(command: str) -> list[Violation]`. Detects: raw `odoo-bin` invocation; `./manage_modules.sh` (must be `bash manage_modules.sh`); `git push`/`git merge`/`git tag`/`git commit --amend` on pushed history; `gh pr create`/`gh release`/`gh pr merge`; destructive `docker`/`sbx` cleanup. |
 | `paths.py` | `scan_write(target_path: str, content: str \| None) -> list[Violation]`. Flags writing into the repo tree: secret-shaped content (API keys, `PRIVATE KEY`, `.env` with values), `*enterprise*` / `OEEL-1` / `OPL-1` licensed Odoo source, customer-data paths (configurable deny-list, default covers `*/ent-1[789]/*`, known client repo names). |
@@ -199,7 +199,7 @@ Line numbers are best-effort (regex match line). L7/L8 are heuristic and always
 
 ## 6. Data flow
 
-```
+```text
 prompt "/testing 19 mymod"
   -> UserPromptSubmit hook -> gates.check_testing(mymod)
        tasks.md has "- [ ]"      -> stderr redirect, exit 2  (agent routes to /start-coding)
