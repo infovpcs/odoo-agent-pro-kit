@@ -2,30 +2,64 @@
   "SessionStart": [
     {
       "hooks": [
-        {
-          "type": "command",
-          "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/session_start.sh"
-        }
+        { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/session_start.sh" },
+        { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/odoo_hook.py SessionStart" }
+      ]
+    }
+  ],
+  "UserPromptSubmit": [
+    {
+      "hooks": [
+        { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/odoo_hook.py UserPromptSubmit" }
+      ]
+    }
+  ],
+  "PreToolUse": [
+    {
+      "matcher": "Bash",
+      "hooks": [
+        { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/odoo_hook.py PreToolUse" }
+      ]
+    },
+    {
+      "matcher": "Write|Edit|MultiEdit",
+      "hooks": [
+        { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/odoo_hook.py PreToolUse" }
+      ]
+    }
+  ],
+  "PostToolUse": [
+    {
+      "matcher": "Write|Edit|MultiEdit",
+      "hooks": [
+        { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/odoo_hook.py PostToolUse" }
+      ]
+    },
+    {
+      "matcher": "Bash",
+      "hooks": [
+        { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/odoo_hook.py PostToolUse" }
       ]
     }
   ],
   "PreCompact": [
     {
       "hooks": [
-        {
-          "type": "command",
-          "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/save_progress.sh"
-        }
+        { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/save_progress.sh" }
       ]
     }
   ],
   "Stop": [
     {
       "hooks": [
-        {
-          "type": "command",
-          "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/cleanup_mcp.sh"
-        }
+        { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/odoo_hook.py Stop" }
+      ]
+    }
+  ],
+  "SessionEnd": [
+    {
+      "hooks": [
+        { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/odoo_hook.py SessionEnd" }
       ]
     }
   ]
