@@ -11,6 +11,5 @@
   "homepage": "https://github.com/infovpcs/odoo-agent-pro-kit",
   "repository": "https://github.com/infovpcs/odoo-agent-pro-kit",
   "license": "Apache-2.0",
-  "keywords": ["odoo", "odoo-17", "odoo-18", "odoo-19", "erp", "ai-agent", "mcp"],
-  "hooks": "./hooks/hooks.json"
+  "keywords": ["odoo", "odoo-17", "odoo-18", "odoo-19", "erp", "ai-agent", "mcp"]
 }
