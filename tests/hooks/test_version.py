@@ -36,3 +36,10 @@ def test_from_env_fallback(tmp_path, monkeypatch):
 def test_none_when_nothing(tmp_path, monkeypatch):
     monkeypatch.delenv("DEFAULT_ODOO_VERSION", raising=False)
     assert version.detect_odoo_version(tmp_path) is None
+
+
+def test_malformed_session_json_falls_through(tmp_path, monkeypatch):
+    (tmp_path / ".sandbox").mkdir()
+    (tmp_path / ".sandbox" / "session.json").write_text("null")
+    monkeypatch.delenv("DEFAULT_ODOO_VERSION", raising=False)
+    assert version.detect_odoo_version(tmp_path) is None

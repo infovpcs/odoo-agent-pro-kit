@@ -26,9 +26,10 @@ def detect_odoo_version(cwd: Optional[Path] = None) -> Optional[str]:
         if session.is_file():
             try:
                 data = json.loads(session.read_text(encoding="utf-8"))
-                v = _norm(data.get("odoo_version"))
-                if v:
-                    return v
+                if isinstance(data, dict):
+                    v = _norm(data.get("odoo_version"))
+                    if v:
+                        return v
             except (OSError, ValueError):
                 pass
             break
