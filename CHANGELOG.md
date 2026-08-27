@@ -59,9 +59,24 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
 - Plugin version 0.4.0 → 0.5.0; `plugin/plugin.yaml` `provides_hooks` now
   lists 5 hooks (`on_session_start`, `on_session_end`, `post_api_request`,
   `pre_tool_call`, `post_tool_call`). Verified on the Oracle KVM host with
-  Hermes 0.20.4: `hermes plugins doctor odoo-agent-pro-kit --ci` reports
-  `7 tool(s), 5 hook(s)`, registration OK, zero warnings, in all three
-  profiles (odoo17/18/19-dev).
+  Hermes 0.20.4 **and 0.20.5**: `hermes plugins doctor odoo-agent-pro-kit
+  --ci` reports `7 tool(s), 5 hook(s)`, registration OK, zero warnings, in
+  all three profiles (odoo17/18/19-dev); a live in-process `pre_tool_call`
+  check blocks raw `odoo-bin` / `git push` / private-key writes and allows
+  clean commands.
+- `plugin/hooks/hooks.json` now nests the event map under a top-level
+  `hooks` key (same shape as the `hooks` block of `settings.json`), and the
+  `hooks` declaration was removed from `plugin/.claude-plugin/plugin.json`.
+  Claude Code 2.1.247 auto-loads `plugin/hooks/hooks.json`; the previous
+  bare top-level event map failed `claude plugin validate` and loaded with
+  `Hooks (0)`, and a redundant `manifest.hooks` pointer triggered a
+  "Duplicate hooks file detected" load error. Verified on the Oracle VPS
+  (Claude Code 2.1.247, Node 22): `claude plugin list` → `enabled`,
+  `claude plugin details` → `Hooks (7)`, and invoking the cached
+  `odoo_hook.py` blocks raw `odoo-bin` (exit 2) and `/testing` with open
+  tasks (exit 2).
+- `.claude-plugin/marketplace.json` plugin entry bumped `0.1.0` → `0.5.0`
+  to match `plugin.json`.
 
 ### Known limitations
 

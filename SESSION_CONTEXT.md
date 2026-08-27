@@ -359,6 +359,22 @@ that consumes stable Community releases instead of forking this repository.
   `git push`, and private-key writes while allowing clean commands; a live
   `hermes -p odoo19-dev -z "…" --cli` agent turn returned `pong` with the
   plugin loaded and the openrouter/hetzner fallback chain intact.
+  **Then upgraded Hermes 0.20.4 → 0.20.5** (`hermes update`, gateway
+  restarted): re-ran everything — 201 tests, `doctor --ci` = 7 tools /
+  5 hooks in all 3 profiles, the live `pre_tool_call` block check (now also
+  asserts `git merge-base` is NOT blocked), and a fresh `pong` agent turn.
+  **Also installed Claude Code on the VPS** (upgraded Node 18 → 22 via
+  NodeSource; `npm i -g @anthropic-ai/claude-code` 2.1.247 under a
+  `~/.npm-global` prefix; not authed). Found two more real bugs — the
+  Claude-Code hook layer was silently dead: `plugin/hooks/hooks.json` needed
+  its event map nested under a top-level `hooks` key, and the redundant
+  `"hooks": "./hooks/hooks.json"` in `plugin.json` caused a duplicate-load
+  error (commits `a9a1a8e`, `87989ec`). After the fix + a clean reinstall
+  via a local marketplace (`claude plugin marketplace add ~/odoo-agent-pro-kit`),
+  `claude plugin list` shows `enabled` and `claude plugin details` shows
+  `Hooks (7)` / `Skills (25)`; invoking the cached `odoo_hook.py` blocks raw
+  `odoo-bin` and `/testing` with open tasks. Local `main` and VPS
+  `~/odoo-agent-pro-kit` synced at `ea5fcb3` via git bundle (no origin push).
 - (2026-08-20) Closed the Phase 8 "real Odoo Enterprise dependency" platform/
   orchestration checklist item with real evidence. Created a fresh Docker
   Sandbox session `phase8-enterprise-dep-test` (Odoo 17.0) on the Ubuntu KVM
