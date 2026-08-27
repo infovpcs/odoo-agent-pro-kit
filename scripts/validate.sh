@@ -38,6 +38,18 @@ bash -n \
 echo "==> Python syntax"
 python3 -m py_compile \
   plugin/__init__.py \
+  plugin/hooks/odoo_hook.py \
+  scripts/contributor_hook.py \
+  plugin/hooks/checks/__init__.py \
+  plugin/hooks/checks/common.py \
+  plugin/hooks/checks/version.py \
+  plugin/hooks/checks/guard.py \
+  plugin/hooks/checks/paths.py \
+  plugin/hooks/checks/gates.py \
+  plugin/hooks/checks/authz.py \
+  plugin/hooks/checks/odoo_lint.py \
+  plugin/hooks/checks/sandbox_result.py \
+  plugin/hooks/checks/hermes_adapter.py \
   sandbox/bin/sandboxctl \
   sandbox/scripts/fixture-lifecycle.py \
   sandbox/scripts/benchmark.py \
@@ -47,7 +59,21 @@ python3 -m py_compile \
   sandbox/tests/upgrade-rollback.py \
   sandbox/tests/phase6-verify.py
 
+echo "==> Hook smoke test"
+for ev in SessionStart UserPromptSubmit PreToolUse PostToolUse Stop SessionEnd; do
+  echo '{}' | python3 plugin/hooks/odoo_hook.py "$ev" >/dev/null || {
+    echo "FAIL: odoo_hook.py $ev did not exit 0 on empty payload"; exit 1; }
+done
+for ev in SessionStart PreToolUse Stop; do
+  echo '{}' | python3 scripts/contributor_hook.py "$ev" >/dev/null || {
+    echo "FAIL: contributor_hook.py $ev did not exit 0 on empty payload"; exit 1; }
+done
+python3 -c "import json; json.load(open('plugin/hooks/hooks.json')); json.load(open('.claude/settings.json'))"
+
 echo "==> Git whitespace validation"
 git diff --check
+
+# Refresh the contributor-hook validate stamp (scripts/contributor_hook.py checks its mtime)
+[ -d .git ] && touch .git/odoo-kit-validate.stamp || true
 
 echo "OK: all repository validation checks passed."

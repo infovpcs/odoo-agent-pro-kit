@@ -3,6 +3,74 @@
 All notable changes to `odoo-agent-pro-kit` are documented here. Versions
 track the `plugin/.claude-plugin/plugin.json` `version` field.
 
+## 0.5.0 — 2026-08-27
+
+### Added
+
+- **Deterministic pipeline hooks** (`plugin/hooks/odoo_hook.py` +
+  `plugin/hooks/checks/`): command-prerequisite gates for `/start-coding`
+  (needs `docs/tasks.md`) and `/testing` (needs zero open tasks and passed
+  backend tests), sandbox operation-result verification (`sandboxctl module
+  … install/update/test` that did not reach `succeeded` → "do not mark the
+  task complete" advisory), and `odoo-bin` / `manage_modules.sh` / VCS
+  (`git push/merge/tag`) / secret / Enterprise-source guardrails. Wired into
+  all Claude Code hook events (`plugin/hooks/hooks.json`) and mirrored on
+  Hermes via `pre_tool_call` / `post_tool_call` (`plugin/__init__.py`) and the
+  slash-command handlers. Kill switch: `ODOO_KIT_HOOKS_DISABLED=1`. VCS-write
+  authorization: `ODOO_KIT_ALLOW_VCS_WRITE=1` or a `.sandbox/AUTHORIZED`
+  marker. Every hook fails open (any error → exit 0).
+- **Version-aware Odoo 17/18/19 coding-standard linter**
+  (`plugin/hooks/checks/odoo_lint.py`, runs on `PostToolUse[Write/Edit]`).
+  Only inspects `*.py` under `controllers/` or `models/` and `*.xml` under
+  `views/`, `security/`, `data/`, `report/`, or `wizard/`. All rules strip
+  XML comments (`<!-- … -->`) and Python `#` comments before matching. The
+  shipped rules (refined during review):
+  - **L1** `<tree>` view element → block on 19, warn on 18.
+  - **L2** `attrs=` / `states=` on a view node → block on 19, warn on 18.
+  - **L3** `type='json'` in an `@http.route` (regex has a `\b` left boundary)
+    → block on 19, warn on 18.
+  - **L4** `<group … expand=>` — matches **only** `expand=`, not `string=`
+    (narrowed to avoid false-positives on a valid form-view `<group
+    string=>`) → block on 19.
+  - **L5** `res.groups` `category_id` — requires a `model="res.groups"`
+    declaration within 400 characters of the `category_id` field (narrowed to
+    avoid false-positives on `res.partner`'s `category_id`) → block on 19.
+  - **L6** `_sql_constraints` entry whose SQL contains `CHECK(` implementing a
+    value rule → warn on 17/18/19.
+- Contributor-only `.claude/settings.json` + `scripts/contributor_hook.py`
+  enforcing the `AGENTS.md` phase-workflow rules for people developing this
+  repository (not shipped in the plugin package): session-start state banner,
+  `git push/merge/tag` + destructive-cleanup block unless
+  `AGENTS_PHASE_AUTHORIZED=1`, and a `git commit` block until
+  `./scripts/validate.sh` has run since the last tracked change (mtime stamp
+  in `.git/odoo-kit-validate.stamp`, refreshed by `validate.sh` on success).
+- `scripts/validate.sh` now `py_compile`s every new hook module and runs a
+  hook smoke test (each event with an empty payload must exit 0) plus a
+  `hooks.json` / `.claude/settings.json` JSON parse check.
+
+### Changed
+
+- MCP process cleanup moved from the `Stop` hook to `SessionEnd`
+  (`cleanup_mcp.sh` logic folded into `odoo_hook.py SessionEnd`).
+- Plugin version 0.4.0 → 0.5.0; `plugin/plugin.yaml` `provides_hooks` now
+  lists 5 hooks (`on_session_start`, `on_session_end`, `post_api_request`,
+  `pre_tool_call`, `post_tool_call`). `hermes plugins doctor … --ci` now
+  reports `5 hook(s)`.
+
+### Known limitations
+
+- Linter rules **L7** (models added without a matching `ir.model.access.csv`
+  row) and **L8** (action methods returning `None`) from the design spec
+  (`docs/superpowers/specs/2026-08-27-odoo-pipeline-hooks-design.md` §5) are
+  **not implemented** — they need multi-file / semantic context that the
+  single-file linter does not have.
+- The Hermes `pre_tool_call` block-directive shape
+  (`{"decision": "block", "reason": …}` in
+  `plugin/hooks/checks/hermes_adapter.py`) is a **documented assumption**
+  pending verification against the pinned Hermes runtime on the validation
+  host. If the real key names differ, that one function is the only place to
+  change.
+
 ## 0.4.0 — 2026-08-20
 
 ### Added

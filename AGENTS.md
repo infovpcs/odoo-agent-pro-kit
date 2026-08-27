@@ -24,5 +24,12 @@ Read `SESSION_CONTEXT.md` before starting work and treat
 8. Set the next incomplete phase as the sole next task, then end the session so
    the next phase begins with a fresh context read.
 
+The phase-workflow rules above are backed by `.claude/settings.json` +
+`scripts/contributor_hook.py` for contributors using Claude Code: it prints the
+current state at session start, blocks `git push/merge/tag` and destructive
+cleanup unless `AGENTS_PHASE_AUTHORIZED=1`, and blocks `git commit` until
+`./scripts/validate.sh` has run (touch `.git/odoo-kit-validate.stamp` after it
+passes).
+
 Preserve unrelated user changes and keep secrets, customer data, and licensed
 Odoo Enterprise source out of this repository and its artifacts.

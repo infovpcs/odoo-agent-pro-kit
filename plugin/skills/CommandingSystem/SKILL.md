@@ -108,6 +108,24 @@ When processing any command, load these skills in order for the given version:
 - **`/testing`** will NOT run unless ALL tasks in `docs/tasks.md` are `[x]`.
 - If gates fail → show exact error + redirect instruction to user.
 
+## 🪝 Deterministic Hooks (v0.5.0)
+
+These rules are now enforced by hooks (`plugin/hooks/odoo_hook.py`, wired in
+`plugin/hooks/hooks.json`; Hermes parity via `pre_tool_call` / `post_tool_call`
+in `plugin/__init__.py`), so they hold whether or not the agent remembers them:
+
+| Moment | Hook | Effect |
+| --- | --- | --- |
+| `/start-coding` without `docs/tasks.md` | UserPromptSubmit | blocked, redirect to `/plan-analysis` |
+| `/testing` with open tasks or unpassed backend tests | UserPromptSubmit | blocked, redirect to `/start-coding` |
+| raw `odoo-bin`, `./manage_modules.sh`, unauthorized `git push/merge/tag` | PreToolUse[Bash] | blocked |
+| writing secrets / Enterprise source into the repo | PreToolUse[Write] | blocked |
+| Odoo 19 `<tree>` / `type='json'` / `attrs=` / `category_id` in edited files | PostToolUse[Write] | blocked until fixed |
+| `sandboxctl module … install/update/test` not `succeeded` | PostToolUse[Bash] | advisory: do not mark task complete |
+
+Disable all hooks with `ODOO_KIT_HOOKS_DISABLED=1`. Authorize VCS writes with
+`ODOO_KIT_ALLOW_VCS_WRITE=1` or a `.sandbox/AUTHORIZED` marker.
+
 ## 📖 Detailed Workflow Files
 
 For step-by-step execution of each command, read:
