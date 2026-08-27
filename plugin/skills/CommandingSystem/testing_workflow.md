@@ -181,12 +181,13 @@ if ! command -v node &>/dev/null; then
     fi
 fi
 
-# Check agent-browser
+# Check agent-browser (+ its bundled Chrome — `install` is required, not just npm)
 if ! command -v agent-browser &>/dev/null; then
     echo "📦 Installing agent-browser globally..."
-    sudo npm install -g agent-browser
-    agent-browser --version
+    npm install -g agent-browser
 fi
+agent-browser install            # downloads Chrome-for-Testing for CDP (idempotent)
+agent-browser --version
 
 # Check ffmpeg (for GIF conversion)
 if ! command -v ffmpeg &>/dev/null; then
