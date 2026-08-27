@@ -33,6 +33,24 @@ def _tool_input(payload: dict) -> dict:
     return payload.get("tool_input") or payload.get("tool_response") or {}
 
 
+def _edit_bodies(tool_input: dict) -> str:
+    """All new-content text a Write/Edit/MultiEdit payload would write.
+
+    Returns the top-level ``content`` / ``new_string`` / ``new_str`` when present
+    (plain Write / single Edit), otherwise joins every ``edits[i].new_string``
+    (MultiEdit) with newlines so scanners and the linter see the edit bodies.
+    """
+    direct = tool_input.get("content") or tool_input.get("new_string") or tool_input.get("new_str")
+    if direct:
+        return direct
+    edits = tool_input.get("edits")
+    if isinstance(edits, list):
+        return "\n".join(
+            e.get("new_string", "") for e in edits if isinstance(e, dict)
+        )
+    return ""
+
+
 def _handle_session_start(payload: dict) -> int:
     cwd = _cwd(payload)
     mod = common.find_module_dir(cwd)
@@ -79,7 +97,7 @@ def _handle_pre_tool(payload: dict) -> int:
     elif tool in ("Write", "Edit", "MultiEdit"):
         root = common.repo_root(cwd)
         if root is not None:
-            content = ti.get("content") or ti.get("new_string") or ti.get("new_str")
+            content = _edit_bodies(ti) or None
             vs = paths.scan_write(ti.get("file_path", ""), content, root)
             if vs:
                 for v in vs:
@@ -94,7 +112,7 @@ def _handle_post_tool(payload: dict) -> int:
     cwd = _cwd(payload)
     if tool in ("Write", "Edit", "MultiEdit"):
         fp = ti.get("file_path", "")
-        content = ti.get("content") or ti.get("new_string") or ti.get("new_str") or ""
+        content = _edit_bodies(ti)
         findings = odoo_lint.lint(fp, content, version.detect_odoo_version(cwd))
         blockers = [f for f in findings if f.severity == "block"]
         warns = [f for f in findings if f.severity == "warn"]
@@ -127,6 +145,7 @@ def _handle_stop(payload: dict) -> int:
 
 
 def _handle_session_end(payload: dict) -> int:
+    del payload  # unused — SessionEnd cleanup needs no payload fields
     plugin_dir = Path(__file__).resolve().parent.parent
     pid_dir = plugin_dir / "odoo_mcp"
     if pid_dir.is_dir():
@@ -175,4 +194,8 @@ def main(argv: list[str], stdin_text: str) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:], sys.stdin.read()))
+    try:
+        _stdin = sys.stdin.read()
+    except Exception:  # noqa: BLE001 - fail open even on a stdin read failure
+        sys.exit(0)
+    sys.exit(main(sys.argv[1:], _stdin))

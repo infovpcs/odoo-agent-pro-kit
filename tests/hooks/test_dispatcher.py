@@ -68,3 +68,35 @@ def test_bad_json_fails_open():
 
 def test_unknown_event_fails_open(tmp_path):
     assert _run("Nonsense", {"cwd": str(tmp_path)}) == 0
+
+
+def test_block_reason_goes_to_stderr(tmp_path, capsys):
+    mod = _module(tmp_path)
+    rc = _run("PreToolUse", {"cwd": str(mod), "tool_name": "Bash",
+                             "tool_input": {"command": "python3 odoo-bin -d x -i sale"}})
+    captured = capsys.readouterr()
+    assert rc == 2
+    assert captured.err.strip() != ""
+    assert captured.out == ""
+
+
+def test_warn_lint_goes_to_stdout_not_block(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("DEFAULT_ODOO_VERSION", "18")
+    mod = _module(tmp_path)
+    rc = _run("PostToolUse", {"cwd": str(mod), "tool_name": "Write",
+                              "tool_input": {"file_path": str(mod / "views" / "v.xml"),
+                                             "content": "<odoo><tree/></odoo>"}})
+    captured = capsys.readouterr()
+    assert rc == 0
+    assert "L1" in captured.out
+    assert captured.err == ""
+
+
+def test_multiedit_body_is_scanned(tmp_path):
+    mod = _module(tmp_path)
+    (mod / "models").mkdir()
+    key = "-----BEGIN RSA PRIVATE KEY-----\nabc\n-----END RSA PRIVATE KEY-----"
+    rc = _run("PreToolUse", {"cwd": str(mod), "tool_name": "MultiEdit",
+                             "tool_input": {"file_path": str(mod / "models" / "m.py"),
+                                            "edits": [{"old_string": "x", "new_string": key}]}})
+    assert rc == 2
