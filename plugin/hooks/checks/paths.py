@@ -22,6 +22,27 @@ _ENV_LINE_RE = re.compile(
 _DENYLIST = Path(__file__).with_name("customer_denylist.txt")
 
 
+def _is_manifest_file(name: str) -> bool:
+    """Check if filename is an Odoo module manifest."""
+    return name in ("__manifest__.py", "__openerp__.py")
+
+
+def _is_env_config_file(name: str) -> bool:
+    """Check if filename looks like an env or config file."""
+    name_lower = name.lower()
+    if name_lower in (".env",):
+        return True
+    if name_lower.startswith(".env."):
+        return True
+    if name_lower.startswith(("credentials", "secrets")):
+        return True
+    if name_lower.endswith((".cfg", ".conf", ".ini")):
+        return True
+    if name_lower.endswith(".env"):
+        return True
+    return False
+
+
 def _load_denylist() -> List[str]:
     if not _DENYLIST.is_file():
         return []
@@ -48,10 +69,11 @@ def scan_write(target_path: str, content: Optional[str], repo_root: Path) -> Lis
 
     rel_str = str(rel)
     body = content or ""
-    name = target.name.lower()
-    is_sample = name.endswith((".example", ".sample", ".template")) or ".env.example" in name
+    name = target.name
+    name_lower = name.lower()
+    is_sample = name_lower.endswith((".example", ".sample", ".template"))
 
-    if _ENT_PATH_RE.search("/" + rel_str) or _ENT_CONTENT_RE.search(body):
+    if _ENT_PATH_RE.search("/" + rel_str) or (_is_manifest_file(name) and _ENT_CONTENT_RE.search(body)):
         out.append(Violation(
             kind="enterprise_source",
             message=f"Refusing to write licensed Odoo Enterprise material into the repo: {rel_str}",
@@ -65,7 +87,7 @@ def scan_write(target_path: str, content: Optional[str], repo_root: Path) -> Lis
                 message=f"Refusing to write secret material into the repo: {rel_str}",
                 lift_hint="Put credentials in a .env outside any git repo (e.g. ~/.hermes/.env, chmod 600).",
             ))
-        elif _ENV_LINE_RE.search(body):
+        elif _is_env_config_file(name_lower) and _ENV_LINE_RE.search(body):
             out.append(Violation(
                 kind="secret_material",
                 message=f"Refusing to write a populated secret env var into the repo: {rel_str}",
