@@ -5,10 +5,10 @@ from typing import List
 
 from .common import Violation
 
-_ODOO_BIN_RE = re.compile(r"(?<![\w./-])odoo[-_ ]bin(?![\w-])")
+_ODOO_BIN_RE = re.compile(r"(?<![\w-])odoo[-_ ]bin(?![\w-])")
 _SANDBOXCTL_RE = re.compile(r"\bsandboxctl\b")
-_MANAGE_DIRECT_RE = re.compile(r"(?<!bash )(?<!bash\s)(\./)?manage_modules\.sh\b")
 _MANAGE_ANY_RE = re.compile(r"manage_modules\.sh\b")
+_MANAGE_BASH_RE = re.compile(r"\bbash\s+(\./)?manage_modules\.sh\b")
 _VCS_RES = [
     (re.compile(r"\bgit\s+push\b"), "git push"),
     (re.compile(r"\bgit\s+merge\b"), "git merge"),
@@ -39,7 +39,7 @@ def classify_bash(command: str, *, vcs_allowed: bool) -> List[Violation]:
                       "(sandbox mode) or `bash manage_modules.sh install|update <module>` (local mode).",
         ))
 
-    if _MANAGE_ANY_RE.search(cmd) and not re.search(r"\bbash\s+(\./)?manage_modules\.sh\b", cmd):
+    if _MANAGE_ANY_RE.search(cmd) and not _MANAGE_BASH_RE.search(cmd):
         out.append(Violation(
             kind="manage_modules_direct",
             message="manage_modules.sh must be invoked via an explicit `bash` (macOS default shell is zsh).",

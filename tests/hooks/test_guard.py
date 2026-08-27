@@ -44,3 +44,23 @@ def test_git_commit_plain_ok():
 def test_gh_release_blocked():
     vs = guard.classify_bash("gh release create v1.2.3", vcs_allowed=False)
     assert "vcs_write" in _kinds(vs)
+
+
+def test_raw_odoo_bin_path_qualified_blocked():
+    vs = guard.classify_bash("python3 /opt/odoo/odoo-bin -d x -i sale --stop-after-init", vcs_allowed=True)
+    assert "raw_odoo_bin" in _kinds(vs)
+
+
+def test_odoo_bin_substring_not_flagged():
+    vs = guard.classify_bash("echo myodoo-binary", vcs_allowed=True)
+    assert vs == []
+
+
+def test_destructive_cleanup_blocked():
+    vs = guard.classify_bash("docker volume rm somevol", vcs_allowed=False)
+    assert "destructive_cleanup" in _kinds(vs)
+
+
+def test_destructive_cleanup_allowed_when_authorized():
+    vs = guard.classify_bash("docker volume rm somevol", vcs_allowed=True)
+    assert vs == []
