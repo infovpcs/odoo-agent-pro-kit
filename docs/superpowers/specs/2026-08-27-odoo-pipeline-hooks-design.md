@@ -105,8 +105,14 @@ Flow:
 
 ### 4.3 Claude Code wiring — `plugin/hooks/hooks.json` (extend)
 
+The event map is nested under a top-level `hooks` key (same shape as the
+`hooks` block of `settings.json`). Claude Code 2.1.247's `claude plugin
+validate` rejects a bare top-level event map with
+`hooks.json must have "hooks" (the hook matchers) or "modules"`.
+
 ```jsonc
 {
+ "hooks": {
   "SessionStart": [
     { "hooks": [
       { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/session_start.sh" },
@@ -139,6 +145,7 @@ Flow:
   "SessionEnd": [
     { "hooks": [ { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/odoo_hook.py SessionEnd" } ] }
   ]
+ }
 }
 ```
 
