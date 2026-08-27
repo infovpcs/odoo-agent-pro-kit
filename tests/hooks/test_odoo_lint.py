@@ -38,7 +38,8 @@ def test_l2_attrs_blocks_on_19():
 
 
 def test_l5_category_id_blocks_on_19():
-    f = odoo_lint.lint("mymod/security/groups.xml", '<field name="category_id" ref="base.module_category_x"/>', "19")
+    xml = '<record model="res.groups"><field name="category_id" ref="base.module_category_x"/></record>'
+    f = odoo_lint.lint("mymod/security/groups.xml", xml, "19")
     assert "L5" in _rules(f) and _sev(f, "L5") == "block"
 
 
@@ -50,3 +51,42 @@ def test_none_version_only_warns():
 def test_clean_file_no_findings():
     f = odoo_lint.lint("mymod/models/m.py", "class M(models.Model):\n    _name = 'm'\n", "19")
     assert f == []
+
+
+def test_l4_form_group_string_not_flagged():
+    f = odoo_lint.lint("mymod/views/v.xml", '<group string="General Information"><field name="x"/></group>', "19")
+    assert "L4" not in _rules(f)
+
+
+def test_l4_search_group_expand_blocked():
+    f = odoo_lint.lint("mymod/views/v.xml", '<search><group expand="0"><filter name="f"/></group></search>', "19")
+    assert "L4" in _rules(f) and _sev(f, "L4") == "block"
+
+
+def test_l5_partner_category_field_not_flagged():
+    f = odoo_lint.lint("mymod/views/partner.xml", '<field name="category_id" widget="many2many_tags"/>', "19")
+    assert "L5" not in _rules(f)
+
+
+def test_l5_res_groups_category_blocked():
+    xml = '<record id="g" model="res.groups"><field name="name">X</field><field name="category_id" ref="base.module_category_x"/></record>'
+    f = odoo_lint.lint("mymod/security/groups.xml", xml, "19")
+    assert "L5" in _rules(f) and _sev(f, "L5") == "block"
+
+
+def test_comment_not_flagged_xml():
+    f = odoo_lint.lint("mymod/views/v.xml", '<!-- legacy <tree/> removed -->\n<list/>', "19")
+    assert f == []
+
+
+def test_comment_not_flagged_py():
+    py = "# was type='json' before\n@http.route('/x', type='jsonrpc')\ndef x(self): pass"
+    f = odoo_lint.lint("mymod/controllers/main.py", py, "19")
+    assert f == []
+
+
+def test_line_number_reported():
+    xml = "<odoo>\n<data>\n<tree/>\n</data>\n</odoo>"
+    f = odoo_lint.lint("mymod/views/x.xml", xml, "19")
+    assert _sev(f, "L1") == "block"
+    assert next(x.line for x in f if x.rule == "L1") == 3

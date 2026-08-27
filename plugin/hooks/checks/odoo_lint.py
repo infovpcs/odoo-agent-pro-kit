@@ -15,19 +15,19 @@ _RULES = [
      {"18": "warn", "19": "block"},
      "attrs=/states= on a view node",
      "Use direct attributes: invisible=, readonly=, required=.", "xml"),
-    ("L4", re.compile(r"<group\b[^>]*\b(expand|string)\s*="),
+    ("L4", re.compile(r"<group\b[^>]*\bexpand\s*="),
      {"19": "block"},
-     "<group expand=/string=> inside a search view",
-     "Remove expand/string from <group> in search views.", "xml"),
-    ("L5", re.compile(r"name\s*=\s*[\"']category_id[\"']"),
+     "<group expand=> inside a search view",
+     "Remove expand= from <group> in search views (Odoo 19).", "xml"),
+    ("L5", re.compile(r"model\s*=\s*[\"']res\.groups[\"'][\s\S]{0,400}?name\s*=\s*[\"']category_id[\"']"),
      {"19": "block"},
      "res.groups category_id",
      "Use privilege_id (res.groups.privilege) on Odoo 19.", "xml"),
-    ("L3", re.compile(r"type\s*=\s*[\"']json[\"']"),
+    ("L3", re.compile(r"\btype\s*=\s*[\"']json[\"']"),
      {"18": "warn", "19": "block"},
      "type='json' in @http.route",
      "Use type='jsonrpc' on Odoo 18/19.", "controller"),
-    ("L6", re.compile(r"_sql_constraints\s*=.*CHECK\s*\(", re.DOTALL),
+    ("L6", re.compile(r"_sql_constraints\s*=.*?CHECK\s*\(", re.DOTALL),
      {"17": "warn", "18": "warn", "19": "warn"},
      "_sql_constraints CHECK() value rule",
      "Prefer @api.constrains for value validation.", "model"),
@@ -51,11 +51,22 @@ def _line_of(content: str, match: re.Match) -> int:
     return content.count("\n", 0, match.start()) + 1
 
 
+def _strip_comments(text: str, kind: str) -> str:
+    if kind == "xml":
+        return re.sub(r"<!--.*?-->", lambda m: "\n" * m.group(0).count("\n"), text, flags=re.DOTALL)
+    # controller / model: blank everything from the first '#' on each line
+    out = []
+    for ln in text.split("\n"):
+        h = ln.find("#")
+        out.append(ln if h == -1 else ln[:h])
+    return "\n".join(out)
+
+
 def lint(path: str, content: str, version: Optional[str]) -> List[Finding]:
     kind = _kind(path or "")
     if kind is None:
         return []
-    text = content or ""
+    text = _strip_comments(content or "", kind)
     out: List[Finding] = []
     for rule, rx, sev_map, message, fix, applies in _RULES:
         if applies != kind:
