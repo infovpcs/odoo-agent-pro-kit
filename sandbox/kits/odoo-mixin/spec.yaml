@@ -1,7 +1,7 @@
 schemaVersion: "2"
 kind: mixin
 name: odoo-agent-pro-kit
-version: 0.4.0
+version: 0.5.1
 displayName: Odoo Agent Pro Kit
 description: Agent-neutral Odoo 17, 18, and 19 Docker Sandbox lifecycle contract
 sourceURL: https://github.com/infovpcs/odoo-agent-pro-kit

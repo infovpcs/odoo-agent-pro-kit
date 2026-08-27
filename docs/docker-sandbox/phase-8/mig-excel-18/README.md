@@ -34,14 +34,26 @@ projects. The plugin is not installed as a Claude Code plugin in the dev
 session used for this run, so hooks were exercised by direct dispatch, not
 auto-fired.
 
+## Frontend testing (follow-up run)
+
+The `/testing` frontend phase was completed with **`agent-browser`** (the CLI
+from `Agent-browser-skill`, headless Chrome via CDP) pointed at the sandbox
+through a loopback `socat` bridge (`mig-excel-18-odoo-1:8069` →
+`127.0.0.1:8718`). Unlike the Claude-in-Chrome extension (whose frame injection
+stalled through the proxy), agent-browser drove the full Odoo 18 web client:
+login, the migrated `<list>` view, the form + `Sync Data Now` button, a CSV
+upload through the binary widget, and the "Imported Successfully" notification
+(the partner was really created). Zero console errors. Screenshots:
+`vpcs_apps_cloud_18/excel_sheet_data_import/docs/screenshots/`.
+
 ## Findings for the pipeline
 
-1. `/testing`'s browser flow assumes `http://localhost:<port>` — the Docker
+1. `/testing`'s workflow doc assumes `http://localhost:<port>` — the Docker
    Sandbox publishes **no port** by design and `sandboxctl` has no `publish`
-   verb, so the standard agent-browser screenshot/GIF flow can't reach a
-   sandbox session. A loopback `socat` bridge gets JSON-RPC through but the
-   web client's asset/websocket load stalls. Options: add `sandboxctl publish`,
-   or an official RPC-based frontend-check path for sandbox mode.
+   verb. A one-line `docker run … alpine/socat` bridge on the session's compose
+   network is the current workaround; agent-browser then works fine against it.
+   A first-class `sandboxctl publish <session> [port]` verb would remove the
+   manual bridge step.
 2. `checks/sandbox_result.read_operation_result` resolves `.sandbox/…/results/`
    relative to `cwd`; from a module dir outside the kit repo it returns `None`.
    The PostToolUse sandbox advisory therefore only fires when the agent runs

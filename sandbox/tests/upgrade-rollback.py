@@ -30,11 +30,11 @@ with tempfile.TemporaryDirectory(prefix="phase7-upgrade-") as directory:
     artifacts = stage / "sandbox/config/artifacts.lock"
     value = json.loads(artifacts.read_text())
     value["agents"]["codex"]["template"] = "candidate:codex"
-    value["release"] = "0.4.1"
+    value["release"] = "0.5.2-candidate"
     artifacts.write_text(json.dumps(value, indent=2) + "\n")
 
     kit = stage / "sandbox/kits/odoo-mixin/spec.yaml"
-    kit.write_text(kit.read_text().replace("version: 0.4.0", "version: 0.4.1"))
+    kit.write_text(kit.read_text().replace("version: 0.5.1", "version: 0.5.2"))
 
     images = stage / "sandbox/config/images.lock"
     images.write_text(images.read_text().replace("ODOO_19_BASE=", "ODOO_19_CANDIDATE=").replace("POSTGRES_15=", "POSTGRES_15_CANDIDATE="))

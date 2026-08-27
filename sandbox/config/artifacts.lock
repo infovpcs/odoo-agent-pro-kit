@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "sbx_version": "0.38.x",
-  "release": "0.4.0",
+  "release": "0.5.1",
   "agents": {
     "codex": {"template": "builtin:codex", "custom_template_required": false},
     "claude": {"template": "builtin:claude", "custom_template_required": false},
@@ -10,8 +10,8 @@
   "kits": {
     "odoo-mixin": {
       "path": "sandbox/kits/odoo-mixin",
-      "version": "0.4.0",
-      "spec_sha256": "5a0081296d10c09c7452b5b23ff033bfd950fd2bbb1c2164207fce0e2be32930"
+      "version": "0.5.1",
+      "spec_sha256": "c9b0bc988414716d914f736396d3bcb991063d101dc383a9317259ca300259b5"
     }
   }
 }
