@@ -406,6 +406,15 @@ def _command_prompt(command_md_relpath: str, version: Optional[str], rest: str, 
 def _make_command_handler(ctx, command_md_relpath: str, extra: str = ""):
     def _handler(raw_args: str) -> str:
         version, rest = _parse_version_and_rest(raw_args)
+        try:
+            from .hooks.checks.hermes_adapter import command_gate
+
+            cmd_name = command_md_relpath.split("/")[-1].removesuffix(".md")
+            block = command_gate(cmd_name, raw_args, Path.cwd())
+            if block:
+                return block
+        except Exception as exc:  # noqa: BLE001 - a gate failure must never break the command
+            logger.debug("[odoo-agent-pro-kit] command_gate failed: %s", exc)
         prompt = _command_prompt(command_md_relpath, version, rest, extra)
         queued = ctx.inject_message(prompt, role="user")
         if queued:
@@ -451,6 +460,14 @@ def _on_session_start(**_kwargs) -> None:
                 Path.cwd(),
             )
             break
+
+    try:
+        from .hooks.checks.hermes_adapter import session_start_lines
+
+        for line in session_start_lines(Path.cwd()):
+            logger.info("[odoo-agent-pro-kit] %s", line)
+    except Exception as exc:  # noqa: BLE001 - session-start detail must never crash the hook
+        logger.debug("[odoo-agent-pro-kit] session_start_lines failed: %s", exc)
 
 
 def _on_session_end(**_kwargs) -> None:
@@ -530,6 +547,40 @@ def register(ctx) -> None:
     except Exception as exc:  # noqa: BLE001 - never block plugin registration
         logger.warning("odoo-agent-pro-kit: context_guard hook registration failed: %s", exc)
 
+    # --- Hermes tool-call parity with the Claude Code hooks (Task 11) ---
+    # pre_tool_call CAN block (guard/paths violations); post_tool_call is
+    # observe-only (odoo_lint findings + sandbox operation-result checks are
+    # surfaced as warnings). See plugin/hooks/checks/hermes_adapter.py.
+    try:
+        from .hooks.checks.hermes_adapter import post_tool_call_notes, pre_tool_call_directive
+
+        def _pre_tool_call(**kwargs: Any):
+            try:
+                return pre_tool_call_directive(
+                    kwargs.get("tool_name", ""),
+                    kwargs.get("tool_args") or kwargs.get("arguments") or {},
+                    Path.cwd(),
+                )
+            except Exception as exc:  # noqa: BLE001 - hooks must never break a turn
+                logger.debug("[odoo-agent-pro-kit] pre_tool_call hook failed: %s", exc)
+                return None
+
+        def _post_tool_call(**kwargs: Any) -> None:
+            try:
+                for note in post_tool_call_notes(
+                    kwargs.get("tool_name", ""),
+                    kwargs.get("tool_args") or kwargs.get("arguments") or {},
+                    Path.cwd(),
+                ):
+                    logger.warning("[odoo-agent-pro-kit] %s", note)
+            except Exception as exc:  # noqa: BLE001 - hooks must never break a turn
+                logger.debug("[odoo-agent-pro-kit] post_tool_call hook failed: %s", exc)
+
+        ctx.register_hook("pre_tool_call", _pre_tool_call)
+        ctx.register_hook("post_tool_call", _post_tool_call)
+    except Exception as exc:  # noqa: BLE001 - never block plugin registration
+        logger.warning("odoo-agent-pro-kit: tool-call hook registration failed: %s", exc)
+
     # --- bundled skills: every plugin/skills/<name>/SKILL.md ---
     skills_dir = _PLUGIN_DIR / "skills"
     if skills_dir.is_dir():
@@ -539,7 +590,7 @@ def register(ctx) -> None:
                 ctx.register_skill(child.name, skill_md)
 
     logger.info(
-        "odoo-agent-pro-kit: registered %d odoo_* tools, 4 slash commands, 3 hooks, and skills from %s",
+        "odoo-agent-pro-kit: registered %d odoo_* tools, 4 slash commands, 5 hooks, and skills from %s",
         len(_TOOLS),
         skills_dir,
     )
