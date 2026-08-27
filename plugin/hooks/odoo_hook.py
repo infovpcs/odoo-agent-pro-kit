@@ -33,24 +33,6 @@ def _tool_input(payload: dict) -> dict:
     return payload.get("tool_input") or payload.get("tool_response") or {}
 
 
-def _edit_bodies(tool_input: dict) -> str:
-    """All new-content text a Write/Edit/MultiEdit payload would write.
-
-    Returns the top-level ``content`` / ``new_string`` / ``new_str`` when present
-    (plain Write / single Edit), otherwise joins every ``edits[i].new_string``
-    (MultiEdit) with newlines so scanners and the linter see the edit bodies.
-    """
-    direct = tool_input.get("content") or tool_input.get("new_string") or tool_input.get("new_str")
-    if direct:
-        return direct
-    edits = tool_input.get("edits")
-    if isinstance(edits, list):
-        return "\n".join(
-            e.get("new_string", "") for e in edits if isinstance(e, dict)
-        )
-    return ""
-
-
 def _handle_session_start(payload: dict) -> int:
     cwd = _cwd(payload)
     mod = common.find_module_dir(cwd)
@@ -71,7 +53,7 @@ def _handle_session_start(payload: dict) -> int:
 
 def _handle_user_prompt(payload: dict) -> int:
     prompt = (payload.get("prompt") or "").strip()
-    mod = common.find_module_dir(_cwd(payload))
+    mod = common.resolve_module_dir(_cwd(payload), prompt)
     if prompt.startswith("/start-coding"):
         g = gates.check_start_coding(mod)
     elif prompt.startswith("/testing"):
@@ -89,7 +71,9 @@ def _handle_pre_tool(payload: dict) -> int:
     ti = _tool_input(payload)
     cwd = _cwd(payload)
     if tool == "Bash":
-        vs = guard.classify_bash(ti.get("command", ""), vcs_allowed=authz.vcs_write_allowed(cwd))
+        vs = guard.classify_bash(ti.get("command", ""),
+                                 vcs_allowed=authz.vcs_write_allowed(cwd),
+                                 raw_allowed=common.raw_odoo_allowed())
         if vs:
             for v in vs:
                 print(f"[BLOCKED] {v.message}\n  -> {v.lift_hint}", file=sys.stderr)
@@ -97,7 +81,7 @@ def _handle_pre_tool(payload: dict) -> int:
     elif tool in ("Write", "Edit", "MultiEdit"):
         root = common.repo_root(cwd)
         if root is not None:
-            content = _edit_bodies(ti) or None
+            content = common.edit_bodies(ti) or None
             vs = paths.scan_write(ti.get("file_path", ""), content, root)
             if vs:
                 for v in vs:
@@ -112,7 +96,7 @@ def _handle_post_tool(payload: dict) -> int:
     cwd = _cwd(payload)
     if tool in ("Write", "Edit", "MultiEdit"):
         fp = ti.get("file_path", "")
-        content = _edit_bodies(ti)
+        content = common.edit_bodies(ti)
         findings = odoo_lint.lint(fp, content, version.detect_odoo_version(cwd))
         blockers = [f for f in findings if f.severity == "block"]
         warns = [f for f in findings if f.severity == "warn"]
@@ -134,13 +118,16 @@ def _handle_post_tool(payload: dict) -> int:
 def _handle_stop(payload: dict) -> int:
     if payload.get("stop_hook_active"):
         return 0
-    # Advisory only: remind about validate.sh if a stamp mechanism is present.
+    # Advisory only: mirror contributor_hook.py — remind about validate.sh only
+    # when a stamp EXISTS and is stale (older than the newest tracked file). An
+    # absent stamp means the mechanism is not in use here; do not nag.
     root = common.repo_root(_cwd(payload))
-    if root is not None and (root / "scripts" / "validate.sh").is_file():
-        stamp = root / ".git" / "odoo-kit-validate.stamp"
-        if not stamp.is_file():
-            print("[odoo-agent-pro-kit] Reminder: run ./scripts/validate.sh from a clean "
-                  "shell before committing a phase.")
+    if root is None:
+        return 0
+    stamp = root / ".git" / "odoo-kit-validate.stamp"
+    if stamp.is_file() and common.newest_tracked_mtime(root) > stamp.stat().st_mtime:
+        print("[odoo-agent-pro-kit] Reminder: ./scripts/validate.sh has not run since the "
+              "last tracked change — run it from a clean shell before committing a phase.")
     return 0
 
 
@@ -185,8 +172,15 @@ def main(argv: list[str], stdin_text: str) -> int:
             return 0
         if event not in _HANDLERS:
             return 0
-        if event not in ("SessionStart", "SessionEnd") and not common.in_odoo_module(_cwd(payload)):
-            return 0
+        if event not in ("SessionStart", "SessionEnd"):
+            cwd = _cwd(payload)
+            in_scope = common.in_odoo_module(cwd)
+            if not in_scope and event == "UserPromptSubmit":
+                # A slash command can name a module that lives *below* cwd
+                # (e.g. `/testing 19 mymod` run from the workspace root).
+                in_scope = common.resolve_module_dir(cwd, payload.get("prompt") or "") is not None
+            if not in_scope:
+                return 0
         return _HANDLERS[event](payload)
     except Exception as exc:  # noqa: BLE001 - fail open
         print(f"[odoo-agent-pro-kit] hook error (ignored): {exc}", file=sys.stderr)

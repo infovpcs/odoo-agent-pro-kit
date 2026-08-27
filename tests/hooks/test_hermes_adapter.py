@@ -21,6 +21,19 @@ def test_pre_tool_call_allows_clean(tmp_path):
     assert hermes_adapter.pre_tool_call_directive("Bash", {"command": "ls"}, mod) is None
 
 
+def test_pre_tool_call_blocks_multiedit_private_key(tmp_path):
+    mod = _module(tmp_path)
+    (mod / "models").mkdir()
+    key = "-----BEGIN RSA PRIVATE KEY-----\nabc\n-----END RSA PRIVATE KEY-----"
+    d = hermes_adapter.pre_tool_call_directive(
+        "MultiEdit",
+        {"file_path": str(mod / "models" / "m.py"),
+         "edits": [{"old_string": "x", "new_string": key}]},
+        mod,
+    )
+    assert d is not None and d["decision"] == "block"
+
+
 def test_post_tool_call_notes_lint(tmp_path, monkeypatch):
     monkeypatch.setenv("DEFAULT_ODOO_VERSION", "19")
     mod = _module(tmp_path)
@@ -33,6 +46,13 @@ def test_post_tool_call_notes_lint(tmp_path, monkeypatch):
 def test_command_gate_blocks_testing(tmp_path):
     mod = _module(tmp_path)
     msg = hermes_adapter.command_gate("testing", "/testing 19 mymod", mod)
+    assert msg and "start-coding" in msg
+
+
+def test_command_gate_blocks_testing_from_parent_dir(tmp_path):
+    # gate invoked from the PARENT of mymod; module named in the args
+    _module(tmp_path)
+    msg = hermes_adapter.command_gate("testing", "19 mymod", tmp_path)
     assert msg and "start-coding" in msg
 
 

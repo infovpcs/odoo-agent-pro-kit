@@ -73,8 +73,8 @@ truth for both runtimes.
 
 ### 4.2 Claude Code dispatcher — `plugin/hooks/odoo_hook.py` (new)
 
-A `uv` single-file script (`#!/usr/bin/env -S uv run --script`, `requires-python
->=3.10`, no third-party deps). Invocation: `odoo_hook.py <Event>`.
+A stdlib-only single-file script (`#!/usr/bin/env python3`, no third-party
+deps). Invocation: `odoo_hook.py <Event>`.
 
 Flow:
 
@@ -121,11 +121,11 @@ Flow:
   "PreToolUse": [
     { "matcher": "Bash",
       "hooks": [ { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/odoo_hook.py PreToolUse" } ] },
-    { "matcher": "Write|Edit",
+    { "matcher": "Write|Edit|MultiEdit",
       "hooks": [ { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/odoo_hook.py PreToolUse" } ] }
   ],
   "PostToolUse": [
-    { "matcher": "Write|Edit",
+    { "matcher": "Write|Edit|MultiEdit",
       "hooks": [ { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/odoo_hook.py PostToolUse" } ] },
     { "matcher": "Bash",
       "hooks": [ { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/odoo_hook.py PostToolUse" } ] }
@@ -238,10 +238,9 @@ agent runs `git push origin main`
   an Odoo module workspace.
 - `ODOO_KIT_HOOKS_DISABLED=1` disables all plugin hooks; `AGENTS_PHASE_AUTHORIZED`
   / `ODOO_KIT_ALLOW_VCS_WRITE` / `.sandbox/AUTHORIZED` lift specific gates.
-- Missing `uv` on a user's machine: `hooks.json` commands invoke the script
-  directly (`#!/usr/bin/env -S uv run --script`); the implementation plan must
-  include a fallback (plain `python3` shebang variant or a `command -v uv`
-  check) since the kit does not currently require `uv`.
+- No `uv` dependency: **resolved** — the dispatcher ships with a plain
+  `#!/usr/bin/env python3` shebang and is stdlib-only, so there is no `uv`
+  availability concern.
 
 ## 8. Testing
 
@@ -286,7 +285,8 @@ Each step passes `scripts/validate.sh` from a clean shell before the next.
 
 ## 11. Open items for the implementation plan
 
-- `uv` availability fallback strategy (section 7).
+- ~~`uv` availability fallback strategy (section 7).~~ **Resolved:** shipped
+  with a plain `python3` shebang, stdlib-only.
 - Exact operation-result JSON path convention — confirm against
   `sandbox/schemas/` and a live `sandboxctl module` run.
 - Whether `cleanup_mcp.sh` / `session_start.sh` are absorbed into `odoo_hook.py`

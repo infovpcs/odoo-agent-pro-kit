@@ -76,18 +76,6 @@ def _handle_session_start(payload: dict) -> int:
     return 0
 
 
-def _newest_tracked_mtime(cwd: Path) -> float:
-    out = _git(cwd, "ls-files")
-    newest = 0.0
-    for rel in out.splitlines():
-        p = cwd / rel
-        try:
-            newest = max(newest, p.stat().st_mtime)
-        except OSError:
-            continue
-    return newest
-
-
 def _handle_pre_tool(payload: dict) -> int:
     if (payload.get("tool_name") or "") != "Bash":
         return 0
@@ -102,9 +90,10 @@ def _handle_pre_tool(payload: dict) -> int:
 
     if _GIT_COMMIT_RE.search(cmd) and not _AMEND_RE.search(cmd):
         stamp = cwd / ".git" / "odoo-kit-validate.stamp"
-        if stamp.is_file() and _newest_tracked_mtime(cwd) > stamp.stat().st_mtime:
+        if stamp.is_file() and common.newest_tracked_mtime(cwd) > stamp.stat().st_mtime:
             print("[BLOCKED] ./scripts/validate.sh has not run since the last tracked change.\n"
-                  "  -> Run it from a clean shell, then `touch .git/odoo-kit-validate.stamp`.",
+                  "  -> Run ./scripts/validate.sh from a clean shell (it refreshes "
+                  ".git/odoo-kit-validate.stamp on success).",
                   file=sys.stderr)
             return 2
     return 0

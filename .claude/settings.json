@@ -1,14 +1,14 @@
 {
   "hooks": {
     "SessionStart": [
-      { "hooks": [ { "type": "command", "command": "python3 scripts/contributor_hook.py SessionStart" } ] }
+      { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR\"/scripts/contributor_hook.py SessionStart" } ] }
     ],
     "PreToolUse": [
       { "matcher": "Bash",
-        "hooks": [ { "type": "command", "command": "python3 scripts/contributor_hook.py PreToolUse" } ] }
+        "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR\"/scripts/contributor_hook.py PreToolUse" } ] }
     ],
     "Stop": [
-      { "hooks": [ { "type": "command", "command": "python3 scripts/contributor_hook.py Stop" } ] }
+      { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR\"/scripts/contributor_hook.py Stop" } ] }
     ]
   }
 }

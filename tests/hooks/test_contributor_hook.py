@@ -39,7 +39,7 @@ def test_git_push_allowed_with_authz(tmp_path, monkeypatch):
     repo = _git_repo(tmp_path)
     monkeypatch.setenv("AGENTS_PHASE_AUTHORIZED", "1")
     assert _run("PreToolUse", {"cwd": str(repo), "tool_name": "Bash",
-                               "tool_input": {"command": "git push origin main"}}) == 2 - 2
+                               "tool_input": {"command": "git push origin main"}}) == 0
 
 
 def test_commit_blocked_when_validate_stale(tmp_path, monkeypatch):

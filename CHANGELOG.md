@@ -41,9 +41,13 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
   enforcing the `AGENTS.md` phase-workflow rules for people developing this
   repository (not shipped in the plugin package): session-start state banner,
   `git push/merge/tag` + destructive-cleanup block unless
-  `AGENTS_PHASE_AUTHORIZED=1`, and a `git commit` block until
-  `./scripts/validate.sh` has run since the last tracked change (mtime stamp
-  in `.git/odoo-kit-validate.stamp`, refreshed by `validate.sh` on success).
+  `AGENTS_PHASE_AUTHORIZED=1`, and a `git commit` block **only when**
+  `.git/odoo-kit-validate.stamp` exists and is older than the newest tracked
+  change (an absent stamp does not block). `./scripts/validate.sh` refreshes the
+  stamp automatically on success. Read-only git subcommands (`git merge-base`,
+  `git tag -l`/`--list`/`-n`, `git rebase --abort`/`--continue`/…) are not
+  blocked; `.claude/settings.json` invokes the hook via `$CLAUDE_PROJECT_DIR` so
+  it works regardless of the hook's cwd.
 - `scripts/validate.sh` now `py_compile`s every new hook module and runs a
   hook smoke test (each event with an empty payload must exit 0) plus a
   `hooks.json` / `.claude/settings.json` JSON parse check.
@@ -54,8 +58,9 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
   (`cleanup_mcp.sh` logic folded into `odoo_hook.py SessionEnd`).
 - Plugin version 0.4.0 → 0.5.0; `plugin/plugin.yaml` `provides_hooks` now
   lists 5 hooks (`on_session_start`, `on_session_end`, `post_api_request`,
-  `pre_tool_call`, `post_tool_call`). `hermes plugins doctor … --ci` now
-  reports `5 hook(s)`.
+  `pre_tool_call`, `post_tool_call`). The plugin registers 5 hooks (the
+  `hermes plugins doctor` count is expected to read 5 but has not been re-run
+  on the KVM/Hermes validation host after the 0.5.0 hook additions).
 
 ### Known limitations
 
@@ -64,6 +69,12 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
   (`docs/superpowers/specs/2026-08-27-odoo-pipeline-hooks-design.md` §5) are
   **not implemented** — they need multi-file / semantic context that the
   single-file linter does not have.
+- Hermes `post_tool_call` cannot block, so Odoo-19 linter `block`-severity
+  findings are advisory-only on Hermes (they hard-block on Claude Code).
+- The design's Stop-hook context-handoff writer and the SessionEnd `sbx ls` /
+  `docker ps -a` orphan assertion are not yet implemented on the Claude Code
+  dispatcher (Hermes context handoff is covered by the existing
+  `post_api_request` guard).
 - The Hermes `pre_tool_call` block-directive shape
   (`{"decision": "block", "reason": …}` in
   `plugin/hooks/checks/hermes_adapter.py`) is a **documented assumption**

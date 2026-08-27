@@ -37,12 +37,14 @@ def pre_tool_call_directive(tool_name: str, tool_args: dict, cwd) -> Optional[di
     args = tool_args or {}
     reasons: List[str] = []
     if tool_name in ("Bash", "shell", "run_shell"):
-        for v in guard.classify_bash(args.get("command", ""), vcs_allowed=authz.vcs_write_allowed(c)):
+        for v in guard.classify_bash(args.get("command", ""),
+                                     vcs_allowed=authz.vcs_write_allowed(c),
+                                     raw_allowed=common.raw_odoo_allowed()):
             reasons.append(f"{v.message} -> {v.lift_hint}")
-    elif tool_name in ("Write", "Edit", "write_file", "edit_file"):
+    elif tool_name in ("Write", "Edit", "MultiEdit", "write_file", "edit_file", "multi_edit"):
         root = common.repo_root(c)
         if root is not None:
-            content = args.get("content") or args.get("new_string") or args.get("new_str")
+            content = common.edit_bodies(args) or None
             for v in paths.scan_write(args.get("file_path") or args.get("path", ""), content, root):
                 reasons.append(f"{v.message} -> {v.lift_hint}")
     if reasons:
@@ -59,9 +61,9 @@ def post_tool_call_notes(tool_name: str, tool_args: dict, cwd) -> List[str]:
         return []
     args = tool_args or {}
     notes: List[str] = []
-    if tool_name in ("Write", "Edit", "write_file", "edit_file"):
+    if tool_name in ("Write", "Edit", "MultiEdit", "write_file", "edit_file", "multi_edit"):
         fp = args.get("file_path") or args.get("path", "")
-        content = args.get("content") or args.get("new_string") or args.get("new_str") or ""
+        content = common.edit_bodies(args)
         for f in odoo_lint.lint(fp, content, version.detect_odoo_version(c)):
             notes.append(f"[odoo {f.rule}] line {f.line}: {f.message} -> {f.fix}")
     elif tool_name in ("Bash", "shell", "run_shell"):
@@ -89,10 +91,15 @@ def session_start_lines(cwd) -> List[str]:
 
 
 def command_gate(command: str, prompt: str, cwd) -> Optional[str]:
-    """Return a redirect message when a command's prerequisite gate fails, else ``None``."""
+    """Return a redirect message when a command's prerequisite gate fails, else ``None``.
+
+    ``prompt`` (the raw command args, e.g. ``19 mymod``) is parsed for an
+    explicit module argument via ``common.resolve_module_dir`` so a gate run
+    from the parent of the target module still resolves the right module.
+    """
     if common.hooks_disabled():
         return None
-    mod = common.find_module_dir(_cwd(cwd))
+    mod = common.resolve_module_dir(_cwd(cwd), prompt or "")
     if command == "start-coding":
         g = gates.check_start_coding(mod)
     elif command == "testing":
