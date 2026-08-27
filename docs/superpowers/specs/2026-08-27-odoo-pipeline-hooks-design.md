@@ -161,9 +161,13 @@ Event mapping (Hermes has no `user_prompt_submit` / `Stop` / `PreCompact`):
 | MCP cleanup + orphan check | `SessionEnd` | `on_session_end` (already registered — extend body) |
 
 A `plugin/hooks/checks/hermes_adapter.py` translates Hermes hook kwargs
-(`tool_name`, `tool_args`, `result`, …) into the same `checks/` function calls.
-The block signal differs: Claude Code = exit 2 + stderr; Hermes = return the
-documented block/approve directive from `pre_tool_call`.
+(`tool_name`, `args`, `result`, …) into the same `checks/` function calls.
+The block signal differs: Claude Code = exit 2 + stderr; Hermes = return
+`{"action": "block", "message": …}` from the in-process `pre_tool_call`
+callback (verified against Hermes 0.20.4 —
+`hermes_cli/plugins.py::_get_pre_tool_call_directive_details`; the
+Claude-Code `{"decision": "block", "reason": …}` shape is only honoured for
+external stdout hooks, so the adapter emits both key pairs).
 
 ### 4.5 Contributor workflow — `.claude/settings.json` (new, repo root)
 
@@ -291,7 +295,10 @@ Each step passes `scripts/validate.sh` from a clean shell before the next.
   `sandbox/schemas/` and a live `sandboxctl module` run.
 - Whether `cleanup_mcp.sh` / `session_start.sh` are absorbed into `odoo_hook.py`
   or kept as separate `hooks.json` entries alongside it.
-- Confirm the Hermes `pre_tool_call` block-directive return shape against the
-  installed Hermes version on the Oracle VPS profiles.
+- ~~Confirm the Hermes `pre_tool_call` block-directive return shape against the
+  installed Hermes version on the Oracle VPS profiles.~~ **Resolved:** verified
+  against Hermes 0.20.4 — in-process callbacks use `{"action": "block",
+  "message": …}`, and the tool args arrive under the `args` kwarg. Both fixed;
+  `doctor --ci` reports `7 tool(s), 5 hook(s)` in all three profiles.
 - Customer-data deny-list contents for `paths.py` (keep it out of the public
   repo if it names client repos — load from an optional untracked file).

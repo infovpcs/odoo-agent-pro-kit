@@ -195,9 +195,9 @@ bound is a real warning to fix, not noise — pin it like the shipped manifest
 does). The plugin registers 7 tools and 5 hooks as of 0.5.0 — `pre_tool_call`
 and `post_tool_call` were added for the deterministic pipeline guardrails /
 version-aware linter (alongside `on_session_start`, `on_session_end`,
-`post_api_request`). The `hermes plugins doctor` hook count is expected to
-read 5 but has not been re-run on the KVM/Hermes validation host after the
-0.5.0 hook additions. Then confirm live in a profile:
+`post_api_request`). Verified on the Oracle KVM host with Hermes 0.20.4:
+`hermes plugins doctor odoo-agent-pro-kit --ci` reports `7 tool(s), 5 hook(s)`
+in all three profiles. Then confirm live in a profile:
 
 ```bash
 hermes -p odoo19-dev plugins list | grep odoo-agent-pro-kit   # status: enabled
@@ -388,11 +388,11 @@ each on its own fixed port.
   full working commands. Installed and verified `enabled` on all 3 Oracle
   VPS profiles (odoo17-dev/odoo18-dev/odoo19-dev) via `hermes -p <profile>
   plugins list` and `hermes -p <profile> plugins doctor
-  odoo-agent-pro-kit --ci` (7 tools, 4 commands each; that doctor run predates
-  the 0.5.0 hook additions). As of 0.5.0 the plugin registers 5 hooks
+  odoo-agent-pro-kit --ci`. As of 0.5.0 the plugin registers 5 hooks
   (`on_session_start`, `on_session_end`, `post_api_request`, `pre_tool_call`,
-  `post_tool_call`) — the `hermes plugins doctor` count is expected to read 5
-  but has not been re-run on the KVM/Hermes validation host. A direct
+  `post_tool_call`); re-verified on the Oracle KVM host with Hermes 0.20.4 —
+  `doctor --ci` reports `7 tool(s), 5 hook(s)`, registration OK, zero warnings,
+  in all three profiles. A direct
   in-process call to `odoo_get_version_info` on odoo17-dev returned a
   clean connection-refused error (no Odoo backend listening on
   `localhost:8069` on that host) rather than a registration/import error,

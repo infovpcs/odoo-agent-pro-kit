@@ -23,11 +23,14 @@ def _cwd(cwd) -> Path:
 def pre_tool_call_directive(tool_name: str, tool_args: dict, cwd) -> Optional[dict]:
     """Return a Hermes ``pre_tool_call`` block directive, or ``None`` to allow.
 
-    IMPORTANT: the directive shape ``{"decision": "block", "reason": <text>}`` is
-    the ONE place the Hermes contract is encoded. It is assumed from the
-    NousResearch/hermes-agent docs and MUST be verified against the installed
-    Hermes version (see Task 13 open item). If the real key names differ, change
-    them here only -- nothing else in the plugin depends on the shape.
+    Directive shape: ``{"action": "block", "message": <text>}``. Verified against
+    Hermes 0.20.4 (``hermes_cli/plugins.py::_get_pre_tool_call_directive_details``):
+    an in-process ``register_hook("pre_tool_call", ...)`` callback must return
+    ``action``/``message`` -- the Claude-Code ``{"decision": "block", "reason": ...}``
+    shape is only translated for external stdout hooks (``agent/shell_hooks.py``),
+    never for in-process callbacks, so returning it here is silently ignored.
+    A ``decision``/``reason`` mirror is included for forward/back compatibility.
+    This is the ONE place the Hermes contract is encoded.
     """
     if common.hooks_disabled():
         return None
@@ -36,7 +39,7 @@ def pre_tool_call_directive(tool_name: str, tool_args: dict, cwd) -> Optional[di
         return None
     args = tool_args or {}
     reasons: List[str] = []
-    if tool_name in ("Bash", "shell", "run_shell"):
+    if tool_name in ("Bash", "terminal", "shell", "run_shell"):
         for v in guard.classify_bash(args.get("command", ""),
                                      vcs_allowed=authz.vcs_write_allowed(c),
                                      raw_allowed=common.raw_odoo_allowed()):
@@ -48,7 +51,8 @@ def pre_tool_call_directive(tool_name: str, tool_args: dict, cwd) -> Optional[di
             for v in paths.scan_write(args.get("file_path") or args.get("path", ""), content, root):
                 reasons.append(f"{v.message} -> {v.lift_hint}")
     if reasons:
-        return {"decision": "block", "reason": "\n".join(reasons)}
+        text = "\n".join(reasons)
+        return {"action": "block", "message": text, "decision": "block", "reason": text}
     return None
 
 
@@ -66,7 +70,7 @@ def post_tool_call_notes(tool_name: str, tool_args: dict, cwd) -> List[str]:
         content = common.edit_bodies(args)
         for f in odoo_lint.lint(fp, content, version.detect_odoo_version(c)):
             notes.append(f"[odoo {f.rule}] line {f.line}: {f.message} -> {f.fix}")
-    elif tool_name in ("Bash", "shell", "run_shell"):
+    elif tool_name in ("Bash", "terminal", "shell", "run_shell"):
         res = sandbox_result.read_operation_result(args.get("command", ""), c)
         if res is not None and not res.module_state_ok:
             notes.append(f"sandbox operation status={res.status} ({res.reason or 'see result'}); "

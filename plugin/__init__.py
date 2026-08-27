@@ -558,7 +558,7 @@ def register(ctx) -> None:
             try:
                 return pre_tool_call_directive(
                     kwargs.get("tool_name", ""),
-                    kwargs.get("tool_args") or kwargs.get("arguments") or {},
+                    kwargs.get("args") or kwargs.get("tool_args") or kwargs.get("arguments") or {},
                     Path.cwd(),
                 )
             except Exception as exc:  # noqa: BLE001 - hooks must never break a turn
@@ -569,7 +569,7 @@ def register(ctx) -> None:
             try:
                 for note in post_tool_call_notes(
                     kwargs.get("tool_name", ""),
-                    kwargs.get("tool_args") or kwargs.get("arguments") or {},
+                    kwargs.get("args") or kwargs.get("tool_args") or kwargs.get("arguments") or {},
                     Path.cwd(),
                 ):
                     logger.warning("[odoo-agent-pro-kit] %s", note)

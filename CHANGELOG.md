@@ -58,9 +58,10 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
   (`cleanup_mcp.sh` logic folded into `odoo_hook.py SessionEnd`).
 - Plugin version 0.4.0 → 0.5.0; `plugin/plugin.yaml` `provides_hooks` now
   lists 5 hooks (`on_session_start`, `on_session_end`, `post_api_request`,
-  `pre_tool_call`, `post_tool_call`). The plugin registers 5 hooks (the
-  `hermes plugins doctor` count is expected to read 5 but has not been re-run
-  on the KVM/Hermes validation host after the 0.5.0 hook additions).
+  `pre_tool_call`, `post_tool_call`). Verified on the Oracle KVM host with
+  Hermes 0.20.4: `hermes plugins doctor odoo-agent-pro-kit --ci` reports
+  `7 tool(s), 5 hook(s)`, registration OK, zero warnings, in all three
+  profiles (odoo17/18/19-dev).
 
 ### Known limitations
 
@@ -75,12 +76,13 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
   `docker ps -a` orphan assertion are not yet implemented on the Claude Code
   dispatcher (Hermes context handoff is covered by the existing
   `post_api_request` guard).
-- The Hermes `pre_tool_call` block-directive shape
-  (`{"decision": "block", "reason": …}` in
-  `plugin/hooks/checks/hermes_adapter.py`) is a **documented assumption**
-  pending verification against the pinned Hermes runtime on the validation
-  host. If the real key names differ, that one function is the only place to
-  change.
+- The Hermes `pre_tool_call` block-directive shape was **verified against
+  Hermes 0.20.4** and corrected: an in-process `register_hook("pre_tool_call",
+  …)` callback must return `{"action": "block", "message": …}` (the
+  Claude-Code `{"decision": "block", "reason": …}` shape is only translated
+  for external stdout hooks, never in-process). `hermes_adapter.py` now
+  returns both key pairs. The `plugin/__init__.py` wrapper also now reads the
+  tool args from the `args` kwarg (Hermes' actual key), not `tool_args`.
 
 ## 0.4.0 — 2026-08-20
 

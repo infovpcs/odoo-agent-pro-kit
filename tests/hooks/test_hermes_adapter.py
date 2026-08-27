@@ -13,7 +13,15 @@ def _module(tmp_path):
 def test_pre_tool_call_blocks_raw_odoo_bin(tmp_path):
     mod = _module(tmp_path)
     d = hermes_adapter.pre_tool_call_directive("Bash", {"command": "python odoo-bin -i sale"}, mod)
-    assert d is not None and d["decision"] == "block"
+    # Hermes 0.20.4 in-process contract: action/message (decision/reason mirrored).
+    assert d is not None and d["action"] == "block" and isinstance(d["message"], str) and d["message"]
+    assert d["decision"] == "block" and d["reason"] == d["message"]
+
+
+def test_pre_tool_call_blocks_via_terminal_tool(tmp_path):
+    mod = _module(tmp_path)
+    d = hermes_adapter.pre_tool_call_directive("terminal", {"command": "./manage_modules.sh update x"}, mod)
+    assert d is not None and d["action"] == "block"
 
 
 def test_pre_tool_call_allows_clean(tmp_path):
@@ -31,7 +39,7 @@ def test_pre_tool_call_blocks_multiedit_private_key(tmp_path):
          "edits": [{"old_string": "x", "new_string": key}]},
         mod,
     )
-    assert d is not None and d["decision"] == "block"
+    assert d is not None and d["action"] == "block"
 
 
 def test_post_tool_call_notes_lint(tmp_path, monkeypatch):
