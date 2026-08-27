@@ -3316,8 +3316,8 @@
       "y": 2060,
       "width": 1100,
       "height": 44,
-      "text": "Deployment & live operations (additive 0.2.0\u20130.4.0)",
-      "originalText": "Deployment & live operations (additive 0.2.0\u20130.4.0)",
+      "text": "Deployment & live operations (additive 0.2.0\u20130.5.0)",
+      "originalText": "Deployment & live operations (additive 0.2.0\u20130.5.0)",
       "fontSize": 30,
       "fontFamily": 3,
       "textAlign": "left",
@@ -3331,7 +3331,7 @@
       "opacity": 100,
       "angle": 0,
       "seed": 700003,
-      "version": 1,
+      "version": 2,
       "versionNonce": 700004,
       "isDeleted": false,
       "groupIds": [],
@@ -3347,8 +3347,8 @@
       "y": 2105,
       "width": 1300,
       "height": 24,
-      "text": "Oracle Cloud VPS \u00b7 3 Hermes profiles \u00b7 native plugin installed \u00b7 free-tier inference fallback verified live",
-      "originalText": "Oracle Cloud VPS \u00b7 3 Hermes profiles \u00b7 native plugin installed \u00b7 free-tier inference fallback verified live",
+      "text": "Oracle Cloud VPS \u00b7 3 Hermes profiles \u00b7 native plugin installed \u00b7 deterministic pipeline hooks \u00b7 free-tier inference fallback verified live",
+      "originalText": "Oracle Cloud VPS \u00b7 3 Hermes profiles \u00b7 native plugin installed \u00b7 deterministic pipeline hooks \u00b7 free-tier inference fallback verified live",
       "fontSize": 16,
       "fontFamily": 3,
       "textAlign": "left",
@@ -3362,7 +3362,7 @@
       "opacity": 100,
       "angle": 0,
       "seed": 700005,
-      "version": 1,
+      "version": 2,
       "versionNonce": 700006,
       "isDeleted": false,
       "groupIds": [],
@@ -3797,8 +3797,8 @@
       "y": 2160,
       "width": 480,
       "height": 90,
-      "text": "each profile: native plugin 0.4.0\n7 odoo_* tools \u00b7 4 slash commands\n2 hooks \u00b7 20 skills registered\n`hermes plugins doctor --ci` clean",
-      "originalText": "each profile: native plugin 0.4.0\n7 odoo_* tools \u00b7 4 slash commands\n2 hooks \u00b7 20 skills registered\n`hermes plugins doctor --ci` clean",
+      "text": "each profile: native plugin 0.5.0\n7 odoo_* tools \u00b7 4 slash commands\npipeline hooks on 7 events \u00b7 20 skills\n`hermes plugins doctor --ci` clean",
+      "originalText": "each profile: native plugin 0.5.0\n7 odoo_* tools \u00b7 4 slash commands\npipeline hooks on 7 events \u00b7 20 skills\n`hermes plugins doctor --ci` clean",
       "fontSize": 13,
       "fontFamily": 3,
       "textAlign": "left",
@@ -3812,7 +3812,7 @@
       "opacity": 100,
       "angle": 0,
       "seed": 700060,
-      "version": 1,
+      "version": 2,
       "versionNonce": 700061,
       "isDeleted": false,
       "groupIds": [],
@@ -3995,12 +3995,12 @@
     {
       "type": "text",
       "id": "deploy_footer_note",
-      "x": 680,
+      "x": 560,
       "y": 2610,
-      "width": 700,
+      "width": 1000,
       "height": 20,
-      "text": "Verified: live /plan-analysis dispatched and produced artifacts; Phase 8 below exercises the full lifecycle in Docker Sandbox",
-      "originalText": "Verified: live /plan-analysis dispatched and produced artifacts; Phase 8 below exercises the full lifecycle in Docker Sandbox",
+      "text": "Verified on Hermes 0.20.5 + Claude Code 2.1.247: doctor clean (7 tools, 5 hooks \u00d7 3 profiles); live /plan-analysis produced artifacts",
+      "originalText": "Verified on Hermes 0.20.5 + Claude Code 2.1.247: doctor clean (7 tools, 5 hooks \u00d7 3 profiles); live /plan-analysis produced artifacts",
       "fontSize": 12,
       "fontFamily": 3,
       "textAlign": "left",
@@ -4014,7 +4014,7 @@
       "opacity": 100,
       "angle": 0,
       "seed": 700110,
-      "version": 1,
+      "version": 2,
       "versionNonce": 700111,
       "isDeleted": false,
       "groupIds": [],
@@ -4909,7 +4909,16 @@
       "y": 3130,
       "width": 1490,
       "height": 0,
-      "points": [[0, 0], [1490, 0]],
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          1490,
+          0
+        ]
+      ],
       "strokeColor": "#64748b",
       "backgroundColor": "transparent",
       "fillStyle": "solid",
@@ -5017,7 +5026,9 @@
       "boundElements": null,
       "link": null,
       "locked": false,
-      "roundness": {"type": 3}
+      "roundness": {
+        "type": 3
+      }
     },
     {
       "type": "text",
@@ -5057,7 +5068,16 @@
       "y": 3388,
       "width": 90,
       "height": 0,
-      "points": [[0, 0], [90, 0]],
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          90,
+          0
+        ]
+      ],
       "strokeColor": "#1e3a5f",
       "backgroundColor": "transparent",
       "fillStyle": "solid",
@@ -5103,7 +5123,9 @@
       "boundElements": null,
       "link": null,
       "locked": false,
-      "roundness": {"type": 3}
+      "roundness": {
+        "type": 3
+      }
     },
     {
       "type": "text",
@@ -5143,7 +5165,16 @@
       "y": 3388,
       "width": 90,
       "height": 0,
-      "points": [[0, 0], [90, 0]],
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          90,
+          0
+        ]
+      ],
       "strokeColor": "#1e3a5f",
       "backgroundColor": "transparent",
       "fillStyle": "solid",
@@ -5228,7 +5259,24 @@
       "y": 3500,
       "width": -1030,
       "height": 85,
-      "points": [[0, 0], [0, 65], [-1030, 65], [-1030, 0]],
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          65
+        ],
+        [
+          -1030,
+          65
+        ],
+        [
+          -1030,
+          0
+        ]
+      ],
       "strokeColor": "#6d28d9",
       "backgroundColor": "transparent",
       "fillStyle": "solid",
@@ -5258,8 +5306,8 @@
       "y": 3572,
       "width": 430,
       "height": 22,
-      "text": "next run produces new evidence — curate again",
-      "originalText": "next run produces new evidence — curate again",
+      "text": "next run produces new evidence \u2014 curate again",
+      "originalText": "next run produces new evidence \u2014 curate again",
       "fontSize": 14,
       "fontFamily": 3,
       "textAlign": "center",
