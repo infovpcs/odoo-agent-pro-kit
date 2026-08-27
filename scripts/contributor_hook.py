@@ -9,16 +9,20 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "plugin" / "hooks"))
-from checks import guard  # noqa: E402
+from checks import common, guard  # noqa: E402
 
-_TRUE = {"1", "true", "yes", "on"}
 _CODE_SUFFIXES = (".py", ".sh", ".json", ".yaml", ".yml")
 _PHASE_DOCS = ("docs/docker-sandbox/tasks.md", "SESSION_CONTEXT.md", "README.md")
+_TASKS_REL = "docs/docker-sandbox/tasks.md"
+_UNCHECKED_RE = re.compile(r"^\s*- \[ \]")
+_AMEND_RE = re.compile(r"(?<!\S)--amend(?!\S)")
+_GIT_COMMIT_RE = re.compile(r"\bgit\s+commit\b")
 
 
 def _cwd(payload: dict) -> Path:
@@ -26,7 +30,7 @@ def _cwd(payload: dict) -> Path:
 
 
 def _phase_authorized() -> bool:
-    return os.environ.get("AGENTS_PHASE_AUTHORIZED", "").strip().lower() in _TRUE
+    return os.environ.get("AGENTS_PHASE_AUTHORIZED", "").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _git(cwd: Path, *args: str) -> str:
@@ -35,6 +39,19 @@ def _git(cwd: Path, *args: str) -> str:
                               timeout=5).stdout.strip()
     except (OSError, subprocess.SubprocessError):
         return ""
+
+
+def _next_phase_task(cwd: Path) -> str:
+    tasks = cwd / _TASKS_REL
+    if not tasks.is_file():
+        return ""
+    try:
+        for ln in tasks.read_text(encoding="utf-8", errors="replace").splitlines():
+            if _UNCHECKED_RE.match(ln):
+                return ln.strip()
+    except OSError:
+        return ""
+    return ""
 
 
 def _handle_session_start(payload: dict) -> int:
@@ -53,6 +70,9 @@ def _handle_session_start(payload: dict) -> int:
         print(f"\n[branch] {branch}")
     if status:
         print(f"[uncommitted]\n{status}")
+    nxt = _next_phase_task(cwd)
+    if nxt:
+        print(f"\n[next phase task] {nxt}")
     return 0
 
 
@@ -80,11 +100,9 @@ def _handle_pre_tool(payload: dict) -> int:
                   "after the user approves)", file=sys.stderr)
             return 2
 
-    import re
-    if re.search(r"\bgit\s+commit\b", cmd) and "--amend" not in cmd:
+    if _GIT_COMMIT_RE.search(cmd) and not _AMEND_RE.search(cmd):
         stamp = cwd / ".git" / "odoo-kit-validate.stamp"
-        stamp_mtime = stamp.stat().st_mtime if stamp.is_file() else 0.0
-        if _newest_tracked_mtime(cwd) > stamp_mtime:
+        if stamp.is_file() and _newest_tracked_mtime(cwd) > stamp.stat().st_mtime:
             print("[BLOCKED] ./scripts/validate.sh has not run since the last tracked change.\n"
                   "  -> Run it from a clean shell, then `touch .git/odoo-kit-validate.stamp`.",
                   file=sys.stderr)
@@ -118,7 +136,7 @@ def main(argv: list[str], stdin_text: str) -> int:
             payload = json.loads(stdin_text) if stdin_text.strip() else {}
         except ValueError:
             return 0
-        if os.environ.get("ODOO_KIT_HOOKS_DISABLED", "").strip().lower() in _TRUE:
+        if common.hooks_disabled():
             return 0
         if not isinstance(payload, dict) or event not in _HANDLERS:
             return 0
