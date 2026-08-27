@@ -321,6 +321,28 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Current state
 
+- **(Additive, 0.5.0) Deterministic pipeline hooks shipped** on branch
+  `feature/pipeline-hooks` (not merged). Adds `plugin/hooks/checks/` (shared
+  pure-function check library: `guard`, `paths`, `gates`, `odoo_lint`,
+  `sandbox_result`, `version`, `authz`, `common`), the Claude Code dispatcher
+  `plugin/hooks/odoo_hook.py` (wired into all 7 events in
+  `plugin/hooks/hooks.json`), Hermes parity via `pre_tool_call` /
+  `post_tool_call` in `plugin/__init__.py` + `hooks/checks/hermes_adapter.py`,
+  and a contributor-only repo-root `.claude/settings.json` +
+  `scripts/contributor_hook.py` enforcing the `AGENTS.md` phase-workflow rules.
+  Gates: `/start-coding` needs `docs/tasks.md`; `/testing` needs zero open tasks
+  + passed backend tests. Guardrails: raw `odoo-bin` / `./manage_modules.sh` /
+  VCS-write / secret / Enterprise-source. Version-aware Odoo 17/18/19 linter
+  rules L1–L6. Kill switches: `ODOO_KIT_HOOKS_DISABLED=1`,
+  `ODOO_KIT_ALLOW_VCS_WRITE=1`, `ODOO_KIT_ALLOW_RAW_ODOO=1`. A whole-branch code
+  review (1 Critical + several Important + doc issues) was completed and this
+  fix wave applied: `$CLAUDE_PROJECT_DIR` in `.claude/settings.json`, read-only
+  git subcommands unblocked, command-position anchoring for the odoo-bin /
+  manage_modules regexes, `resolve_module_dir` so command gates honour an
+  explicit module arg, cross-runtime MultiEdit body extraction in `common`,
+  inverted Stop reminder logic, plus fail-open / hooks-disabled / SessionEnd
+  dispatcher tests and doc corrections. 200 tests passing;
+  `./scripts/validate.sh` green.
 - (2026-08-20) Closed the Phase 8 "real Odoo Enterprise dependency" platform/
   orchestration checklist item with real evidence. Created a fresh Docker
   Sandbox session `phase8-enterprise-dep-test` (Odoo 17.0) on the Ubuntu KVM

@@ -73,8 +73,8 @@ truth for both runtimes.
 
 ### 4.2 Claude Code dispatcher — `plugin/hooks/odoo_hook.py` (new)
 
-A `uv` single-file script (`#!/usr/bin/env -S uv run --script`, `requires-python
->=3.10`, no third-party deps). Invocation: `odoo_hook.py <Event>`.
+A stdlib-only single-file script (`#!/usr/bin/env python3`, no third-party
+deps). Invocation: `odoo_hook.py <Event>`.
 
 Flow:
 
@@ -121,11 +121,11 @@ Flow:
   "PreToolUse": [
     { "matcher": "Bash",
       "hooks": [ { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/odoo_hook.py PreToolUse" } ] },
-    { "matcher": "Write|Edit",
+    { "matcher": "Write|Edit|MultiEdit",
       "hooks": [ { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/odoo_hook.py PreToolUse" } ] }
   ],
   "PostToolUse": [
-    { "matcher": "Write|Edit",
+    { "matcher": "Write|Edit|MultiEdit",
       "hooks": [ { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/odoo_hook.py PostToolUse" } ] },
     { "matcher": "Bash",
       "hooks": [ { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/odoo_hook.py PostToolUse" } ] }
@@ -187,15 +187,21 @@ failure on that version; everything else is `warn`.
 | --- | --- | --- | --- | --- | --- | --- |
 | L1 | `<tree` open tag in a view arch | ok | warn | **block** | `*.xml` under `views/` | Replace `<tree>` with `<list>` |
 | L2 | `attrs=` or `states=` attribute on a view node | ok | warn | **block** | `*.xml` | Use direct `invisible=`/`readonly=`/`required=` attributes |
-| L3 | `type=('"')json('"')` in an `@http.route(...)` call | n/a | warn | **block** | `*.py` under `controllers/` | Use `type='jsonrpc'` |
-| L4 | `<group ...>` with `expand=` or `string=` inside a `<search>` view | ok | ok | **block** | `*.xml` | Remove `expand`/`string` from `<group>` in search views |
-| L5 | `category_id=` on a `res.groups` record | ok | ok | **block** | `*.xml` under `security/` or `data/` | Use `privilege_id` (`res.groups.privilege`) |
+| L3 | `type='json'` in an `@http.route(...)` call — regex has a `\b` left boundary | n/a | warn | **block** | `*.py` under `controllers/` | Use `type='jsonrpc'` |
+| L4 | `<group ...>` with `expand=` **only** (NOT `string=` — narrowed to avoid false-positives on a valid form-view `<group string=>`) | ok | ok | **block** | `*.xml` | Remove `expand=` from `<group>` in search views |
+| L5 | `category_id` field on a `res.groups` record — requires a `model="res.groups"` declaration within 400 chars of the `category_id` field (narrowed to avoid false-positives on `res.partner`'s `category_id`) | ok | ok | **block** | `*.xml` under `security/` or `data/` | Use `privilege_id` (`res.groups.privilege`) |
 | L6 | `_sql_constraints` entry whose SQL contains `CHECK(` implementing a value rule | warn | warn | warn | `*.py` under `models/` | Prefer `@api.constrains` for value validation |
 | L7 | new `models/*.py` adds a `_name` but no matching row in `security/ir.model.access.csv` | warn | **block** | **block** | model + security | Add an `ir.model.access.csv` row for the new model |
 | L8 | action method returning `None` (no `return` / bare `return`) reachable from a button | warn | warn | warn | `*.py` | Return `True` from action methods (Odoo 19 raises `Fault` on `None`) |
 
-Line numbers are best-effort (regex match line). L7/L8 are heuristic and always
-`warn` at most on 17; false positives are acceptable because they are advisory.
+Line numbers are best-effort (regex match line). All rules strip XML comments
+(`<!-- … -->`) and Python `#` comments before matching. L7/L8 are heuristic and
+always `warn` at most on 17; false positives are acceptable because they are
+advisory.
+
+**Implemented:** L1–L6 ship in `plugin/hooks/checks/odoo_lint.py`. L7 and L8 are
+**not implemented** — they need multi-file / semantic context the single-file
+linter does not have (carried in `CHANGELOG.md` 0.5.0 "Known limitations").
 
 ## 6. Data flow
 
@@ -232,10 +238,9 @@ agent runs `git push origin main`
   an Odoo module workspace.
 - `ODOO_KIT_HOOKS_DISABLED=1` disables all plugin hooks; `AGENTS_PHASE_AUTHORIZED`
   / `ODOO_KIT_ALLOW_VCS_WRITE` / `.sandbox/AUTHORIZED` lift specific gates.
-- Missing `uv` on a user's machine: `hooks.json` commands invoke the script
-  directly (`#!/usr/bin/env -S uv run --script`); the implementation plan must
-  include a fallback (plain `python3` shebang variant or a `command -v uv`
-  check) since the kit does not currently require `uv`.
+- No `uv` dependency: **resolved** — the dispatcher ships with a plain
+  `#!/usr/bin/env python3` shebang and is stdlib-only, so there is no `uv`
+  availability concern.
 
 ## 8. Testing
 
@@ -280,7 +285,8 @@ Each step passes `scripts/validate.sh` from a clean shell before the next.
 
 ## 11. Open items for the implementation plan
 
-- `uv` availability fallback strategy (section 7).
+- ~~`uv` availability fallback strategy (section 7).~~ **Resolved:** shipped
+  with a plain `python3` shebang, stdlib-only.
 - Exact operation-result JSON path convention — confirm against
   `sandbox/schemas/` and a live `sandboxctl module` run.
 - Whether `cleanup_mcp.sh` / `session_start.sh` are absorbed into `odoo_hook.py`

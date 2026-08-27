@@ -28,3 +28,6 @@ docs/.render_cache/
 
 # Docker Sandbox runtime state
 .sandbox/
+
+# Superpowers SDD scratch workspace
+.superpowers/
