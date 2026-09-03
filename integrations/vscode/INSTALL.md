@@ -8,4 +8,5 @@
    project, preserving the directory structure, so the prompt files' relative
    references resolve.
 4. Run `/plan-analysis`, `/start-coding`, `/testing`, or `/fleet` from Copilot
-   Chat, passing the Odoo version as an argument.
+   Chat, passing the Odoo version as an argument. `/rules-check-drift` takes an
+   optional diff range instead of a version.

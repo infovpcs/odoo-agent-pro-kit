@@ -49,8 +49,8 @@ hermes plugins install infovpcs/odoo-agent-pro-kit/plugin --enable
 ```
 Registers 7 `odoo_*` model-discovery tools (in-process, no separate MCP
 server/port needed), the `/plan-analysis`, `/start-coding`, `/testing`,
-`/fleet` slash commands, session-start Odoo workspace detection, and all 20
-bundled skills under the `odoo-agent-pro-kit:` namespace. See
+`/fleet`, `/rules-check-drift` slash commands, session-start Odoo workspace
+detection, and all 22 bundled skills under the `odoo-agent-pro-kit:` namespace. See
 [CHANGELOG.md](CHANGELOG.md) 0.5.0 for details, or run
 `hermes plugins doctor plugin --ci` from a clone to verify locally first.
 
@@ -64,8 +64,8 @@ reads it natively). See `integrations/codex/INSTALL.md`.
 
 | Component | Where |
 |---|---|
-| 18 Odoo skills (coding standards, dependency context, tools, testing, docs) | `plugin/skills/` |
-| 4 slash commands (`/plan-analysis`, `/start-coding`, `/testing`, `/fleet`) | `plugin/commands/` (Claude Code) / `plugin/__init__.py` (native Hermes) |
+| 22 Odoo skills (coding standards, dependency context, tools, testing, docs, sandbox ops, rules-drift audit) | `plugin/skills/` |
+| 5 slash commands (`/plan-analysis`, `/start-coding`, `/testing`, `/fleet`, `/rules-check-drift`) | `plugin/commands/` (Claude Code) / `plugin/__init__.py` (native Hermes) |
 | Hooks on SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop, SessionEnd, and PreCompact | `plugin/hooks/` (Claude Code) / `plugin/__init__.py` (native Hermes: `on_session_start`/`on_session_end`/`post_api_request`/`pre_tool_call`/`post_tool_call`) |
 | Deterministic pipeline hooks — `/start-coding` + `/testing` prerequisite gates, `odoo-bin`/`manage_modules.sh`/VCS/secret/Enterprise-source guardrails, sandbox operation-result verification, and a version-aware Odoo 17/18/19 coding-standard linter (rules L1–L6) | `plugin/hooks/odoo_hook.py` + `plugin/hooks/checks/` (Claude Code) / `plugin/__init__.py` `pre_tool_call`/`post_tool_call` (native Hermes) |
 | Live MCP server for Odoo 17/18/19 model discovery | `plugin/odoo_mcp/` (standalone server) / `plugin/__init__.py` (native Hermes in-process tools) |

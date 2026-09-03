@@ -5,7 +5,7 @@ Wires the existing plugin/odoo_mcp/ package (config, connection pooling,
 model discovery — the same code the standalone MCP server at
 odoo_mcp/odoo_mcp_server.py uses) directly into Hermes as in-process tools,
 so no separate MCP process/port/sidecar is required for a Hermes session.
-Also registers the four odoo_commanding_system slash commands, session-start
+Also registers the five odoo_commanding_system slash commands, session-start
 Odoo workspace detection, and every bundled skill under skills/.
 
 This coexists with the Claude-Code-style manifest at
@@ -377,7 +377,7 @@ _TOOLS = [
 
 
 # ---------------------------------------------------------------------------
-# Slash commands — /plan-analysis, /start-coding, /testing, /fleet
+# Slash commands — /plan-analysis, /start-coding, /testing, /fleet, /rules-check-drift
 # ---------------------------------------------------------------------------
 
 _VALID_VERSIONS = {"17", "18", "19"}
@@ -390,7 +390,13 @@ def _parse_version_and_rest(raw_args: str) -> tuple[Optional[str], str]:
     return None, raw_args.strip()
 
 
-def _command_prompt(command_md_relpath: str, version: Optional[str], rest: str, extra: str) -> str:
+def _command_prompt(
+    command_md_relpath: str,
+    version: Optional[str],
+    rest: str,
+    extra: str,
+    version_optional: bool = False,
+) -> str:
     body = (_PLUGIN_DIR / command_md_relpath).read_text(encoding="utf-8")
     # Strip the YAML frontmatter (--- ... ---) the same way the Claude Code
     # command loader does; the remaining body is the actual instruction text.
@@ -398,12 +404,17 @@ def _command_prompt(command_md_relpath: str, version: Optional[str], rest: str, 
         end = body.find("---", 3)
         if end != -1:
             body = body[end + 3 :].lstrip("\n")
-    version_line = f"Odoo version: {version}." if version else "Ask the user for the Odoo version (17, 18, or 19) before proceeding."
+    if version:
+        version_line = f"Odoo version: {version}."
+    elif version_optional:
+        version_line = ""
+    else:
+        version_line = "Ask the user for the Odoo version (17, 18, or 19) before proceeding."
     module_line = f"Module/argument: {rest}." if rest else ""
     return f"{body}\n\n{version_line} {module_line}\n{extra}".strip()
 
 
-def _make_command_handler(ctx, command_md_relpath: str, extra: str = ""):
+def _make_command_handler(ctx, command_md_relpath: str, extra: str = "", version_optional: bool = False):
     def _handler(raw_args: str) -> str:
         version, rest = _parse_version_and_rest(raw_args)
         try:
@@ -415,7 +426,7 @@ def _make_command_handler(ctx, command_md_relpath: str, extra: str = ""):
                 return block
         except Exception as exc:  # noqa: BLE001 - a gate failure must never break the command
             logger.debug("[odoo-agent-pro-kit] command_gate failed: %s", exc)
-        prompt = _command_prompt(command_md_relpath, version, rest, extra)
+        prompt = _command_prompt(command_md_relpath, version, rest, extra, version_optional)
         queued = ctx.inject_message(prompt, role="user")
         if queued:
             return None
@@ -484,7 +495,7 @@ def register(ctx) -> None:
     for name, handler, schema in _TOOLS:
         ctx.register_tool(name=name, toolset="odoo_mcp", schema=schema, handler=handler)
 
-    # --- slash commands: /plan-analysis, /start-coding, /testing, /fleet ---
+    # --- slash commands: /plan-analysis, /start-coding, /testing, /fleet, /rules-check-drift ---
     ctx.register_command(
         "plan-analysis",
         _make_command_handler(
@@ -527,6 +538,20 @@ def register(ctx) -> None:
         ),
         description="Parallel workspace orchestration across multiple Odoo modules for Odoo 17/18/19.",
         args_hint="<17|18|19>",
+    )
+    ctx.register_command(
+        "rules-check-drift",
+        _make_command_handler(
+            ctx,
+            "commands/rules-check-drift.md",
+            extra="Use the odoo-agent-pro-kit:odoo_rules_drift_check skill (skill_view), and "
+            "prefer the odoo_search_models / odoo_get_fields / odoo_validate_field / "
+            "odoo_get_relationships tools for Tier 2 confirmation instead of a separate MCP "
+            "server process. Skip Tier 2 silently when no connection is available.",
+            version_optional=True,
+        ),
+        description="Audit CLAUDE.md/AGENTS.md/GEMINI.md against recent changes and PRD gate state. Advisory, read-only.",
+        args_hint="[diff range, e.g. main...HEAD]",
     )
 
     # --- hooks: session-start Odoo workspace detection, session-end cleanup ---
@@ -590,7 +615,7 @@ def register(ctx) -> None:
                 ctx.register_skill(child.name, skill_md)
 
     logger.info(
-        "odoo-agent-pro-kit: registered %d odoo_* tools, 4 slash commands, 5 hooks, and skills from %s",
+        "odoo-agent-pro-kit: registered %d odoo_* tools, 5 slash commands, 5 hooks, and skills from %s",
         len(_TOOLS),
         skills_dir,
     )
