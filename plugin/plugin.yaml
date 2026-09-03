@@ -10,9 +10,10 @@ version: "0.6.0"
 description: >-
   Odoo 17/18/19 custom application development lifecycle for Hermes: native
   odoo_* MCP-equivalent tools (model/field/relationship discovery over live
-  XML-RPC/JSON-RPC-2.0), /plan-analysis, /start-coding, /testing, /fleet
-  slash commands, session-start Odoo workspace detection, and all bundled
-  Odoo skills registered under the odoo-agent-pro-kit: namespace.
+  XML-RPC/JSON-RPC-2.0), /plan-analysis, /start-coding, /testing, /fleet,
+  /rules-check-drift slash commands, session-start Odoo workspace
+  detection, and all bundled Odoo skills registered under the
+  odoo-agent-pro-kit: namespace.
 author: "Vinay Rana"
 homepage: "https://github.com/infovpcs/odoo-agent-pro-kit"
 license: "Apache-2.0"
