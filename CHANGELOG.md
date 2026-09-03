@@ -3,7 +3,7 @@
 All notable changes to `odoo-agent-pro-kit` are documented here. Versions
 track the `plugin/.claude-plugin/plugin.json` `version` field.
 
-## Unreleased
+## 0.6.0 — 2026-09-03
 
 ### Added
 
