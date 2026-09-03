@@ -3,6 +3,44 @@
 All notable changes to `odoo-agent-pro-kit` are documented here. Versions
 track the `plugin/.claude-plugin/plugin.json` `version` field.
 
+## Unreleased
+
+### Added
+
+- **`/rules-check-drift` command + `OdooRulesDriftCheck` skill** — audits whether
+  the project's rules files (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`,
+  `.github/copilot-instructions.md`) still match the code after recent changes.
+  Adapted from the upstream generic `rules-check-drift` skill
+  (github.com/coleam00/skills, MIT) and extended for Odoo:
+  - **Four drift classes** instead of three — the fourth is *gate-state
+    contradiction*, where a phase/status table claims Complete while
+    `docs/tasks.md` still has open `[ ]` items. `tasks.md` always wins.
+  - **Odoo drift catalog** — script paths, model/`_name` renames, dropped
+    fields, `__manifest__.py` depends, version idiom (`<tree>` vs `<list>`,
+    `attrs=`), MCP ports, database/instance keys, external and `view_id`
+    records, and pruned backup/run identifiers.
+  - **Rules-file divergence check** — catches the case where the
+    context-handoff guard wrote all four rules files but only one was later
+    updated by hand.
+  - **Optional Tier 2 database confirmation** through the in-process
+    `odoo_search_models` / `odoo_get_fields` / `odoo_validate_field` /
+    `odoo_get_relationships` tools. No connection means `tier: static-only`
+    with the unverified claims listed — never a failure, and it never starts a
+    server.
+  - Advisory and read-only: it never marks a task `[x]`, never edits a progress
+    percentage, and never writes to an Odoo database. No prerequisite gate.
+  - `plugin/skills/OdooRulesDriftCheck/SKILL.md`,
+    `plugin/commands/rules-check-drift.md`, registered for native Hermes in
+    `plugin/__init__.py`, and mirrored into
+    `integrations/{cursor,antigravity,vscode}/`.
+- `_make_command_handler(..., version_optional=True)` — commands that take no
+  Odoo version no longer prompt the user for one.
+
+### Fixed
+
+- README skill and command counts were stale (claimed 18/20 skills and 4
+  commands); corrected to 22 skills and 5 commands.
+
 ## 0.5.1 — 2026-08-27
 
 Fixes from the first full live pipeline run against a real pending-migration

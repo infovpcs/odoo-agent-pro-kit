@@ -47,6 +47,7 @@ VS Code, or GitHub Copilot — see `integrations/<tool>/INSTALL.md` for each.
 | `/start-coding (17\|18\|19)` | Task-loop with a backend test per task | Requires `docs/tasks.md` |
 | `/testing (17\|18\|19)` | Frontend UI tests + responsive `index.html` documentation | Requires all tasks `[x]` |
 | `/fleet (17\|18\|19)` | Parallel workspace orchestration for multiple modules | None |
+| `/rules-check-drift [range]` | Audit the rules files against recent changes + PRD gate state (advisory, read-only) | None |
 
 ### Skill loading per command
 
@@ -69,6 +70,9 @@ VS Code, or GitHub Copilot — see `integrations/<tool>/INSTALL.md` for each.
 
 **`/fleet` loads:**
 1. `CommandingSystem` (`SKILL.md` + `fleet_workflow.md`)
+
+**`/rules-check-drift` loads:**
+1. `OdooRulesDriftCheck`
 
 ### PRD output structure
 
