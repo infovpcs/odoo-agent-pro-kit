@@ -63,7 +63,9 @@ Installs the `odoo-agent-pro-kit` agent preset into
 `${DSH_HOME:-$HOME/.dsh}/.agent-presets/`. Pick the **Odoo Agent Pro Kit**
 preset when starting a session to get the five lifecycle commands, all 22 Odoo
 skills, the `odoo_*` model-discovery tools, per-version Odoo documentation
-retrieval from the OKF knowledge bundles, and the kit's guardrails. See
+retrieval from the OKF knowledge bundles, and the kit's guardrails. Re-run the
+same script to update an installed preset — it content-addresses the plugin row
+so the next session loads the new code. See
 [`integrations/deepseek/README.md`](integrations/deepseek/README.md) and
 [`INSTALL.md`](integrations/deepseek/INSTALL.md).
 

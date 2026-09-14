@@ -52,6 +52,29 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
 
 ### Fixed
 
+- **A re-installed preset kept running the old plugin.** After the schema fix
+  above was installed, a *new* session still failed with the identical error.
+  Two independent harness behaviours were responsible, neither visible from the
+  filesystem:
+  1. The preset roster decides whether its standing mount is current by
+     stamping **only `agent.cordis.yml`** (mtime + size). `odoo-kit.mjs` is a
+     separate file, so editing it left the stamp identical and `ensureStanding`
+     served the already-mounted generation to every later session.
+  2. `EntryTree.import()` hands a row's specifier to Node's ESM loader with no
+     cache-busting query, so even a fresh mount resolves to the module Node
+     already evaluated in that process.
+
+  `install.sh` now rewrites the plugin row to a content-addressed specifier
+  (`name: ./odoo-kit.mjs?v=<sha256-12>`), which addresses both at once: the
+  composition file changes (new stamp → next session re-mounts) and the module
+  URL changes (→ Node imports the new code). `?v=` does not confuse the roster's
+  health check, because `fileURLToPath()` strips the query. The repo's own
+  composition stays clean at `./odoo-kit.mjs`; only installs are versioned.
+  `INSTALL.md` gained an "Updating an installed preset" section, and
+  `tests/test_deepseek_integration.py` now asserts the installed row is
+  content-addressed, still resolves to a real file, and is reproducible across
+  reinstalls.
+
 - **DSH tools rejected by the model provider — `required: true` in the parameter
   schemas.** Every real turn on the DeepSeek Harness preset failed with
   `Invalid schema for function 'odoo_get_fields': true is not of type "array"`.

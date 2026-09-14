@@ -78,9 +78,52 @@ for file in agent.cordis.yml preset.yml odoo-kit.mjs; do
 done
 printf '%s\n' "$REPO_ROOT" > "$TARGET_DIR/kit-root.txt"
 
+# Point the plugin row at a content-addressed URL, e.g. `./odoo-kit.mjs?v=1a2b3c4d5e6f`.
+#
+# Two independent harness behaviours make an unversioned specifier go stale, and
+# both are invisible from the filesystem:
+#
+#   1. The preset roster stamps ONLY `agent.cordis.yml` (mtime + size) to decide
+#      whether a standing mount is still current. Editing odoo-kit.mjs alone
+#      leaves the stamp identical, so `ensureStanding` serves the already-mounted
+#      generation to every later session.
+#   2. `EntryTree.import()` delegates to Node's ESM loader with no cache-busting
+#      query, so even a fresh mount resolves the specifier to the module Node
+#      already evaluated in this process.
+#
+# Rewriting the row fixes both at once: the composition file changes (new stamp,
+# so the next session re-mounts) and the module URL changes (so Node imports the
+# new code). Without it, a plugin edit would silently require restarting the
+# whole harness.
+content_hash() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | cut -c1-12
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | cut -c1-12
+  else
+    cksum "$1" | tr -d ' ' | cut -c1-12
+  fi
+}
+
+PLUGIN_REVISION="$(content_hash "$SOURCE_DIR/odoo-kit.mjs")"
+python3 - "$TARGET_DIR/agent.cordis.yml" "$PLUGIN_REVISION" <<'PY'
+import re
+import sys
+
+path, revision = sys.argv[1], sys.argv[2]
+text = open(path, encoding="utf-8").read()
+pattern = re.compile(r"(?m)^(\s*name:\s*)\./odoo-kit\.mjs(?:\?v=[0-9a-f]+)?\s*$")
+rewritten, count = pattern.subn(rf"\g<1>./odoo-kit.mjs?v={revision}", text)
+if count != 1:
+    sys.exit(f"FAIL: expected exactly one odoo-kit plugin row, rewrote {count}")
+open(path, "w", encoding="utf-8").write(rewritten)
+PY
+
 say "Installed preset '$PRESET_ID'"
 say "  preset root : $TARGET_DIR"
 say "  kit root    : $REPO_ROOT"
+say "  plugin rev  : $PLUGIN_REVISION (content-addressed, so an edited odoo-kit.mjs"
+say "                is re-imported by the next session instead of staying cached)"
 
 # Report which knowledge bundles were found, so a missing checkout is obvious
 # before the first session rather than at the first odoo_kb_* call.

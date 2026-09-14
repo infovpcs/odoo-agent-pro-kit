@@ -101,6 +101,37 @@ Real-session follow-up (2026-09-14, same day):
   must be restarted (a session's composition is fixed once its conversation
   begins).
 
+Second follow-up — a re-install did NOT take effect (2026-09-14):
+
+- After the schema fix was reinstalled, a **new** session still failed with the
+  identical `Invalid schema for function 'odoo_get_fields'` error. The installed
+  file on disk was verified correct (0 boolean `required` keywords), so the
+  process was still executing the old module. Two independent harness
+  behaviours, both verified in the harness source and by experiment:
+  1. `ensureStanding()` (`packages/preset/agent-presets/src/index.ts`) decides
+     whether a standing mount is current by stamping **only the composition
+     file** (`agent.cordis.yml`, mtime + size). `odoo-kit.mjs` is a separate
+     file, so editing it left the stamp identical and every later session —
+     including a brand-new one — was served the already-mounted generation.
+  2. `EntryTree.import()` (`vendor/loader/src/config/tree.ts`) delegates to
+     Node's internal ESM loader with no cache-busting query. Measured in one
+     process: re-importing the same URL after editing the file returned the
+     stale value; a `?v=` URL returned the fresh one.
+- Fix: `install.sh` now rewrites the plugin row to a content-addressed
+  specifier (`name: ./odoo-kit.mjs?v=<sha256-12>`). That changes the composition
+  (new stamp → the next session re-mounts) *and* the module URL (→ Node imports
+  the new code), so a re-install takes effect without restarting the harness.
+  `fileURLToPath()` strips the query, so the roster's health check still finds
+  the file — confirmed by test.
+- Guards added: `tests/test_deepseek_integration.py` asserts the installed row
+  is content-addressed, that its revision matches the plugin's sha256, that the
+  specifier still resolves to a real file, that reinstalling unchanged content
+  is reproducible, and that the repo's own composition stays unversioned.
+- Reinstalled for real; the installed row is
+  `name: ./odoo-kit.mjs?v=89d90b7c060c` and mount-validates clean via
+  `standingKeyFor`. A **new session** (no harness restart) starts a fresh
+  generation and imports the fixed module.
+
 ## Objective
 
 Build an open-source, reproducible Docker Sandbox execution layer in which each

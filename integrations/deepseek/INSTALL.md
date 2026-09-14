@@ -120,7 +120,36 @@ a temporary probe plugin that injects `agentPresets` and calls
 `standingKeyFor('odoo-agent-pro-kit')`. It resolves when the composition mounts
 and names the offending row otherwise.
 
-The four failures it catches, and what they mean here:
+> Mount validation proves the composition **loads**. It does not prove the tool
+> schemas are acceptable to the model provider, because DSH's own subset checker
+> is more permissive than the provider. That gap is exactly how a boolean
+> `required: true` in the parameter schemas once mount-validated clean while
+> every real turn failed. Only a real turn closes it.
+
+## Updating an installed preset
+
+Re-run `install.sh`. It rewrites the plugin row to a content-addressed
+specifier, e.g. `name: ./odoo-kit.mjs?v=89d90b7c060c`, and that is what makes the
+update take effect on the next session:
+
+- The preset roster decides whether its standing mount is current by stamping
+  **only `agent.cordis.yml`** (mtime + size). Editing `odoo-kit.mjs` alone leaves
+  the stamp identical, so the already-mounted generation is served to every
+  later session — a new session does not help.
+- `EntryTree.import()` hands the row's specifier to Node's ESM loader with no
+  cache-busting query, so even a fresh mount resolves to the module Node already
+  evaluated in that process.
+
+Rewriting the row addresses both at once: the composition changes (new stamp, so
+the next session re-mounts) and the module URL changes (so Node imports the new
+code). `?v=` does not confuse the harness — `fileURLToPath()` strips the query,
+so the roster's health check still finds the file.
+
+If you edit an installed preset by hand instead of re-running the installer,
+**restart the harness process**: nothing else will re-import a changed
+preset-local module. Starting another session will not.
+
+The four failures mount validation catches, and what they mean here:
 
 | Failure | Meaning for this preset |
 |---|---|

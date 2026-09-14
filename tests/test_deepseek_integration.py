@@ -11,10 +11,15 @@ Covers the two artifacts that make the DSH integration real:
 
 from __future__ import annotations
 
+import hashlib
+import os
+import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
+import urllib.parse
 from pathlib import Path
 
 import yaml
@@ -144,6 +149,55 @@ class TestInstaller(unittest.TestCase):
     def test_shell_syntax_is_valid(self):
         subprocess.run(["bash", "-n", str(INTEGRATION / "install.sh")], check=True)
 
+    def _install_into(self, home: str) -> Path:
+        env = {**os.environ, "DSH_HOME": home}
+        subprocess.run(
+            ["bash", str(INTEGRATION / "install.sh")],
+            cwd=REPO_ROOT, capture_output=True, text=True, check=True, env=env,
+        )
+        return Path(home) / ".agent-presets" / "odoo-agent-pro-kit"
+
+    def test_installed_plugin_row_is_content_addressed(self):
+        """The row must carry ``?v=<hash>`` or an edited plugin stays cached.
+
+        Two harness behaviours make an unversioned specifier go stale: the preset
+        roster stamps only ``agent.cordis.yml``, and ``EntryTree.import()`` hands
+        the specifier to Node's ESM loader with no cache-busting query. Rewriting
+        the row addresses both.
+        """
+        with tempfile.TemporaryDirectory() as home:
+            target = self._install_into(home)
+            composition = (target / "agent.cordis.yml").read_text(encoding="utf-8")
+            match = re.search(r"name:\s*\./odoo-kit\.mjs\?v=([0-9a-f]+)", composition)
+            self.assertIsNotNone(match, "the odoo-kit row is not content-addressed")
+            expected = hashlib.sha256((target / "odoo-kit.mjs").read_bytes()).hexdigest()[:12]
+            self.assertEqual(match.group(1), expected, "revision does not match the plugin contents")
+
+    def test_installed_specifier_still_resolves_to_a_real_file(self):
+        """The harness health-checks the row with fileURLToPath(url) + stat.
+
+        ``?v=`` must not turn the row into an unresolvable plugin, which would
+        mark the whole preset broken on the roster.
+        """
+        with tempfile.TemporaryDirectory() as home:
+            target = self._install_into(home)
+            composition = (target / "agent.cordis.yml").read_text(encoding="utf-8")
+            match = re.search(r"name:\s*(\./odoo-kit\.mjs\?v=[0-9a-f]+)", composition)
+            self.assertIsNotNone(match)
+            resolved = urllib.parse.urlparse(urllib.parse.urljoin("file://" + str(target) + "/", match.group(1)))
+            self.assertEqual(Path(resolved.path).resolve(), (target / "odoo-kit.mjs").resolve())
+
+    def test_reinstall_is_reproducible_for_unchanged_plugin_content(self):
+        with tempfile.TemporaryDirectory() as home:
+            first = (self._install_into(home) / "agent.cordis.yml").read_text(encoding="utf-8")
+            second = (self._install_into(home) / "agent.cordis.yml").read_text(encoding="utf-8")
+            self.assertEqual(first, second, "reinstalling unchanged content must not churn the composition")
+
+    def test_unversioned_source_composition_still_mounts(self):
+        """The repo keeps a clean ``./odoo-kit.mjs``; only installs add ``?v=``."""
+        row = {r.get("id"): r for r in flatten(load_composition())}["odoo-kit"]
+        self.assertEqual(row["name"], "./odoo-kit.mjs")
+
 
 @unittest.skipUnless(shutil.which("node"), "Node.js is required for the DSH plugin test")
 class TestPluginBehaviour(unittest.TestCase):
@@ -176,6 +230,17 @@ class TestDocumentation(unittest.TestCase):
             path = INTEGRATION / name
             self.assertTrue(path.is_file(), f"missing {name}")
             self.assertGreater(len(path.read_text(encoding="utf-8").strip()), 500)
+
+    def test_install_doc_explains_how_updates_take_effect(self):
+        """The reload behaviour is non-obvious; it must stay documented.
+
+        The roster stamps only agent.cordis.yml and Node caches the imported
+        module, so an unversioned plugin row silently keeps running old code.
+        """
+        text = (INTEGRATION / "INSTALL.md").read_text(encoding="utf-8")
+        self.assertIn("Updating an installed preset", text)
+        self.assertIn("?v=", text)
+        self.assertIn("restart the harness process", text)
 
     def test_integration_is_linked_from_the_main_readme(self):
         readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
