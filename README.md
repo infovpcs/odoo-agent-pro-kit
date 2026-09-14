@@ -84,7 +84,7 @@ reads it natively). See `integrations/codex/INSTALL.md`.
 | Hooks on SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop, SessionEnd, and PreCompact | `plugin/hooks/` (Claude Code) / `plugin/__init__.py` (native Hermes: `on_session_start`/`on_session_end`/`post_api_request`/`pre_tool_call`/`post_tool_call`) |
 | Deterministic pipeline hooks — `/start-coding` + `/testing` prerequisite gates, `odoo-bin`/`manage_modules.sh`/VCS/secret/Enterprise-source guardrails, sandbox operation-result verification, and a version-aware Odoo 17/18/19 coding-standard linter (rules L1–L6) | `plugin/hooks/odoo_hook.py` + `plugin/hooks/checks/` (Claude Code) / `plugin/__init__.py` `pre_tool_call`/`post_tool_call` (native Hermes) |
 | Live MCP server for Odoo 17/18/19 model discovery | `plugin/odoo_mcp/` (standalone server) / `plugin/__init__.py` (native Hermes in-process tools) |
-| DeepSeek Harness agent preset — lifecycle commands, all 22 skills, in-process `odoo_*` discovery tools, and per-version Odoo documentation retrieval from the OKF knowledge bundles | `integrations/deepseek/` |
+| DeepSeek Harness agent preset — lifecycle commands, all 22 skills, in-process `odoo_*` discovery tools (workspace `.env` aware), and per-version Odoo documentation retrieval from the OKF knowledge bundles | `integrations/deepseek/` |
 | Compose sidecar running odoo_mcp as a persistent service inside a Docker Sandbox session | `sandbox/mcp-sidecar/` |
 | Portable playbook for provisioning an AI agent host for Odoo dev (any agent/IDE, any project) | `plugin/skills/OdooHermesEnvironmentSetup/` |
 | Local Odoo workspace bootstrap/management scripts | `odoo_local_setup/` |

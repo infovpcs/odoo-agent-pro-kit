@@ -52,6 +52,20 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
 
 ### Fixed
 
+- **The DSH tools ignored the workspace `.env`.** `odoo_workspace_info` reported
+  every connection as `credentials_present: false` in a workspace whose `.env`
+  already carried `ODOO_URL` / `ODOO_DB_NAME` / `ODOO17_*` / `ODOO18_*` — the
+  plugin read only `process.env`, while the Python/Hermes path loads `.env` via
+  `python-dotenv`. The harness process's cwd is the harness's own, so the
+  connection is now resolved **per tool call** from the calling agent's
+  workspace: `.env` files are found by walking up from that workspace (five
+  levels, matching `python-dotenv`'s upward search) with the kit checkout as a
+  final fallback, cached per file by mtime, and merged under the process
+  environment with the row's own `config.odoo` on top — the same precedence
+  `plugin/odoo_mcp/config.py` uses. `DEFAULT_ODOO_VERSION` in a `.env` now
+  selects the default version. A malformed line is skipped rather than failing
+  the call, and no password value reaches tool output.
+
 - **A re-installed preset kept running the old plugin.** After the schema fix
   above was installed, a *new* session still failed with the identical error.
   Two independent harness behaviours were responsible, neither visible from the

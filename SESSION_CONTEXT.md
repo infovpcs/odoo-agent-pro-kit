@@ -131,6 +131,27 @@ Second follow-up — a re-install did NOT take effect (2026-09-14):
   `name: ./odoo-kit.mjs?v=89d90b7c060c` and mount-validates clean via
   `standingKeyFor`. A **new session** (no harness restart) starts a fresh
   generation and imports the fixed module.
+- **CONFIRMED WORKING (2026-09-14).** A real DSH session on the preset answered
+  a `hello` turn with 10 tool calls: it detected the workspace
+  (`~/odoo-workspaces/19_workspace`, Odoo 19.0, custom addons under `extra-19/`),
+  enumerated the custom modules, listed the five lifecycle commands, and stated
+  the raw-`odoo-bin` guardrail unprompted. The end-to-end path is live.
+- **Follow-up found by that session:** the live tools reported
+  `"configured": false` even though the workspace `.env` defines
+  `ODOO_URL` / `ODOO_DB_NAME` / `ODOO17_*` / `ODOO18_*`. The plugin read only
+  `process.env` while the Python/Hermes path loads `.env` via `python-dotenv`.
+  Fixed: the connection is now resolved per tool call from the calling agent's
+  workspace, walking up five levels for `.env` (matching `python-dotenv`) plus
+  the kit checkout, precedence = row config > process env > `.env` (versioned
+  then generic), cached per file by mtime, `DEFAULT_ODOO_VERSION` honoured. No
+  password reaches tool output. Verified against the real workspace: 19.0 →
+  `odoo19` @ `http://localhost:8109`, 18.0 → `odoo18` @ 8108, 17.0 → `odoo17` @
+  8107. Plugin suite now has 30 checks; repository suite 228 tests. Reinstalled
+  as `?v=88d525ee5f55` (a new revision, so the next session reloads) and
+  mount-validated clean.
+- Still unverified: a turn that actually *connects* to a live Odoo server — the
+  local server is not running (nothing on :8109), so the tools correctly report a
+  connection failure rather than a configuration one.
 
 ## Objective
 

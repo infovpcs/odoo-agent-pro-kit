@@ -84,13 +84,28 @@ under kebab-case names (`odoo-19-coding-standard`, `odoo-17-dependency-context`,
 ## 4. Configure Odoo connections
 
 The `odoo_*` discovery tools talk JSON-RPC-2.0 to a live Odoo database.
-Configuration is per version and read from the environment, in this precedence
-order:
+Configuration is per version, in this precedence order:
 
 1. the row's `config.odoo["<version>"]` in `agent.cordis.yml` (for a
    non-secret override such as a different host or database);
-2. `ODOO<NN>_URL`, `ODOO<NN>_DB_NAME`, `ODOO<NN>_DB_USER`, `ODOO<NN>_DB_PASSWORD`;
-3. `ODOO_URL`, `ODOO_DB_NAME`, `ODOO_DB_USER`, `ODOO_DB_PASSWORD`.
+2. the **process environment**, `ODOO<NN>_*` then generic `ODOO_*`;
+3. a **`.env` file**, `ODOO<NN>_*` then generic `ODOO_*`.
+
+The `.env` lookup walks up from the session's working directory (five levels,
+the same upward search `python-dotenv` performs for the Python path) and then
+falls back to the kit checkout. That is what makes a standard workspace work
+with no shell setup: an Odoo workspace whose `.env` already carries
+`ODOO_URL` / `ODOO_DB_NAME` / `ODOO_DB_USER` / `ODOO_DB_PASSWORD` — and the
+`ODOO17_*` / `ODOO18_*` overrides — is picked up as-is, and
+`DEFAULT_ODOO_VERSION` in that `.env` selects the default version.
+
+Because the harness process's own working directory is not the session's, the
+connection is resolved **per tool call** from the calling agent's workspace, and
+the parsed `.env` is cached per file by mtime. A malformed line is skipped rather
+than failing the call, and no password value ever appears in tool output.
+
+You can also set the variables explicitly in the shell that launches the
+harness, which outranks any `.env`:
 
 ```bash
 export ODOO19_URL="http://localhost:8069"
@@ -99,13 +114,17 @@ export ODOO19_DB_USER="admin"
 export ODOO19_DB_PASSWORD="admin"
 ```
 
-Set these in the shell that launches the harness so every session inherits
-them, then start a new session. Inside a Docker Sandbox session the preset also
-reads `.sandbox/session.json`, which supplies the version, module, session id,
-and the in-sandbox Odoo URL automatically.
+Inside a Docker Sandbox session the preset also reads `.sandbox/session.json`,
+which supplies the version, module, session id, and the in-sandbox Odoo URL
+automatically.
 
 Ask the session to run `odoo_workspace_info` to see exactly which version,
 database, and knowledge bundles were resolved.
+
+> The tools only *discover* a live database; they do not start one. If nothing is
+> listening on the configured port, expect a connection error rather than a
+> configuration error — start the server through `sandbox/bin/sandboxctl module`
+> or `bash manage_modules.sh`, never raw `odoo-bin`.
 
 ## 5. Verify the mount without starting a session
 

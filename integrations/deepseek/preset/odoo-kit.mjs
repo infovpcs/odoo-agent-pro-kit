@@ -33,11 +33,11 @@
  * @module odoo-agent-pro-kit
  */
 
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { readFile, readdir } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
-import { basename, join, relative, resolve, sep } from 'node:path'
+import { basename, dirname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 /** Stable Loader identity for this row. */
@@ -188,28 +188,18 @@ function resolveConfig(config) {
     if (fallback !== undefined) knowledgeRoots[version] = fallback
   }
 
-  const defaultOdooVersion = VERSION_ALIASES[String(raw.defaultOdooVersion ?? '')]
+  const requestedDefault = VERSION_ALIASES[String(raw.defaultOdooVersion ?? '')]
     ?? (VERSIONS.includes(String(raw.defaultOdooVersion)) ? String(raw.defaultOdooVersion) : undefined)
 
-  const odoo = {}
-  for (const version of VERSIONS) {
-    const entry = raw.odoo?.[version] ?? {}
-    const prefix = `ODOO${version.split('.')[0]}`
-    odoo[version] = {
-      url: entry.url ?? process.env[`${prefix}_URL`] ?? process.env.ODOO_URL,
-      db: entry.db ?? process.env[`${prefix}_DB_NAME`] ?? process.env.ODOO_DB_NAME,
-      user: entry.user ?? process.env[`${prefix}_DB_USER`] ?? process.env.ODOO_DB_USER ?? 'admin',
-      password: entry.password
-        ?? process.env[entry.passwordEnv ?? `${prefix}_DB_PASSWORD`]
-        ?? process.env.ODOO_DB_PASSWORD,
-    }
-  }
-
+  // `odoo`, `defaultOdooVersion`, and the rest of the connection state are
+  // resolved per call from the calling agent's workspace, because `.env` lives
+  // beside the Odoo checkout rather than in the harness process's cwd — see
+  // `connectionFor`. The row's own config stays the highest-precedence layer.
   return {
     repoRoot,
     knowledgeRoots,
-    defaultOdooVersion,
-    odoo,
+    rowOdoo: raw.odoo ?? {},
+    rowDefaultOdooVersion: requestedDefault,
     // Same truthy spellings and the same variables as `plugin/hooks/checks/`
     // (`common.py` for the raw-run lift, `authz.py` for the VCS lift). The
     // contributor hook's `AGENTS_PHASE_AUTHORIZED` is deliberately NOT
@@ -219,6 +209,125 @@ function resolveConfig(config) {
     allowRawOdoo: truthyEnv(process.env.ODOO_KIT_ALLOW_RAW_ODOO),
     allowVcsWriteEnv: truthyEnv(process.env.ODOO_KIT_ALLOW_VCS_WRITE),
   }
+}
+
+// ---------------------------------------------------------------------------
+// `.env` discovery
+// ---------------------------------------------------------------------------
+
+/** Parsed `.env` files, keyed by path, invalidated on mtime change. */
+const ENV_FILE_CACHE = new Map()
+
+/**
+ * Parse one `.env` file the way `python-dotenv` does for the Python path.
+ *
+ * Supports the shapes the kit's workspaces actually use: `KEY=value`,
+ * `export KEY=value`, `#` comments, blank lines, single- or double-quoted
+ * values, and values containing `=`. A malformed line is skipped rather than
+ * failing the call — a broken `.env` must not take the tools down.
+ */
+function parseEnvFile(text) {
+  const values = {}
+  for (const rawLine of String(text).split(/\r?\n/)) {
+    const line = rawLine.trim()
+    if (line === '' || line.startsWith('#')) continue
+    const withoutExport = line.startsWith('export ') ? line.slice(7).trim() : line
+    const separator = withoutExport.indexOf('=')
+    if (separator <= 0) continue
+    const key = withoutExport.slice(0, separator).trim()
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue
+    let value = withoutExport.slice(separator + 1).trim()
+    const quoted = (value.startsWith('"') && value.endsWith('"') && value.length > 1)
+      || (value.startsWith("'") && value.endsWith("'") && value.length > 1)
+    if (quoted) {
+      const inner = value.slice(1, -1)
+      value = value.startsWith('"') ? inner.replace(/\\n/g, '\n').replace(/\\"/g, '"') : inner
+    } else {
+      // An unquoted value ends at an inline comment.
+      const comment = value.indexOf(' #')
+      if (comment !== -1) value = value.slice(0, comment).trim()
+    }
+    values[key] = value
+  }
+  return values
+}
+
+/** Read and cache one `.env`, or an empty map when it is absent or unreadable. */
+function readEnvFile(path) {
+  try {
+    const { mtimeMs } = statSync(path)
+    const cached = ENV_FILE_CACHE.get(path)
+    if (cached !== undefined && cached.mtimeMs === mtimeMs) return cached.values
+    const values = parseEnvFile(readFileSync(path, 'utf8'))
+    ENV_FILE_CACHE.set(path, { mtimeMs, values })
+    return values
+  } catch {
+    ENV_FILE_CACHE.delete(path)
+    return {}
+  }
+}
+
+/**
+ * Every `.env` layer visible from one workspace, nearest first.
+ *
+ * The harness process's cwd is the harness's own, not the session's, so a
+ * connection cannot be resolved once at mount time. This walks up from the
+ * calling agent's cwd — the same upward search `python-dotenv` performs — and
+ * falls back to the kit checkout.
+ */
+function envLayers(config, cwd) {
+  const directories = []
+  let directory = typeof cwd === 'string' && cwd !== '' ? resolve(cwd) : undefined
+  for (let depth = 0; directory !== undefined && depth < 5; depth += 1) {
+    directories.push(directory)
+    const parent = dirname(directory)
+    if (parent === directory) break
+    directory = parent
+  }
+  if (config.repoRoot !== undefined) directories.push(config.repoRoot)
+  return directories.map(entry => readEnvFile(join(entry, '.env')))
+}
+
+/** First non-empty value: process environment, then the `.env` layers in order. */
+function firstDefined(name, layers) {
+  const fromProcess = process.env[name]
+  if (fromProcess !== undefined && fromProcess !== '') return fromProcess
+  for (const layer of layers) {
+    const value = layer[name]
+    if (value !== undefined && value !== '') return value
+  }
+  return undefined
+}
+
+/**
+ * Resolve one version's connection for a workspace.
+ *
+ * Precedence mirrors `plugin/odoo_mcp/config.py`: the preset row's own config,
+ * then `ODOO<NN>_*`, then the generic `ODOO_*`, with the process environment
+ * winning over any `.env` layer.
+ */
+function connectionFor(version, config, cwd) {
+  const layers = envLayers(config, cwd)
+  const row = config.rowOdoo?.[version] ?? {}
+  const prefix = `ODOO${version.split('.')[0]}`
+  const pick = (key) => firstDefined(`${prefix}_${key}`, layers) ?? firstDefined(`ODOO_${key}`, layers)
+  return {
+    url: row.url ?? pick('URL'),
+    db: row.db ?? pick('DB_NAME'),
+    user: row.user ?? pick('DB_USER') ?? 'admin',
+    password: row.password ?? firstDefined(row.passwordEnv ?? `${prefix}_DB_PASSWORD`, layers)
+      ?? firstDefined('ODOO_DB_PASSWORD', layers),
+  }
+}
+
+/** Resolve the default version for a workspace: row config, then `.env`, then detection. */
+function defaultVersionFor(config, cwd) {
+  if (config.rowDefaultOdooVersion !== undefined) return config.rowDefaultOdooVersion
+  const layers = envLayers(config, cwd)
+  const declared = firstDefined('DEFAULT_ODOO_VERSION', layers)
+  const alias = VERSION_ALIASES[String(declared ?? '').split('.')[0]]
+  if (alias !== undefined) return alias
+  return detectWorkspace(cwd).version
 }
 
 /**
@@ -391,9 +500,9 @@ async function odooLogin(spec, signal) {
 }
 
 /** Return one authenticated `{ uid, spec }` session for a version. */
-async function odooSession(version, config, signal) {
-  const spec = config.odoo[version]
-  if (spec === undefined || !spec.url || !spec.db) {
+async function odooSession(version, config, cwd, signal) {
+  const spec = connectionFor(version, config, cwd)
+  if (!spec.url || !spec.db) {
     throw new Error(
       `Odoo ${version} is not configured. Set ODOO${version.split('.')[0]}_URL, `
       + `ODOO${version.split('.')[0]}_DB_NAME, ODOO${version.split('.')[0]}_DB_USER and `
@@ -410,8 +519,8 @@ async function odooSession(version, config, signal) {
 }
 
 /** Call `object.execute_kw` for one version. */
-async function executeKw(version, config, model, method, positional = [], kwargs = {}, signal) {
-  const { uid, spec } = await odooSession(version, config, signal)
+async function executeKw(version, config, cwd, model, method, positional = [], kwargs = {}, signal) {
+  const { uid, spec } = await odooSession(version, config, cwd, signal)
   const response = await fetch(new URL('/jsonrpc', spec.url), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -445,8 +554,7 @@ function agentCwd(agent) {
 function pickVersion(requested, config, cwd) {
   const alias = VERSION_ALIASES[String(requested ?? '')] ?? (VERSIONS.includes(String(requested)) ? String(requested) : undefined)
   if (alias !== undefined) return alias
-  if (config.defaultOdooVersion !== undefined) return config.defaultOdooVersion
-  return detectWorkspace(cwd).version ?? '19.0'
+  return defaultVersionFor(config, cwd) ?? '19.0'
 }
 
 /** Coerce a JSON-RPC field-type map into a stable model-facing list. */
@@ -788,7 +896,7 @@ export function apply(ctx, config) {
     execute: async (args, exec) => {
       const version = pickVersion(args.version, resolved, agentCwd(exec?.agent))
       const limit = Number.isSafeInteger(args.limit) ? args.limit : 20
-      const records = await executeKw(version, resolved, 'ir.model', 'search_read',
+      const records = await executeKw(version, resolved, agentCwd(exec?.agent), 'ir.model', 'search_read',
         [[['model', '=like', `%${args.query}%`]]],
         { fields: ['model', 'name', 'transient'], limit }, exec?.signal)
       return records.map(record => ({
@@ -815,7 +923,7 @@ export function apply(ctx, config) {
     outputSchema: { type: 'object', additionalProperties: true },
     execute: async (args, exec) => {
       const version = pickVersion(args.version, resolved, agentCwd(exec?.agent))
-      const fieldsGet = await executeKw(version, resolved, args.model_name, 'fields_get', [],
+      const fieldsGet = await executeKw(version, resolved, agentCwd(exec?.agent), args.model_name, 'fields_get', [],
         { attributes: ['string', 'type', 'required', 'readonly', 'relation', 'help'] }, exec?.signal)
       return { model: args.model_name, version, fields: fieldList(fieldsGet) }
     },
@@ -837,7 +945,7 @@ export function apply(ctx, config) {
     outputSchema: { type: 'object', additionalProperties: true },
     execute: async (args, exec) => {
       const version = pickVersion(args.version, resolved, agentCwd(exec?.agent))
-      const fieldsGet = await executeKw(version, resolved, args.model_name, 'fields_get', [],
+      const fieldsGet = await executeKw(version, resolved, agentCwd(exec?.agent), args.model_name, 'fields_get', [],
         { attributes: ['string', 'type', 'relation', 'required'] }, exec?.signal)
       const relationships = fieldList(fieldsGet)
         .filter(field => field.type === 'many2one' || field.type === 'one2many' || field.type === 'many2many')
@@ -863,7 +971,7 @@ export function apply(ctx, config) {
     outputSchema: { type: 'object', additionalProperties: true },
     execute: async (args, exec) => {
       const version = pickVersion(args.version, resolved, agentCwd(exec?.agent))
-      const fieldsGet = await executeKw(version, resolved, args.model_name, 'fields_get', [args.field_name],
+      const fieldsGet = await executeKw(version, resolved, agentCwd(exec?.agent), args.model_name, 'fields_get', [args.field_name],
         { attributes: ['string', 'type', 'required', 'readonly', 'relation', 'help'] }, exec?.signal)
       const [field] = fieldList(fieldsGet)
       if (field === undefined) {
@@ -889,9 +997,9 @@ export function apply(ctx, config) {
     outputSchema: { type: 'object', additionalProperties: true },
     execute: async (args, exec) => {
       const version = pickVersion(args.version, resolved, agentCwd(exec?.agent))
-      const records = await executeKw(version, resolved, 'ir.model', 'search_read',
+      const records = await executeKw(version, resolved, agentCwd(exec?.agent), 'ir.model', 'search_read',
         [[['model', '=', args.model_name]]], { fields: ['model', 'name', 'transient'], limit: 1 }, exec?.signal)
-      const fieldsGet = await executeKw(version, resolved, args.model_name, 'fields_get', [],
+      const fieldsGet = await executeKw(version, resolved, agentCwd(exec?.agent), args.model_name, 'fields_get', [],
         { attributes: ['string', 'type', 'relation'] }, exec?.signal)
       const fields = fieldList(fieldsGet)
       return {
@@ -922,7 +1030,7 @@ export function apply(ctx, config) {
     execute: async (args, exec) => {
       const version = pickVersion(args.version, resolved, agentCwd(exec?.agent))
       const limit = Number.isSafeInteger(args.limit) ? args.limit : 100
-      const records = await executeKw(version, resolved, 'ir.model', 'search_read', [],
+      const records = await executeKw(version, resolved, agentCwd(exec?.agent), 'ir.model', 'search_read', [],
         { fields: ['model', 'name'], limit, order: 'model' }, exec?.signal)
       return records.map(record => ({ model: record.model, name: record.name }))
     },
@@ -941,14 +1049,14 @@ export function apply(ctx, config) {
     outputSchema: { type: 'object', additionalProperties: true },
     execute: async (args, exec) => {
       const version = pickVersion(args.version, resolved, agentCwd(exec?.agent))
-      const spec = resolved.odoo[version] ?? {}
+      const spec = connectionFor(version, resolved, agentCwd(exec?.agent))
       if (!spec.url || !spec.db) {
         return { version, configured: false, hint: `Set ODOO${version.split('.')[0]}_URL and ODOO${version.split('.')[0]}_DB_NAME.` }
       }
-      const session = await odooSession(version, resolved, exec?.signal)
+      const session = await odooSession(version, resolved, agentCwd(exec?.agent), exec?.signal)
       let serverVersion
       try {
-        const info = await executeKw(version, resolved, 'ir.module.module', 'search_read',
+        const info = await executeKw(version, resolved, agentCwd(exec?.agent), 'ir.module.module', 'search_read',
           [[['name', '=', 'base']]], { fields: ['latest_version'], limit: 1 }, exec?.signal)
         serverVersion = info[0]?.latest_version
       } catch {
@@ -976,17 +1084,20 @@ export function apply(ctx, config) {
       return {
         cwd,
         detected,
-        default_version: resolved.defaultOdooVersion ?? detected.version ?? null,
+        default_version: defaultVersionFor(resolved, cwd) ?? detected.version ?? null,
         kit_root: resolved.repoRoot ?? null,
         knowledge_bases: Object.entries(resolved.knowledgeRoots)
           .map(([version, path]) => ({ version, path, exists: existsSync(path) })),
-        connections: VERSIONS.map((version) => ({
-          version,
-          url: resolved.odoo[version]?.url ?? null,
-          database: resolved.odoo[version]?.db ?? null,
-          user: resolved.odoo[version]?.user ?? null,
-          credentials_present: Boolean(resolved.odoo[version]?.url && resolved.odoo[version]?.db),
-        })),
+        connections: VERSIONS.map((version) => {
+          const spec = connectionFor(version, resolved, cwd)
+          return {
+            version,
+            url: spec.url ?? null,
+            database: spec.db ?? null,
+            user: spec.user ?? null,
+            credentials_present: Boolean(spec.url && spec.db),
+          }
+        }),
         guard: {
           allow_raw_odoo: resolved.allowRawOdoo,
           allow_vcs_write_env: resolved.allowVcsWriteEnv,

@@ -10,7 +10,7 @@
  * Run: node integrations/deepseek/tests/plugin.test.mjs
  */
 
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
@@ -26,6 +26,13 @@ import { apply, inject, name } from '../preset/odoo-kit.mjs'
 delete process.env.ODOO_KIT_ALLOW_RAW_ODOO
 delete process.env.ODOO_KIT_ALLOW_VCS_WRITE
 delete process.env.AGENTS_PHASE_AUTHORIZED
+
+// Connection resolution reads the process environment before any `.env`, so
+// clear the Odoo keys too: these tests must assert what the plugin does with a
+// workspace `.env`, not what the developer's shell happens to export.
+for (const key of Object.keys(process.env)) {
+  if (/^(ODOO\d*_|DEFAULT_ODOO_VERSION)/.test(key)) delete process.env[key]
+}
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(HERE, '..', '..', '..')
@@ -411,6 +418,88 @@ check('odoo_workspace_info reports config and detected workspace', () => {
   assert.equal(workspace.guard.allow_vcs_write_env, false)
   assert.equal(workspace.guard.vcs_writes_allowed, false)
 })
+
+// ── `.env` discovery, the parity gap with the Python/hooks path ─────────────
+
+const CONNECTIONS_WORKSPACE = mkdtempSync(join(tmpdir(), 'odoo-kit-env-'))
+writeFileSync(join(CONNECTIONS_WORKSPACE, '.env'), [
+  '# comment line',
+  '',
+  'ODOO_URL=http://localhost:8109',
+  'ODOO_DB_NAME=odoo19',
+  'ODOO_DB_USER=admin',
+  'ODOO_DB_PASSWORD=super-secret-value',
+  'export ODOO17_URL="http://localhost:8107"',
+  "ODOO17_DB_NAME='odoo17'",
+  'ODOO18_DB_NAME=odoo18  # trailing comment',
+  'DEFAULT_ODOO_VERSION=17',
+].join('\n'))
+
+/** Apply the plugin fresh and run odoo_workspace_info from one workspace. */
+async function workspaceInfo(cwd) {
+  const { ctx: envCtx, recorded: envRecorded } = stubContext()
+  apply(envCtx, { repoRoot: REPO_ROOT })
+  const info = envRecorded.tools.find(entry => entry.name === 'odoo_workspace_info')
+  return { out: await info.execute({}, { agent: { session: { header: { cwd } } } }), tools: envRecorded.tools }
+}
+
+const { out: envWorkspace } = await workspaceInfo(CONNECTIONS_WORKSPACE)
+
+check('resolves Odoo connections from the workspace .env', () => {
+  const byVersion = Object.fromEntries(envWorkspace.connections.map(entry => [entry.version, entry]))
+  assert.equal(byVersion['19.0'].database, 'odoo19', 'generic ODOO_DB_NAME should apply to 19.0')
+  assert.equal(byVersion['19.0'].url, 'http://localhost:8109')
+  assert.equal(byVersion['19.0'].credentials_present, true)
+  // Version-prefixed keys win, and the quoted / exported forms parse.
+  assert.equal(byVersion['17.0'].url, 'http://localhost:8107')
+  assert.equal(byVersion['17.0'].database, 'odoo17')
+  // An inline comment is not part of the value.
+  assert.equal(byVersion['18.0'].database, 'odoo18')
+})
+
+check('DEFAULT_ODOO_VERSION from .env selects the default version', () => {
+  assert.equal(envWorkspace.default_version, '17.0')
+})
+
+check('the process environment outranks any .env layer', async () => {
+  process.env.ODOO19_DB_NAME = 'from-process'
+  try {
+    const { out } = await workspaceInfo(CONNECTIONS_WORKSPACE)
+    const nineteen = out.connections.find(entry => entry.version === '19.0')
+    assert.equal(nineteen.database, 'from-process')
+  } finally {
+    delete process.env.ODOO19_DB_NAME
+  }
+})
+
+check('no password reaches the model through odoo_workspace_info', () => {
+  const serialized = JSON.stringify(envWorkspace)
+  assert.ok(!serialized.includes('super-secret-value'), 'the .env password leaked into tool output')
+  assert.ok(!/password/i.test(serialized), 'the output exposes a password field')
+})
+
+check('a workspace without a .env reports connections as unconfigured', async () => {
+  const bare = mkdtempSync(join(tmpdir(), 'odoo-kit-bare-'))
+  try {
+    const { out } = await workspaceInfo(bare)
+    assert.equal(out.connections.every(entry => entry.credentials_present === false), true)
+  } finally {
+    rmSync(bare, { recursive: true, force: true })
+  }
+})
+
+check('a malformed .env does not break resolution', async () => {
+  const broken = mkdtempSync(join(tmpdir(), 'odoo-kit-broken-'))
+  writeFileSync(join(broken, '.env'), 'not a pair\n=novalue\nOK_KEY=value\n"bad"=x\n')
+  try {
+    const { out } = await workspaceInfo(broken)
+    assert.equal(out.connections.length, 3, 'a broken .env must not fail the call')
+  } finally {
+    rmSync(broken, { recursive: true, force: true })
+  }
+})
+
+rmSync(CONNECTIONS_WORKSPACE, { recursive: true, force: true })
 
 // ── command handler submits the workflow as a user message ──────────────────
 
