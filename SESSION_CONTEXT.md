@@ -75,6 +75,32 @@ Verified evidence (2026-09-14):
   model-visible tool/command/skill list. That requires selecting the preset
   when starting a session and is the next confirmation step.
 
+Real-session follow-up (2026-09-14, same day):
+
+- A real DSH session started on the preset **failed every turn** with
+  `Invalid schema for function 'odoo_get_fields': true is not of type "array"`
+  (`INVALID_REQUEST`). Root cause: the tool parameters were authored in
+  `defineTool`'s *spec* dialect (`required: true` on a property) but passed
+  straight to `ctx.tools.register`, which takes already-converted raw JSON
+  Schema — where `required` must be an array of property names at the object
+  level. DSH's `assertSupportedJsonSchema` accepts the boolean form, which is
+  why mount validation passed clean and the defect only surfaced at the
+  provider.
+- Fixed: all 11 tools now use pure JSON Schema
+  (`integrations/deepseek/preset/odoo-kit.mjs`). The exact wire JSON for
+  `odoo_get_fields` was dumped and checked by hand, and no tool in the catalog
+  now contains a boolean `required`.
+- Guard added: `integrations/deepseek/tests/plugin.test.mjs` validates every
+  tool's parameter and output schema as strict JSON Schema and fails on any
+  non-array `required`, naming the tool and property. Reintroducing the original
+  one-line defect was verified to fail the suite with
+  `odoo_get_fields.parameters.properties.model_name.required: must be an array
+  of property names … got true`.
+- The corrected preset was reinstalled into
+  `/Users/vinusoft85/.dsh/.agent-presets/odoo-agent-pro-kit`; a running session
+  must be restarted (a session's composition is fixed once its conversation
+  begins).
+
 ## Objective
 
 Build an open-source, reproducible Docker Sandbox execution layer in which each

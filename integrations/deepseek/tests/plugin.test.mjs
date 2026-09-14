@@ -148,6 +148,99 @@ check('every tool declares an object-rooted parameter schema and an output schem
   }
 })
 
+/**
+ * Validate one schema node the way a strict JSON Schema consumer — the model
+ * provider — reads it, rather than the way DSH's permissive subset checker
+ * does.
+ *
+ * This check exists because it was missing. The parameters were first written
+ * in `defineTool`'s *spec* dialect (`required: true` on a property) but handed
+ * to `ctx.tools.register`, which takes already-converted raw JSON Schema. The
+ * registry accepted it and the preset mount-validated clean, then every real
+ * turn failed with:
+ *
+ *   Invalid schema for function 'odoo_get_fields': true is not of type "array"
+ */
+const SCHEMA_KEYWORDS = new Set([
+  'type', 'properties', 'required', 'additionalProperties', 'items', 'enum',
+  'const', 'oneOf', 'description', 'title', 'default', 'examples',
+])
+
+function schemaViolations(node, path) {
+  const problems = []
+  if (node === null || typeof node !== 'object' || Array.isArray(node)) {
+    return [`${path}: schema node must be an object, got ${JSON.stringify(node)}`]
+  }
+  for (const key of Object.keys(node)) {
+    if (!SCHEMA_KEYWORDS.has(key)) problems.push(`${path}.${key}: unsupported or misplaced keyword`)
+  }
+  if (Object.hasOwn(node, 'required')) {
+    if (!Array.isArray(node.required)) {
+      problems.push(
+        `${path}.required: must be an array of property names (a boolean here reaches the model `
+        + `provider as raw JSON Schema), got ${JSON.stringify(node.required)}`,
+      )
+    } else {
+      if (node.type !== 'object') problems.push(`${path}.required: only valid on an object schema`)
+      for (const name of node.required) {
+        if (typeof name !== 'string') problems.push(`${path}.required: entries must be strings`)
+        else if (node.properties !== undefined && !Object.hasOwn(node.properties, name)) {
+          problems.push(`${path}.required: "${name}" is not declared in properties`)
+        }
+      }
+    }
+  }
+  if (node.properties !== undefined) {
+    if (typeof node.properties !== 'object' || Array.isArray(node.properties)) {
+      problems.push(`${path}.properties: must be an object`)
+    } else {
+      for (const [name, child] of Object.entries(node.properties)) {
+        problems.push(...schemaViolations(child, `${path}.properties.${name}`))
+      }
+    }
+  }
+  if (node.type === 'object' && typeof node.additionalProperties !== 'boolean') {
+    problems.push(`${path}.additionalProperties: an object schema must declare it as a boolean`)
+  }
+  if (node.items !== undefined) problems.push(...schemaViolations(node.items, `${path}.items`))
+  if (node.oneOf !== undefined) {
+    if (!Array.isArray(node.oneOf) || node.oneOf.length < 2) {
+      problems.push(`${path}.oneOf: needs at least two branches`)
+    } else {
+      node.oneOf.forEach((branch, index) => problems.push(...schemaViolations(branch, `${path}.oneOf[${index}]`)))
+    }
+  }
+  if (node.enum !== undefined && !Array.isArray(node.enum)) {
+    problems.push(`${path}.enum: must be an array`)
+  }
+  return problems
+}
+
+check('every tool schema is strict JSON Schema the model provider accepts', () => {
+  const problems = []
+  for (const entry of recorded.tools) {
+    problems.push(...schemaViolations(entry.parameters, `${entry.name}.parameters`))
+    problems.push(...schemaViolations(entry.output.schema, `${entry.name}.output.schema`))
+  }
+  assert.deepEqual(problems, [], `tool schema violations:\n  - ${problems.join('\n  - ')}`)
+})
+
+check('no tool parameter uses a boolean `required` (the spec-dialect mistake)', () => {
+  const walk = (node, path) => {
+    if (node === null || typeof node !== 'object') return []
+    const found = []
+    if (Object.hasOwn(node, 'required') && typeof node.required === 'boolean') {
+      found.push(`${path}.required = ${node.required}`)
+    }
+    for (const [key, value] of Object.entries(node)) {
+      found.push(...walk(value, `${path}.${key}`))
+    }
+    return found
+  }
+  const offenders = recorded.tools.flatMap(entry => walk(entry.parameters, entry.name))
+  assert.deepEqual(offenders, [], `boolean required keywords present: ${offenders.join(', ')}`)
+})
+
 check('registers the 22 bundled skills under kebab-case names', () => {
   const skills = recorded.skills
   assert.ok(skills.length >= 20, `expected the bundled skill catalog, got ${skills.length}`)

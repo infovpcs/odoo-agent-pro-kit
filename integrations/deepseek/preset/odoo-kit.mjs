@@ -778,7 +778,7 @@ export function apply(ctx, config) {
       type: 'object',
       additionalProperties: false,
       properties: {
-        query: { type: 'string', required: true, description: 'Search text, e.g. "sale.order" or "pricelist".' },
+        query: { type: 'string', description: 'Search text, e.g. "sale.order" or "pricelist".' },
         version: versionParam,
         limit: { type: 'integer', description: 'Maximum results (default 20).' },
       },
@@ -807,7 +807,7 @@ export function apply(ctx, config) {
       type: 'object',
       additionalProperties: false,
       properties: {
-        model_name: { type: 'string', required: true, description: 'Technical model name, e.g. sale.order.' },
+        model_name: { type: 'string', description: 'Technical model name, e.g. sale.order.' },
         version: versionParam,
       },
       required: ['model_name'],
@@ -829,7 +829,7 @@ export function apply(ctx, config) {
       type: 'object',
       additionalProperties: false,
       properties: {
-        model_name: { type: 'string', required: true, description: 'Technical model name.' },
+        model_name: { type: 'string', description: 'Technical model name.' },
         version: versionParam,
       },
       required: ['model_name'],
@@ -854,8 +854,8 @@ export function apply(ctx, config) {
       type: 'object',
       additionalProperties: false,
       properties: {
-        model_name: { type: 'string', required: true, description: 'Technical model name.' },
-        field_name: { type: 'string', required: true, description: 'Technical field name.' },
+        model_name: { type: 'string', description: 'Technical model name.' },
+        field_name: { type: 'string', description: 'Technical field name.' },
         version: versionParam,
       },
       required: ['model_name', 'field_name'],
@@ -881,7 +881,7 @@ export function apply(ctx, config) {
       type: 'object',
       additionalProperties: false,
       properties: {
-        model_name: { type: 'string', required: true, description: 'Technical model name.' },
+        model_name: { type: 'string', description: 'Technical model name.' },
         version: versionParam,
       },
       required: ['model_name'],
@@ -1006,7 +1006,7 @@ export function apply(ctx, config) {
       type: 'object',
       additionalProperties: false,
       properties: {
-        query: { type: 'string', required: true, description: 'Search terms, e.g. "compute field depends".' },
+        query: { type: 'string', description: 'Search terms, e.g. "compute field depends".' },
         version: versionParam,
         limit: { type: 'integer', description: 'Maximum results (default 8).' },
       },
@@ -1050,7 +1050,7 @@ export function apply(ctx, config) {
       type: 'object',
       additionalProperties: false,
       properties: {
-        path: { type: 'string', required: true, description: 'Page path relative to the bundle root, e.g. developer/reference/backend/orm.md.' },
+        path: { type: 'string', description: 'Page path relative to the bundle root, e.g. developer/reference/backend/orm.md.' },
         version: versionParam,
         max_chars: { type: 'integer', description: 'Maximum characters to return (default 24000).' },
       },

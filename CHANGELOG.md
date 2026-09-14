@@ -52,6 +52,20 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
 
 ### Fixed
 
+- **DSH tools rejected by the model provider — `required: true` in the parameter
+  schemas.** Every real turn on the DeepSeek Harness preset failed with
+  `Invalid schema for function 'odoo_get_fields': true is not of type "array"`.
+  The tool parameters were written in `defineTool`'s *spec* dialect (a boolean
+  `required: true` on a property) but handed straight to `ctx.tools.register`,
+  which takes already-converted raw JSON Schema, where `required` is an array of
+  property names at the object level. DSH's own subset checker accepts the
+  boolean form, so the preset mount-validated clean and the defect only appeared
+  when the schemas reached the provider. `integrations/deepseek/preset/odoo-kit.mjs`
+  now uses pure JSON Schema for all 11 tools, and
+  `integrations/deepseek/tests/plugin.test.mjs` gained a strict-JSON-Schema
+  validator that fails on any non-array `required`, naming the offending tool and
+  property — the exact shape of the reported error.
+
 - **Undeclared Python test dependencies.** `tests/test_deepseek_integration.py`
   made PyYAML a real test dependency, but nothing declared it, so
   `./scripts/validate.sh` silently required every contributor's virtualenv to
