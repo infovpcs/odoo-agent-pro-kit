@@ -27,6 +27,7 @@ fi
 echo "==> Shell syntax"
 bash -n \
   bootstrap.sh \
+  integrations/deepseek/install.sh \
   odoo_local_setup/*.sh \
   plugin/hooks/*.sh \
   plugin/odoo_mcp/*.sh \

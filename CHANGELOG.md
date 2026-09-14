@@ -3,6 +3,53 @@
 All notable changes to `odoo-agent-pro-kit` are documented here. Versions
 track the `plugin/.claude-plugin/plugin.json` `version` field.
 
+## Unreleased
+
+### Added
+
+- **DeepSeek Harness (DSH) integration** — `integrations/deepseek/` ships an
+  agent preset that gives a DSH session the same Odoo 17/18/19 lifecycle the
+  Claude Code and Hermes plugins provide:
+  - `preset/agent.cordis.yml` — the shipped `standard` coding agent plus one
+    `odoo-kit` row. Every service-owning group (`planning`, `compaction`,
+    `delegation`) keeps the entry-local `isolate` realm the loader requires;
+    `odoo-kit` registers only into the scoped `tools`, `commands`, `skills`,
+    and `systemPrompt` registries, so it sits loose with no realm.
+  - `preset/odoo-kit.mjs` — a plain-ESM Cordis plugin using `node:` builtins
+    only (a user preset under `$DSH_HOME/.agent-presets` cannot resolve the
+    harness's own packages). It registers:
+    - the five lifecycle commands, each reading its `plugin/commands/*.md`
+      body and submitting it as a model-visible user message through
+      `agent.followup`;
+    - all 22 bundled skills, renamed to DSH's kebab-case skill grammar
+      (`odoo_17_coding_standard` → `odoo-17-coding-standard`), because
+      `dsh-skill-filesystem` silently drops underscore names;
+    - 7 in-process `odoo_*` model-discovery tools over JSON-RPC-2.0 with one
+      pooled session per version, plus a JSON-RPC fallback from Odoo's
+      renamed `common.login` to `common.authenticate`;
+    - 3 `odoo_kb_*` tools that search and read the per-version OKF knowledge
+      bundles offline, path-contained to the bundle root;
+    - `odoo_workspace_info`, reporting the detected version/module/sandbox
+      session and the resolved knowledge bases and connections;
+    - a lifecycle prompt section, and a `tools.guard` re-implementing the
+      `plugin/hooks/checks/guard.py` refusals (raw `odoo-bin`, direct
+      `manage_modules.sh`, VCS writes, destructive cleanup, and writes into an
+      Enterprise source tree). It honours exactly the Python hooks'
+      authorizations: `ODOO_KIT_ALLOW_RAW_ODOO` / `ODOO_KIT_ALLOW_VCS_WRITE`
+      with the same truthy spellings (`1`/`true`/`yes`/`on`), plus a
+      `.sandbox/AUTHORIZED` marker read per tool call. The contributor hook's
+      `AGENTS_PHASE_AUTHORIZED` is deliberately not consulted — a contributor's
+      exported shell must not disable an agent session's guard.
+  - `install.sh` — copies the preset into `${DSH_HOME:-$HOME/.dsh}/.agent-presets/`,
+    records the checkout path in `kit-root.txt`, reports which knowledge
+    bundles were found, and supports `--dry-run` and `--uninstall`.
+  - `tests/plugin.test.mjs` — drives `apply()` against a recording stub of the
+    Cordis context and asserts the registered command/skill/tool catalog, the
+    guard's allow/deny decisions, and a real knowledge-base round-trip.
+  - `tests/test_deepseek_integration.py` — preset shape, realm placement,
+    installer contract, and documentation-link checks, wired into
+    `./scripts/validate.sh`.
+
 ## 0.6.0 — 2026-09-03
 
 ### Added

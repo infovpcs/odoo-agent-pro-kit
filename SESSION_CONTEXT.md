@@ -32,6 +32,49 @@ Before changing files:
   Deliverables and all five platform/orchestration coverage checklist items
   verified with real evidence; Phase 8 is complete)
 
+## Latest additive work — DeepSeek Harness integration (unreleased)
+
+Not a Docker Sandbox phase. `integrations/deepseek/` adds a DeepSeek Harness
+(DSH) agent preset so the kit's Odoo 17/18/19 lifecycle is available to DSH
+sessions the way it already is to Claude Code and Hermes.
+
+- `integrations/deepseek/preset/agent.cordis.yml` — the shipped `standard`
+  coding agent plus one `odoo-kit` row. Service-owning groups (`planning`,
+  `compaction`, `delegation`) keep their entry-local `isolate` realms;
+  `odoo-kit` registers only into the scoped `tools`, `commands`, `skills`, and
+  `systemPrompt` registries, so it sits loose with no realm.
+- `integrations/deepseek/preset/odoo-kit.mjs` — plain-ESM Cordis plugin, only
+  `node:` builtins (a user preset cannot resolve the harness's own packages).
+  Registers the five lifecycle commands, all 22 skills under DSH's kebab-case
+  grammar, 7 `odoo_*` JSON-RPC-2.0 discovery tools, 3 `odoo_kb_*` tools over
+  the OKF bundles, `odoo_workspace_info`, a lifecycle prompt section, and a
+  `tools.guard` mirroring `plugin/hooks/checks/guard.py` — the same
+  `ODOO_KIT_ALLOW_RAW_ODOO` / `ODOO_KIT_ALLOW_VCS_WRITE` truthy spellings and
+  the same `.sandbox/AUTHORIZED` marker, with `AGENTS_PHASE_AUTHORIZED`
+  deliberately excluded.
+- `integrations/deepseek/install.sh` — copies the preset into
+  `${DSH_HOME:-$HOME/.dsh}/.agent-presets/odoo-agent-pro-kit/`, records the
+  checkout path in `kit-root.txt`, supports `--dry-run` and `--uninstall`.
+- Tests: `integrations/deepseek/tests/plugin.test.mjs` (behavioural, against a
+  recording stub of the Cordis context) and `tests/test_deepseek_integration.py`
+  (preset shape, realm placement, installer contract, documentation links).
+
+Verified evidence (2026-09-14):
+
+- `./scripts/validate.sh` — OK, 219 tests passed (includes the 15 new tests).
+- `node integrations/deepseek/tests/plugin.test.mjs` — all checks passed,
+  including a live `odoo_kb_search` / `odoo_kb_read` round-trip against
+  `~/odoo-workspaces/knowledge-19/odoo19-okf`.
+- Preset installed to `/Users/vinusoft85/.dsh/.agent-presets/odoo-agent-pro-kit`
+  and mount-validated in a running DSH process via
+  `agentPresets.standingKeyFor('odoo-agent-pro-kit')` — mounted OK (no
+  unresolvable row, no invalid config, no inactive row, no process-global
+  service). `compositionInventory()` reports every row `enabled: true` with
+  `fiberState: 2` (active), including `./odoo-kit.mjs`.
+- Not yet verified: a real DSH session started on the preset, confirming the
+  model-visible tool/command/skill list. That requires selecting the preset
+  when starting a session and is the next confirmation step.
+
 ## Objective
 
 Build an open-source, reproducible Docker Sandbox execution layer in which each

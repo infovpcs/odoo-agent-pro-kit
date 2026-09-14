@@ -1,0 +1,8 @@
+name: Odoo Agent Pro Kit
+description: >-
+  Full coding agent plus the Odoo 17/18/19 custom-application lifecycle:
+  /plan-analysis, /start-coding, /testing, /fleet and /rules-check-drift
+  commands, the 22 bundled Odoo skills, live model discovery over
+  XML-RPC/JSON-RPC-2.0, per-version Odoo documentation retrieval from the OKF
+  knowledge bundles, and the kit's deterministic guardrails.
+order: 10
