@@ -50,6 +50,20 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
     installer contract, and documentation-link checks, wired into
     `./scripts/validate.sh`.
 
+### Fixed
+
+- **Undeclared Python test dependencies.** `tests/test_deepseek_integration.py`
+  made PyYAML a real test dependency, but nothing declared it, so
+  `./scripts/validate.sh` silently required every contributor's virtualenv to
+  already have it. `pytest` was in the same position. Both are now pinned in a
+  new root `requirements-dev.txt` (the shipped plugin, hooks, and MCP server
+  still need neither), the validation entrypoint preflights them and fails with
+  the install command instead of failing part-way through the suite, and CI
+  installs the file and actually runs the test suite — it previously ran only
+  the skill validator and unittest module. `tests/test_dev_dependencies.py`
+  derives the real dependency set from the source with `ast`, so adding an
+  import without declaring it fails the suite and names the importing file.
+
 ## 0.6.0 — 2026-09-03
 
 ### Added

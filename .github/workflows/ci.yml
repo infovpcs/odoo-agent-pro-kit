@@ -14,6 +14,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      # Install the declared test dependencies rather than relying on whatever
+      # the runner image happens to ship; ./scripts/validate.sh preflights them.
+      - name: Install test dependencies
+        run: python3 -m pip install -r requirements-dev.txt
+      - name: Run test suite
+        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -q tests
       - name: Validate skill frontmatter and scan for private strings
         run: python3 scripts/validate_skills.py plugin/skills
       - name: Run validator unit tests

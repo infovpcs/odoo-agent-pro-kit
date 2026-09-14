@@ -178,12 +178,17 @@ Run the complete repository validation suite from any directory inside the
 clone:
 
 ```bash
+python3 -m pip install -r requirements-dev.txt
 ./scripts/validate.sh
 ```
 
-The entrypoint isolates pytest from unrelated globally installed plugins, then
-runs tests, skill/artifact/release checks, Compose validation when Docker is
-available, syntax checks, and Git whitespace validation.
+The test dependencies are declared in `requirements-dev.txt` (pytest and
+PyYAML); the shipped plugin, hooks, and MCP server need none of them. The
+entrypoint preflights those imports and fails with the install command if one is
+missing, rather than failing part-way through the suite. It then isolates pytest
+from unrelated globally installed plugins, and runs tests, skill/artifact/release
+checks, Compose validation when Docker is available, syntax checks, and Git
+whitespace validation.
 
 ## Delivery workflow
 

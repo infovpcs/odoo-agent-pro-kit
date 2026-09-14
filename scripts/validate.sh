@@ -6,6 +6,26 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 cd "$REPO_ROOT"
 
+# Fail fast and actionably when a test dependency is absent, instead of letting
+# pytest/import errors surface halfway through the suite. The declarations live
+# in requirements-dev.txt; tests/test_dev_dependencies.py fails if this list and
+# that file drift apart.
+echo "==> Python test dependencies"
+python3 - <<'PY'
+import importlib.util
+import sys
+
+# import name -> distribution name, kept in step with requirements-dev.txt.
+REQUIRED = {"pytest": "pytest", "yaml": "PyYAML"}
+missing = sorted(pkg for module, pkg in REQUIRED.items() if importlib.util.find_spec(module) is None)
+if missing:
+    sys.exit(
+        "FAIL: missing Python test dependency: " + ", ".join(missing)
+        + "\n  Install them with: python3 -m pip install -r requirements-dev.txt"
+    )
+print("OK: " + ", ".join(sorted(REQUIRED.values())) + " present")
+PY
+
 echo "==> Repository tests"
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -q tests
 

@@ -1,0 +1,16 @@
+# Test and validation dependencies for THIS repository.
+#
+# The kit itself needs none of these. The shipped plugin, hooks, skills, and the
+# odoo_mcp server run on the Python standard library plus the runtime pins in
+# plugin/odoo_mcp/requirements.txt. Everything below is needed only to run
+# ./scripts/validate.sh and the tests/ suite.
+#
+#   python3 -m pip install -r requirements-dev.txt
+#
+# PyYAML parses the DeepSeek Harness preset composition
+# (integrations/deepseek/preset/agent.cordis.yml), including its `!!js` tagged
+# scalars, in tests/test_deepseek_integration.py. It is deliberately not used by
+# the shipped tooling: scripts/validate_skills.py and plugin/hooks/checks/ stay
+# standard-library only.
+pytest>=8.0
+PyYAML>=6.0,<7

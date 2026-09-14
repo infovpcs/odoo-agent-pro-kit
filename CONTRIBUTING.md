@@ -15,10 +15,15 @@ scoped to that.
    git checkout main && git merge upstream/main
    ```
 3. Create a feature branch for your proposal: `git checkout -b my-proposal`.
-4. Make your change, then run the repository validation entrypoint:
+4. Make your change, then install the test dependencies and run the repository
+   validation entrypoint:
    ```bash
+   python3 -m pip install -r requirements-dev.txt
    ./scripts/validate.sh
    ```
+   `requirements-dev.txt` holds the test-only dependencies (pytest and PyYAML).
+   If you add a test that imports a new third-party module, declare it there —
+   `tests/test_dev_dependencies.py` fails the suite until you do.
 5. Open a pull request against `infovpcs/odoo-agent-pro-kit:main` using the PR
    template — fill in Summary, Motivation, Odoo version(s) affected,
    skill(s)/component(s) touched, testing done, and the checklist.
@@ -46,7 +51,7 @@ A human maintainer makes the final merge decision.
 
 In scope: Odoo 17.0/18.0/19.0 skills, commands, hooks, local/Sandbox setup scripts,
 and agent integrations (Claude Code, Codex, Cursor, Antigravity, VS Code,
-GitHub Copilot).
+GitHub Copilot, DeepSeek Harness).
 
 Out of scope: mobile/Flutter development, non-Odoo integrations, client- or
 business-specific content of any kind, Odoo versions below 17.0.
