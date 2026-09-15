@@ -157,6 +157,26 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
   the script when the workspace was not set explicitly — is preserved. The
   configuration header now reports the absolute workspace path instead of `.`.
 
+- **`manage_modules.sh` targeted the wrong database in a tenant workspace.**
+  `DATABASE` defaulted to `odoo${ODOO_VERSION}`, and the script never sources the
+  workspace `.env`, so an install/update from `aptus_19ent`, `autopack_19ent`, or
+  `globalcadtech_19ent` built `./odoo-bin -c config/odoo.conf.19 -d odoo19` —
+  against a config whose only database selector is `dbfilter = ^aptus19ent$` and
+  which pins no `db_name` at all. The run either failed on that filter or pointed
+  the module operations at the shared `odoo19` database. The configuration header
+  made it visible by printing `Database: odoo19` in a workspace named for a
+  different tenant — and reading it as harmless was the trap.
+
+  `DATABASE` now resolves as shell environment, then the workspace `.env`, then
+  the version default, so a tenant workspace reports and operates on its own
+  database. A new `get_env_file_value()` helper reads one key from `.env` without
+  sourcing it — the file carries secrets and is not written to be evaluated as
+  shell — handling the `export` prefix, single/double quotes, and trailing `#`
+  comments, and always succeeding so a missing file or key can sit directly
+  inside a `${VAR:-…}` default. `17`/`18`/`19` are unchanged in practice because
+  their `.env` database equals the `odooNN` default; `ODOO_DB_NAME` exported in
+  the shell still outranks the file.
+
 ## 0.6.0 — 2026-09-03
 
 ### Added
