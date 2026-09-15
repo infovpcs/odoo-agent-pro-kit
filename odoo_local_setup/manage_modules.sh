@@ -110,8 +110,32 @@ get_config_value() {
     fi
 }
 
-# Version-specific defaults
-DATABASE="${ODOO_DB_NAME:-${DATABASE:-odoo${ODOO_VERSION}}}"
+# Read one key from a workspace `.env` WITHOUT sourcing it: the file carries
+# secrets and is not written to be evaluated as shell. Handles the `export`
+# prefix, single/double quotes, and trailing `#` comments. Always succeeds so a
+# missing file or key can be used directly inside a `${VAR:-...}` default.
+get_env_file_value() {
+    local key="$1"
+    local file="$2"
+    local line value
+    [ -f "$file" ] || return 0
+    line="$(grep -m1 -E "^[[:space:]]*(export[[:space:]]+)?${key}=" "$file" 2>/dev/null)" || return 0
+    value="${line#*=}"
+    value="$(printf '%s' "$value" | sed -E 's/[[:space:]]+#.*$//; s/^[[:space:]]+//; s/[[:space:]]+$//')"
+    case "$value" in
+        \"*\") value="${value#\"}"; value="${value%\"}" ;;
+        \'*\') value="${value#\'}"; value="${value%\'}" ;;
+    esac
+    printf '%s' "$value"
+}
+
+# Version-specific defaults.
+# Order: shell environment, then the workspace .env, then the version default.
+# manage_modules.sh never sources .env, so without the middle step a tenant
+# workspace — whose config pins only a dbfilter and no db_name — silently fell
+# back to `odoo19` and ran install/update with `-d odoo19`.
+DATABASE="${ODOO_DB_NAME:-$(get_env_file_value ODOO_DB_NAME "$PROJECT_DIR/.env")}"
+DATABASE="${DATABASE:-odoo${ODOO_VERSION}}"
 DEFAULT_PORT=$((8090 + ODOO_VERSION))  # 8107, 8108, 8109
 PORT_FROM_CONFIG="$(get_config_value "http_port" "$CONFIG_FILE")"
 PORT_FROM_XMLRPC="$(get_config_value "xmlrpc_port" "$CONFIG_FILE")"
