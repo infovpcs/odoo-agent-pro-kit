@@ -115,6 +115,48 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
   derives the real dependency set from the source with `ast`, so adding an
   import without declaring it fails the suite and names the importing file.
 
+- **Three DSH discovery tools failed every call with `value is not lossless
+  JSON`.** `odoo_get_fields`, `odoo_validate_field`, and `odoo_workspace_info`
+  were unusable against a live database, and failed identically for *every*
+  model and field — which read exactly like a connection fault rather than a
+  serialization one. The cause sat in the tool bodies: DSH snapshots each tool's
+  returned value into lossless JSON and rejects the call outright
+  (`snapshotToolValue` → `tool returned invalid output: value is not lossless
+  JSON`) when any member is `undefined`. Odoo's `fields_get` returns only the
+  attributes a field actually declares, so requesting `relation`/`help` yields
+  an **absent** key for every scalar field, and `fieldList()` passed that
+  absence straight through as a present-but-`undefined` property.
+  `detectWorkspace()` carried the same defect for an absent
+  `.sandbox/session.json` member; `odoo_get_model_info` (a model with no
+  `ir.model` row) and `odoo_get_version_info` (an unreadable `latest_version`,
+  or no configured user) held it latently. Every optional attribute now
+  collapses to `null`.
+
+  `integrations/deepseek/tests/plugin.test.mjs` gains regression checks that
+  reproduce DSH's seam directly — an `undefined` walk plus a
+  `JSON.parse(JSON.stringify(v))` round-trip assertion — for all three tools,
+  driving the real code path through a stubbed `fetch`. The existing suite had
+  missed this because it called `execute()` and inspected the returned object
+  in-process, never crossing the boundary that was rejecting it. The new checks
+  were verified to fail on the pre-fix preset at exactly the three diagnosed
+  sites (`$.fields[0].relation`, `$.field.help`, `$.detected.module`).
+
+- **`manage_modules.sh start` never managed the MCP server.** Every `start`
+  printed `⚠️ MCP Server script not found, skipping automation`, even in a
+  workspace whose `.gemini/AgentSkills/odoo_mcp/start_mcp_server.sh` existed and
+  was byte-identical to the kit's. `setup_environment()` `cd`s into `$ODOO_DIR`
+  during `start`, and `resolve_mcp_script()` ran *after* that with
+  `PROJECT_DIR="$WORKSPACE_PATH"`, where `WORKSPACE_PATH` defaults to `"."`. By
+  then every relative candidate resolved from `<workspace>/19.0` instead of the
+  workspace root, so all six paths failed, and the script the kit actually ships
+  under `${ODOO_AGENT_PRO_KIT_HOME}/plugin/odoo_mcp/` was reachable only when
+  that variable happened to be exported — it is not read from `.env`.
+  `WORKSPACE_PATH` is now anchored to an absolute path at the top of the script,
+  while the working directory is still the invocation directory, and the
+  log-directory guard compares against `$SCRIPT_DIR` so its intent — log beside
+  the script when the workspace was not set explicitly — is preserved. The
+  configuration header now reports the absolute workspace path instead of `.`.
+
 ## 0.6.0 — 2026-09-03
 
 ### Added
