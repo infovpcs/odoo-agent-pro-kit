@@ -204,6 +204,28 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
   resolves, the hooks are a documented seven-row table, the skills table is
   complete, and the command count is corrected.
 
+- **`odoo_validate_field` described the wrong field for every many2one.** Asking
+  for `sale.order.partner_id` returned `{"exists": true, "field": {"name": "id",
+  "type": "integer", "relation": null}}` — the right verdict about the wrong
+  field. Odoo answers a single-field `fields_get` with the requested field *and*
+  `id`, with `id` first, whenever that field is a many2one. Verified live against
+  Odoo 19: `fields_get(['partner_id'])` → `['id', 'partner_id']`, and every
+  many2one tried behaved that way while scalar fields (`name`, `state`, `vat`,
+  `list_price`) returned themselves alone. Taking the first entry therefore
+  reported every relational field as an integer with no relation target —
+  plausible, silently wrong, and precisely the definition a caller consults the
+  tool for.
+
+  This only became reachable once the lossless-JSON fix above stopped the tool
+  erroring outright, which is worth stating plainly: the earlier bug failed
+  loudly, this one lies quietly. It now selects the field by the name that was
+  asked for, and an unknown field still reports `exists: false`.
+
+  The regression check was strengthened rather than merely added. The test stub
+  previously returned only the requested key — an idealisation that hid the bug —
+  and now reproduces Odoo's `id`-first shape for many2one requests. The check was
+  verified to fail against the pre-fix selection and to pass with it.
+
 ## 0.6.0 — 2026-09-03
 
 ### Added
