@@ -177,6 +177,33 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
   their `.env` database equals the `odooNN` default; `ODOO_DB_NAME` exported in
   the shell still outranks the file.
 
+- **The workspace `AGENTS.md` documented tools that do not exist, and
+  under-counted both the commands and the hooks.** Every workspace bootstrapped
+  from this kit loads `context-templates/AGENTS.md` as agent context, so this
+  drift was actively misleading rather than cosmetic:
+
+  - the tool table named `mcp_search_models`, `mcp_get_fields`,
+    `mcp_get_relationships`, and `mcp_validate_field` — the kit's MCP server
+    registers those unprefixed (`search_models`, …) and the DSH preset registers
+    them as `odoo_*`, with MCP clients namespacing by server — and it listed
+    `mcp_refresh_context`, which is registered nowhere at all.
+  - it omitted `get_model_info`, `get_version_info`, and `list_all_models` from
+    the MCP server, plus all four DSH-only tools (`odoo_workspace_info` and the
+    three `odoo_kb_*` knowledge-base tools).
+  - it called the lifecycle commands "Four … slash commands" while its own table
+    listed five.
+  - it said the kit "ships three hooks" where `plugin/hooks/hooks.json` declares
+    seven events, which left the `PreToolUse` guard — the one that refuses raw
+    `odoo-bin`, direct `manage_modules.sh`, VCS writes, and writes into an
+    Enterprise source tree — entirely undocumented.
+  - its skills table listed 19 of the 22 bundled skills, omitting
+    `DockerSandboxMultiCliAdapter`, `OdooHermesEnvironmentSetup`, and
+    `OdooRulesDriftCheck`.
+
+  The tool section is now a two-surface table keyed by suffix so either name
+  resolves, the hooks are a documented seven-row table, the skills table is
+  complete, and the command count is corrected.
+
 ## 0.6.0 — 2026-09-03
 
 ### Added
