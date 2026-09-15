@@ -529,6 +529,121 @@ await acheck('/rules-check-drift accepts a diff range instead of a version', asy
   assert.match(seen[0].content[0].text, /Module\/argument: main\.\.\.HEAD/)
 })
 
+// ── lossless-JSON seam: absent Odoo attributes must not surface as undefined ─
+//
+// DSH snapshots every tool body's value into lossless JSON and rejects the call
+// outright — `tool returned invalid output: value is not lossless JSON` — when
+// any member is `undefined`. Odoo's `fields_get` returns only the attributes a
+// field actually declares, so requesting `relation`/`help` yields an ABSENT key
+// for every scalar field.
+//
+// The checks above all call `execute()` directly and inspect the returned
+// object, which is exactly why this shipped broken: nothing exercised the seam,
+// so `undefined` looked fine in-process while every live call failed. These
+// checks reproduce DSH's two rejection rules instead.
+
+/** Locate the first `undefined` member, the way DSH's walk does. */
+function findUndefined(value, path = '$') {
+  if (value === undefined) return path
+  if (value === null || typeof value !== 'object') return null
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index += 1) {
+      const hit = findUndefined(value[index], `${path}[${index}]`)
+      if (hit !== null) return hit
+    }
+    return null
+  }
+  for (const [key, member] of Object.entries(value)) {
+    const hit = findUndefined(member, `${path}.${key}`)
+    if (hit !== null) return hit
+  }
+  return null
+}
+
+/** Assert a tool body's value could cross DSH's lossless-JSON seam. */
+function assertLossless(label, value) {
+  const hit = findUndefined(value)
+  assert.equal(hit, null, `${label}: \`undefined\` at ${hit} is not lossless JSON`)
+  assert.deepStrictEqual(
+    JSON.parse(JSON.stringify(value)),
+    value,
+    `${label}: value does not survive a JSON round-trip`,
+  )
+}
+
+// Shaped like a real Odoo 19 `fields_get` reply: scalar fields carry no
+// `relation`/`help`/`readonly` key at all; only many2one carries `relation`.
+const FIELDS_GET_REPLY = {
+  name: { string: 'Name', type: 'char', required: true },
+  state: { string: 'Status', type: 'selection' },
+  partner_id: { string: 'Customer', type: 'many2one', relation: 'res.partner' },
+}
+
+const realFetch = globalThis.fetch
+globalThis.fetch = async (_url, init) => {
+  const { params } = JSON.parse(init.body)
+  const positional = params.args?.[5]
+  // `fields_get([name])` narrows to that field, exactly as Odoo does.
+  const narrowed = Array.isArray(positional) && positional.length > 0
+    ? Object.fromEntries(
+      positional.filter(key => key in FIELDS_GET_REPLY).map(key => [key, FIELDS_GET_REPLY[key]]),
+    )
+    : FIELDS_GET_REPLY
+  const result = params.service === 'common' ? 2 : narrowed
+  return { json: async () => ({ jsonrpc: '2.0', id: 1, result }) }
+}
+
+// A dedicated stub URL keeps this session out of the module's connection cache.
+process.env.ODOO19_URL = 'http://odoo-stub.invalid'
+process.env.ODOO19_DB_NAME = 'stub-db'
+process.env.ODOO19_DB_USER = 'stub-user'
+process.env.ODOO19_DB_PASSWORD = 'stub-pass'
+
+const DETECTED_WORKSPACE = mkdtempSync(join(tmpdir(), 'odoo-kit-lossless-'))
+mkdirSync(join(DETECTED_WORKSPACE, '19.0'), { recursive: true })
+
+try {
+  const { ctx: seamCtx, recorded: seamRecorded } = stubContext()
+  apply(seamCtx, { repoRoot: REPO_ROOT, defaultOdooVersion: '19.0' })
+  const toolNamed = name => seamRecorded.tools.find(entry => entry.name === name)
+  const seamExec = { agent: { session: { header: { cwd: DETECTED_WORKSPACE } } } }
+
+  await acheck('odoo_get_fields emits null, never undefined, for absent attributes', async () => {
+    const result = await toolNamed('odoo_get_fields')
+      .execute({ model_name: 'sale.order', version: '19.0' }, seamExec)
+    assertLossless('odoo_get_fields', result)
+    const byName = Object.fromEntries(result.fields.map(field => [field.name, field]))
+    assert.equal(byName.partner_id.relation, 'res.partner')
+    assert.equal(byName.name.relation, null, 'an absent relation must be null')
+    assert.equal(byName.name.help, null, 'an absent help must be null')
+    assert.equal(byName.name.readonly, false)
+  })
+
+  await acheck('odoo_validate_field survives the lossless-JSON seam', async () => {
+    const result = await toolNamed('odoo_validate_field')
+      .execute({ model_name: 'sale.order', field_name: 'partner_id', version: '19.0' }, seamExec)
+    assertLossless('odoo_validate_field', result)
+    assert.equal(result.exists, true)
+    assert.equal(result.field.relation, 'res.partner')
+    assert.equal(result.field.help, null)
+  })
+
+  await acheck('odoo_workspace_info survives the lossless-JSON seam', async () => {
+    const result = await toolNamed('odoo_workspace_info').execute({}, seamExec)
+    assertLossless('odoo_workspace_info', result)
+    // The probe workspace holds a `19.0/` directory but no `.sandbox/session.json`,
+    // so detection reports the directory source with no module.
+    assert.equal(result.detected.source, 'workspace-directory')
+    assert.equal(result.detected.module, null)
+  })
+} finally {
+  globalThis.fetch = realFetch
+  for (const key of ['ODOO19_URL', 'ODOO19_DB_NAME', 'ODOO19_DB_USER', 'ODOO19_DB_PASSWORD']) {
+    delete process.env[key]
+  }
+  rmSync(DETECTED_WORKSPACE, { recursive: true, force: true })
+}
+
 console.log('')
 if (failures.length > 0) {
   console.error(`${failures.length} check(s) failed`)

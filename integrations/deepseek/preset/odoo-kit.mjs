@@ -348,9 +348,9 @@ function detectWorkspace(cwd) {
         return {
           source: 'sandbox-session',
           version: VERSION_ALIASES[String(data.odoo_version).split('.')[0]] ?? String(data.odoo_version),
-          module: data.module,
-          sessionId: data.session_id,
-          status: data.status,
+          module: data.module ?? null,
+          sessionId: data.session_id ?? null,
+          status: data.status ?? null,
         }
       }
     } catch {
@@ -359,10 +359,10 @@ function detectWorkspace(cwd) {
   }
   for (const version of VERSIONS) {
     if (existsSync(join(root, version))) {
-      return { source: 'workspace-directory', version, module: undefined }
+      return { source: 'workspace-directory', version, module: null }
     }
   }
-  return { source: 'unknown', version: undefined, module: undefined }
+  return { source: 'unknown', version: null, module: null }
 }
 
 // ---------------------------------------------------------------------------
@@ -557,16 +557,24 @@ function pickVersion(requested, config, cwd) {
   return defaultVersionFor(config, cwd) ?? '19.0'
 }
 
-/** Coerce a JSON-RPC field-type map into a stable model-facing list. */
+/**
+ * Coerce a JSON-RPC field-type map into a stable model-facing list.
+ *
+ * Odoo's `fields_get` returns only the attributes a field actually declares, so
+ * requesting `relation`/`help` yields an absent key for every scalar field. A
+ * present-but-`undefined` property is NOT lossless JSON — DSH rejects the whole
+ * tool result with `value is not lossless JSON` — so every optional attribute
+ * collapses to `null` rather than surviving as `undefined`.
+ */
 function fieldList(fieldsGet) {
   return Object.entries(fieldsGet ?? {}).map(([fieldName, info]) => ({
     name: fieldName,
-    type: info.type,
-    string: info.string,
+    type: info.type ?? null,
+    string: info.string ?? null,
     required: info.required === true,
     readonly: info.readonly === true,
-    relation: info.relation,
-    help: info.help,
+    relation: info.relation ?? null,
+    help: info.help ?? null,
   }))
 }
 
@@ -853,13 +861,13 @@ export function apply(ctx, config) {
               }
             }
             const target = version ?? detectWorkspace(agentCwd(invocation.agent)).version
-            const versionLine = target === undefined
+            const versionLine = target === undefined || target === null
               ? 'Ask the user for the Odoo version (17, 18, or 19) before proceeding.'
               : `Odoo version: ${target}.`
             const moduleLine = rest === '' ? '' : `Module/argument: ${rest}.`
             const prompt = [body, '', versionLine, moduleLine].filter(line => line !== '').join('\n')
             invocation.agent.followup(userMessage(prompt))
-            return { kind: 'success', text: `Running /${commandName}${target === undefined ? '' : ` for Odoo ${target}`}.` }
+            return { kind: 'success', text: `Running /${commandName}${target === undefined || target === null ? '' : ` for Odoo ${target}`}.` }
           } catch (error) {
             return { kind: 'error', text: `/${commandName} failed: ${errorText(error)}` }
           }
@@ -1005,10 +1013,10 @@ export function apply(ctx, config) {
       return {
         model: args.model_name,
         version,
-        display_name: records[0]?.name,
+        display_name: records[0]?.name ?? null,
         is_transient: records[0]?.transient === true,
         field_count: fields.length,
-        relationship_count: fields.filter(field => field.type.endsWith('2many') || field.type === 'many2one').length,
+        relationship_count: fields.filter(field => (field.type ?? '').endsWith('2many') || field.type === 'many2one').length,
       }
     },
     render: value => jsonText(value),
@@ -1054,15 +1062,15 @@ export function apply(ctx, config) {
         return { version, configured: false, hint: `Set ODOO${version.split('.')[0]}_URL and ODOO${version.split('.')[0]}_DB_NAME.` }
       }
       const session = await odooSession(version, resolved, agentCwd(exec?.agent), exec?.signal)
-      let serverVersion
+      let serverVersion = null
       try {
         const info = await executeKw(version, resolved, agentCwd(exec?.agent), 'ir.module.module', 'search_read',
           [[['name', '=', 'base']]], { fields: ['latest_version'], limit: 1 }, exec?.signal)
-        serverVersion = info[0]?.latest_version
+        serverVersion = info[0]?.latest_version ?? null
       } catch {
-        serverVersion = undefined
+        serverVersion = null
       }
-      return { version, configured: true, url: spec.url, database: spec.db, user: spec.user, uid: session.uid, server_version: serverVersion }
+      return { version, configured: true, url: spec.url, database: spec.db, user: spec.user ?? null, uid: session.uid, server_version: serverVersion }
     },
     render: value => jsonText(value),
   })
