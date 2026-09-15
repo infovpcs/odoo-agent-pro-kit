@@ -981,7 +981,13 @@ export function apply(ctx, config) {
       const version = pickVersion(args.version, resolved, agentCwd(exec?.agent))
       const fieldsGet = await executeKw(version, resolved, agentCwd(exec?.agent), args.model_name, 'fields_get', [args.field_name],
         { attributes: ['string', 'type', 'required', 'readonly', 'relation', 'help'] }, exec?.signal)
-      const [field] = fieldList(fieldsGet)
+      // Odoo answers a single-field `fields_get` with the requested field AND `id`
+      // whenever that field is a *many2one*, with `id` first — verified live
+      // against Odoo 19. Taking the first entry therefore described every
+      // relational field as `type: integer, relation: null`: plausible, silently
+      // wrong, and exactly the definition a caller most needs to be right. Select
+      // by the name that was actually asked for.
+      const field = fieldList(fieldsGet).find(candidate => candidate.name === args.field_name)
       if (field === undefined) {
         return { model: args.model_name, field: args.field_name, version, exists: false }
       }

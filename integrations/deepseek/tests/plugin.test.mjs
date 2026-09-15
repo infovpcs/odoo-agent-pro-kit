@@ -578,17 +578,26 @@ const FIELDS_GET_REPLY = {
   state: { string: 'Status', type: 'selection' },
   partner_id: { string: 'Customer', type: 'many2one', relation: 'res.partner' },
 }
+const ID_FIELD = { string: 'ID', type: 'integer', required: false, readonly: true }
 
 const realFetch = globalThis.fetch
 globalThis.fetch = async (_url, init) => {
   const { params } = JSON.parse(init.body)
   const positional = params.args?.[5]
-  // `fields_get([name])` narrows to that field, exactly as Odoo does.
-  const narrowed = Array.isArray(positional) && positional.length > 0
-    ? Object.fromEntries(
-      positional.filter(key => key in FIELDS_GET_REPLY).map(key => [key, FIELDS_GET_REPLY[key]]),
-    )
-    : FIELDS_GET_REPLY
+  const narrowedTo = Array.isArray(positional) && positional.length > 0
+  const requested = narrowedTo
+    ? positional.filter(key => key in FIELDS_GET_REPLY)
+    : Object.keys(FIELDS_GET_REPLY)
+  // A single-field `fields_get` narrows to that field — except that Odoo answers
+  // a *many2one* request with `id` as well, and puts it FIRST. Verified live
+  // against Odoo 19: fields_get(['partner_id']) -> ['id', 'partner_id']. A stub
+  // that returned only the requested key is what let the "read the first entry"
+  // bug ship, so this reproduces the real shape instead.
+  const relational = requested.some(key => FIELDS_GET_REPLY[key].type.endsWith('2one'))
+  const narrowed = {
+    ...(narrowedTo && relational ? { id: ID_FIELD } : {}),
+    ...Object.fromEntries(requested.map(key => [key, FIELDS_GET_REPLY[key]])),
+  }
   const result = params.service === 'common' ? 2 : narrowed
   return { json: async () => ({ jsonrpc: '2.0', id: 1, result }) }
 }
@@ -624,8 +633,20 @@ try {
       .execute({ model_name: 'sale.order', field_name: 'partner_id', version: '19.0' }, seamExec)
     assertLossless('odoo_validate_field', result)
     assert.equal(result.exists, true)
+    // Odoo answers a many2one request with `id` first; the tool must describe the
+    // field that was asked for, not whichever key came back first.
+    assert.equal(result.field.name, 'partner_id', 'must describe the requested field, not `id`')
+    assert.equal(result.field.type, 'many2one')
     assert.equal(result.field.relation, 'res.partner')
     assert.equal(result.field.help, null)
+  })
+
+  await acheck('odoo_validate_field reports a fabricated field as absent', async () => {
+    const result = await toolNamed('odoo_validate_field')
+      .execute({ model_name: 'sale.order', field_name: 'no_such_field_xyz', version: '19.0' }, seamExec)
+    assertLossless('odoo_validate_field', result)
+    assert.equal(result.exists, false, 'an unknown field must not be reported as existing')
+    assert.equal(result.field, 'no_such_field_xyz')
   })
 
   await acheck('odoo_workspace_info survives the lossless-JSON seam', async () => {
