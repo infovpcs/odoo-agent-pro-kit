@@ -49,6 +49,12 @@ NC='\033[0m' # No Color
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Anchor the workspace to an absolute path while the working directory is still
+# the invocation directory. `setup_environment` cd's into $ODOO_DIR later, and a
+# relative WORKSPACE_PATH — the "." default — stops resolving after that, which
+# silently made MCP discovery report "MCP Server script not found".
+WORKSPACE_PATH="$(cd "$WORKSPACE_PATH" 2>/dev/null && pwd || printf '%s' "$WORKSPACE_PATH")"
+
 # Dynamic configuration based on version
 PROJECT_DIR="$WORKSPACE_PATH"
 ODOO_DIR="$PROJECT_DIR/${ODOO_VERSION}.0"
@@ -73,8 +79,9 @@ else
     # Fallback to standard template path
 CONFIG_FILE="$PROJECT_DIR/config/odoo.conf.${ODOO_VERSION}"
 fi
-# Use script directory for logs and other output if PROJECT_DIR is just "."
-if [ "$PROJECT_DIR" = "." ] || [ "$PROJECT_DIR" = "" ]; then
+# Use script directory for logs and other output when the workspace is the
+# script's own directory (WORKSPACE_PATH was not pointed somewhere else).
+if [ "$PROJECT_DIR" = "$SCRIPT_DIR" ] || [ "$PROJECT_DIR" = "" ]; then
     LOG_DIR="$SCRIPT_DIR/logs"
 else
     LOG_DIR="$PROJECT_DIR/logs"
