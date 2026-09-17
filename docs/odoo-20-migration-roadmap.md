@@ -110,3 +110,55 @@ Reference (fetched 2026-09-11 from `odoo/odoo` `master`):
       documentation-only.
 - [ ] Cross-check `OdooRulesDriftCheck` catalog for new 20.0-specific drift
       patterns (new deprecated APIs, renamed fields/methods).
+
+## Branch cut detected - 2026-09-17
+
+Detected by the `odoo-20-branch-watch` monitor (GitHub API poll on
+`odoo/odoo/branches/20.0` flipped `false` (404) → `true`). Verified directly
+against the GitHub API in this run, not assumed from the monitor output:
+
+- **Branch confirmed live.** `GET /repos/odoo/odoo/branches/20.0` → HTTP 200.
+  Tip commit `e264fedc` "`[REL] 20.0`" by Christophe Monniez (GitHub user
+  `d-fence`), authored 2026-09-11T07:15:26Z, last updated
+  2026-09-17T06:48:25Z. Branch protection is enabled (no required status
+  checks configured yet). This lands inside the window this doc already
+  predicted (2026-09-23 to 2026-09-26 for the public 20.0 release, branch cut
+  "a few days before").
+- **`skills/` directory present on `20.0`**, same structure as `master`:
+  `README.md` + `odoo-guidelines/`, `odoo-review/`, `odoo-security/`,
+  `odoo-web-guidelines/`.
+- **Content diff vs. `master`: byte-identical.** Fetched
+  `skills/*/SKILL.md` from `20.0` and diffed against the same paths on
+  `master` right now — zero differences across all four files. This confirms
+  the roadmap's assumption above ("it will convert to a 20.0-labeled skill
+  set automatically once the branch cut happens") held exactly: nothing
+  skill-specific changed at cut time, only the branch label.
+- **Content diff vs. the 2026-09-11 snapshot referenced earlier in this doc:
+  unchanged.** The table-of-contents structure, guideline routing tables,
+  review process (manifest-first, sibling-skill dispatch, version-trap
+  warnings), security sweep checklist (`sudo()`/`with_user()`/`with_company()`,
+  SQL/domain injection, CSRF, XSS via `Markup`/`t-out`, `consteq`), and web
+  guidelines (organize-by-feature, SCSS/assets) all read the same as what was
+  already documented in the "What official Odoo skill structure means for us"
+  section above. No new guideline files, no removed sections, no renamed
+  skills.
+- **`19.0` branch has no `skills/` directory at all** (`404` on
+  `skills/*/SKILL.md?ref=19.0`) — confirms the official agent-skills library
+  is new since 19.0 shipped and only exists on `master`/`20.0` today; there is
+  no 19.0-vs-20.0 skill diff to draw from upstream, only master-vs-20.0 (which
+  is empty, per above).
+- **Local repo state:** `/home/ubuntu/workspace/odoo-agent-pro-kit` was
+  already up to date with `origin/main` (`9bd1d64`) before this run, no pull
+  needed. `plugin/skills/Odoo19CodingStandard`, `OdooTools19`, and
+  `Odoo19ExistingDependencyContext` are unaffected by this cut — they still
+  cover the custom-app lifecycle work (install/update/test via Docker
+  Sandbox, MCP tools, drift checks) that Odoo's four official skills do not
+  attempt, so the integration plan above (diff-and-absorb, don't replace)
+  still applies as written.
+
+**Next step (manual, not done in this job):** create
+`Odoo20CodingStandard` + `OdooTools20` + `Odoo20ExistingDependencyContext`
+following the 19.0 pattern, seeded from the (unchanged) official guideline
+content above plus a real Docker Sandbox install/migration test against
+Odoo 20 once it is installable. This needs a dedicated session, not an
+unattended cron run.
