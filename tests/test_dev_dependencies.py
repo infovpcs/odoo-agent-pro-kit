@@ -36,6 +36,9 @@ LOCAL_MODULES = {
     "validate_skills",  # scripts/validate_skills.py
     "context_guard",    # plugin/context_guard.py
     "plugin",           # the plugin package
+    "audit_document",   # plugin/skills/OdooRequirementGapAnalysis/scripts/audit_document.py
+    "catalog_match",    # plugin/skills/OdooRequirementGapAnalysis/scripts/catalog_match.py
+    "verify_modules",   # plugin/skills/OdooRequirementGapAnalysis/scripts/verify_modules.py
     "tests",
     "conftest",
 }

@@ -7,6 +7,26 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
 
 ### Added
 
+- **Requirement gap-analysis skill** - `plugin/skills/OdooRequirementGapAnalysis/` adds the
+  `odoo_requirement_gap_analysis` skill (the 23rd bundled skill): a generic, project-agnostic method
+  that turns a requirements document into a code-verified Fit/Partial/Gap mapping and an
+  implementation-time estimate that accounts for the automated Odoo lifecycle.
+  - `SKILL.md` covers an intake gate (readability, heading map, cross-reference and priority
+    audit, platform/edition, systems of record, sizing, compliance gates, confidentiality),
+    requirement atomisation, module verification against the Community and Enterprise trees,
+    the Fit/Partial/Gap rubric, custom work-item grouping, edge cases, and a three-scenario
+    estimate (conventional / pipeline-assisted / profile-accelerated) built on
+    `/plan-analysis`, `/start-coding`, `/testing`, `/fleet` and `sandboxctl module` gates, with
+    evidence tags (Measured / Catalogue / Pattern / Assumption) and a calibration loop.
+  - `scripts/audit_document.py` (PDF/DOCX/text intake audit), `scripts/verify_modules.py`
+    (manifest-based module existence, edition and version; exits non-zero on a missing module)
+    and `scripts/catalog_match.py` (stdlib catalogue shortlist with a version-gap filter).
+  - `templates/delivery-profile.template.md` defines the profile contract loaded through
+    `GAP_PROFILE`, so an organisation's expertise, reuse catalogue and rates stay outside the
+    public skill; the skill validator's private-string check still applies.
+  - `tests/test_gap_analysis_skill.py` adds 10 tests (skill validation, audit, module
+    verification, catalogue matching).
+
 - **DeepSeek Harness (DSH) integration** — `integrations/deepseek/` ships an
   agent preset that gives a DSH session the same Odoo 17/18/19 lifecycle the
   Claude Code and Hermes plugins provide:

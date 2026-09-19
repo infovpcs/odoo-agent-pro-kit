@@ -10,7 +10,7 @@
  *     (`/plan-analysis`, `/start-coding`, `/testing`, `/fleet`,
  *     `/rules-check-drift`), each submitting its instruction body as a
  *     model-visible user message;
- *   - all 22 bundled skills, re-registered under DSH's kebab-case skill
+ *   - all 23 bundled skills, re-registered under DSH's kebab-case skill
  *     grammar (upstream frontmatter names use underscores, which
  *     `dsh-skill-filesystem` silently ignores);
  *   - live model discovery (`odoo_*` tools) over XML-RPC / JSON-RPC-2.0,

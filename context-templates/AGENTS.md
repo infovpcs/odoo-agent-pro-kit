@@ -145,6 +145,7 @@ automatically once the plugin is installed:
 | `DockerSandboxMultiCliAdapter` | Drive multiple coding-agent CLIs (Codex, Claude, Hermes, Gemini) inside Docker Sandbox phases |
 | `OdooHermesEnvironmentSetup` | Provision an AI agent for Odoo development on a fresh host |
 | `OdooRulesDriftCheck` | Audit the rules files against recent changes and PRD gate state (advisory) |
+| `OdooRequirementGapAnalysis` | Turn a requirements document into a code-verified fit-gap analysis and a lifecycle-aware implementation-time estimate (three scenarios); optional delivery profile via `GAP_PROFILE` |
 
 When configuring or releasing Docker Sandbox, first load
 `DockerSandboxOperations/SKILL.md`, then follow the platform runbook it names.
