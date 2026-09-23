@@ -1,7 +1,7 @@
 ---
 name: odoo_requirement_gap_analysis
 description: Use when a client shares a requirements document (PDF, DOCX, spreadsheet, notes) for an Odoo 17/18/19 implementation and you must turn it into a verified gap analysis - requirement-to-app mapping checked against the Community and Enterprise code, Fit/Partial/Gap classification, custom work items with implementation-time estimates that account for the automated Odoo development lifecycle (plan, code, sandbox test, QA), reuse of an organisation's module catalogue, and requirement changes that shorten delivery.
-version: 1.0.0
+version: 1.1.0
 category: analysis
 odoo_versions: ["17.0", "18.0", "19.0"]
 tags: ["gap-analysis", "requirements", "estimation", "fit-gap", "odoo", "implementation", "planning", "delivery-profile"]
@@ -21,6 +21,19 @@ Outputs (one dataset, several renderers so the files can never disagree):
 1. a gap-analysis document (DOCX) - findings, module-wise coverage, gap register, estimate, risks;
 2. a mapping workbook (XLSX) - requirement mapping, module inventory, estimate model with live formulas;
 3. per-work-item PRD stubs (`docs/requirements.md`, `design.md`, `tasks.md`) that `/start-coding` can consume.
+
+## References and reusable components
+
+- [references/method.md](references/method.md) - evidence hierarchy, atomic-requirement fields, Fit/Partial/Gap
+  thresholds, custom work-item fields, reuse screening and estimation rules. Read before Phase 1.
+- [references/deliverables.md](references/deliverables.md) - DOCX outline, workbook sheet list and the validation
+  gates. Read before Phase 9.
+- `scripts/audit_document.py` (Phase 0), `scripts/verify_modules.py` (Phase 2), `scripts/catalog_match.py` (Phase 8).
+- `templates/delivery-profile.template.md` - the private delivery profile (Phase 8).
+- Reference build pipeline (Phase 9): keep one proven one-dataset / many-renderers build (dataset modules, estimate
+  model, workbook and document renderers, chart script, delivery sync) and record its location in the delivery
+  profile under "Reference build". For a new client, copy it into the new working folder, replace only the dataset
+  files and re-run the renderers; do not fork the renderers per client.
 
 ## Dynamic parameters
 
@@ -275,6 +288,10 @@ For each Core work item create the PRD stub from the dataset and start the loop:
 ```
 
 Record actual effort per module (6.5) and update the profile.
+
+When the client accepts a scope, raise the quotation from the approved scenario through the organisation's
+quotation workflow named in the profile (dry-run first; hours, rate, inclusions and exclusions taken from the
+estimate, never from a draft).
 
 ## Phase 11 - Verification checklist before delivery
 

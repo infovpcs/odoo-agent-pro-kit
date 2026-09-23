@@ -1,0 +1,4 @@
+interface:
+  display_name: "Odoo Requirements Gap Analysis"
+  short_description: "Map requirements to Odoo fit and gaps"
+  default_prompt: "Use $odoo-requirements-gap-analysis to analyze these project requirements against Odoo and create fit-gap deliverables."
