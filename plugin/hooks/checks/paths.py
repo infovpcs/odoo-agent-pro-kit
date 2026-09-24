@@ -7,7 +7,7 @@ from typing import List, Optional
 
 from .common import Violation
 
-_ENT_PATH_RE = re.compile(r"(^|/)(ent-1[789]|enterprise|web_studio)(/|$)")
+_ENT_PATH_RE = re.compile(r"(^|/)(ent-1[789]|ent-20|enterprise|web_studio)(/|$)")
 _ENT_CONTENT_RE = re.compile(r"OEEL-1|OPL-1|Odoo Enterprise Edition License")
 _SECRET_RES = [
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),

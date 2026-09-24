@@ -2,7 +2,7 @@
 Odoo MCP Server Package
 
 This package provides a Model Context Protocol (MCP) server for connecting to
-Odoo 17, 18, and 19 instances via XML-RPC (17-18) and JSON-RPC 2.0 (19).
+Odoo 17, 18, 19, and 20 instances via XML-RPC (17-18) and JSON-RPC 2.0 (19-20).
 
 Package Structure:
 - config.py: OdooConfig Pydantic model + .env parser

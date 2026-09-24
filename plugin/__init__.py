@@ -270,7 +270,7 @@ _TOOLS = [
         _tool_search_models,
         {
             "name": "odoo_search_models",
-            "description": "Search Odoo models by name or description over a live Odoo 17/18/19 connection.",
+            "description": "Search Odoo models by name or description over a live Odoo 17/18/19/20 connection.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -380,7 +380,7 @@ _TOOLS = [
 # Slash commands — /plan-analysis, /start-coding, /testing, /fleet, /rules-check-drift
 # ---------------------------------------------------------------------------
 
-_VALID_VERSIONS = {"17", "18", "19"}
+_VALID_VERSIONS = {"17", "18", "19", "20"}
 
 
 def _parse_version_and_rest(raw_args: str) -> tuple[Optional[str], str]:
@@ -409,7 +409,7 @@ def _command_prompt(
     elif version_optional:
         version_line = ""
     else:
-        version_line = "Ask the user for the Odoo version (17, 18, or 19) before proceeding."
+        version_line = "Ask the user for the Odoo version (17, 18, 19, or 20) before proceeding."
     module_line = f"Module/argument: {rest}." if rest else ""
     return f"{body}\n\n{version_line} {module_line}\n{extra}".strip()
 
@@ -506,8 +506,8 @@ def register(ctx) -> None:
             "odoo_get_fields / odoo_get_relationships / odoo_validate_field tools over a "
             "separate MCP server process for model discovery.",
         ),
-        description="Odoo requirement analysis, model discovery, and PRD generation for Odoo 17/18/19.",
-        args_hint="<17|18|19> [module_name]",
+        description="Odoo requirement analysis, model discovery, and PRD generation for Odoo 17/18/19/20.",
+        args_hint="<17|18|19|20> [module_name]",
     )
     ctx.register_command(
         "start-coding",
@@ -516,8 +516,8 @@ def register(ctx) -> None:
             "commands/start-coding.md",
             extra="Use the odoo-agent-pro-kit:odoo_commanding_system skill (skill_view).",
         ),
-        description="Task-loop implementation with backend tests per task, for Odoo 17/18/19.",
-        args_hint="<17|18|19> [module_name]",
+        description="Task-loop implementation with backend tests per task, for Odoo 17/18/19/20.",
+        args_hint="<17|18|19|20> [module_name]",
     )
     ctx.register_command(
         "testing",
@@ -526,8 +526,8 @@ def register(ctx) -> None:
             "commands/testing.md",
             extra="Use the odoo-agent-pro-kit:odoo_commanding_system skill (skill_view).",
         ),
-        description="Frontend UI tests plus documentation assets for Odoo 17/18/19.",
-        args_hint="<17|18|19> [module_name]",
+        description="Frontend UI tests plus documentation assets for Odoo 17/18/19/20.",
+        args_hint="<17|18|19|20> [module_name]",
     )
     ctx.register_command(
         "fleet",
@@ -536,8 +536,8 @@ def register(ctx) -> None:
             "commands/fleet.md",
             extra="Use the odoo-agent-pro-kit:odoo_commanding_system skill (skill_view).",
         ),
-        description="Parallel workspace orchestration across multiple Odoo modules for Odoo 17/18/19.",
-        args_hint="<17|18|19>",
+        description="Parallel workspace orchestration across multiple Odoo modules for Odoo 17/18/19/20.",
+        args_hint="<17|18|19|20>",
     )
     ctx.register_command(
         "rules-check-drift",

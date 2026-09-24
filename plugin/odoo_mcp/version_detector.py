@@ -28,6 +28,7 @@ class VersionDetector:
         17: "xml-rpc",
         18: "xml-rpc",
         19: "json-rpc-2.0",
+        20: "json-rpc-2.0",
     }
 
     def __init__(self, config: OdooConfig):
@@ -102,8 +103,9 @@ class VersionDetector:
                     result = response.json()
                     if "result" in result:
                         version_string = str(result["result"])
-                        if "19" in version_string:
-                            return "19.0"
+                        for major in ("20", "19"):
+                            if major in version_string:
+                                return f"{major}.0"
         except Exception as e:
             logger.debug(f"JSON-RPC version detection failed: {e}")
 

@@ -47,12 +47,12 @@ export const name = 'odoo-agent-pro-kit'
 export const inject = ['tools', 'systemPrompt']
 
 /** Odoo versions this kit covers, newest first. */
-const VERSIONS = ['19.0', '18.0', '17.0']
+const VERSIONS = ['20.0', '19.0', '18.0', '17.0']
 
 /** Short forms accepted on the command line, mapped to the full version. */
 const VERSION_ALIASES = {
-  '17': '17.0', '18': '18.0', '19': '19.0',
-  '17.0': '17.0', '18.0': '18.0', '19.0': '19.0',
+  '17': '17.0', '18': '18.0', '19': '19.0', '20': '20.0',
+  '17.0': '17.0', '18.0': '18.0', '19.0': '19.0', '20.0': '20.0',
 }
 
 /** Context/section orders from `dsh-system-prompt`'s centrally allocated table. */
@@ -763,10 +763,10 @@ function lifecycleSectionText(config) {
     'development with version-aware lifecycle coverage for Odoo 17.0, 18.0, and 19.0.',
     '',
     'Lifecycle commands (each submits its full workflow instructions as a user message):',
-    '  /plan-analysis <17|18|19> [module]   requirement analysis, model discovery, PRD generation',
-    '  /start-coding <17|18|19> [module]    task-loop implementation with backend tests per task',
-    '  /testing <17|18|19> [module]         frontend UI tests and documentation assets',
-    '  /fleet <17|18|19>                    parallel workspace orchestration across modules',
+    '  /plan-analysis <17|18|19|20> [module]   requirement analysis, model discovery, PRD generation',
+    '  /start-coding <17|18|19|20> [module]    task-loop implementation with backend tests per task',
+    '  /testing <17|18|19|20> [module]         frontend UI tests and documentation assets',
+    '  /fleet <17|18|19|20>                    parallel workspace orchestration across modules',
     '  /rules-check-drift [range]           advisory audit of CLAUDE.md/AGENTS.md/GEMINI.md drift',
     '',
     'Always establish the target Odoo version before doing version-sensitive work, and load the',
@@ -837,10 +837,10 @@ export function apply(ctx, config) {
   // ── lifecycle commands ────────────────────────────────────────────────────
   const commands = ctx.get('commands')
   const COMMANDS = [
-    ['plan-analysis', 'plan-analysis.md', 'Odoo requirement analysis, model discovery, and PRD generation (17/18/19).'],
-    ['start-coding', 'start-coding.md', 'Task-loop Odoo implementation with backend tests per task (17/18/19).'],
-    ['testing', 'testing.md', 'Odoo frontend UI testing and documentation assets (17/18/19).'],
-    ['fleet', 'fleet.md', 'Parallel Odoo workspace orchestration across modules (17/18/19).'],
+    ['plan-analysis', 'plan-analysis.md', 'Odoo requirement analysis, model discovery, and PRD generation (17/18/19/20).'],
+    ['start-coding', 'start-coding.md', 'Task-loop Odoo implementation with backend tests per task (17/18/19/20).'],
+    ['testing', 'testing.md', 'Odoo frontend UI testing and documentation assets (17/18/19/20).'],
+    ['fleet', 'fleet.md', 'Parallel Odoo workspace orchestration across modules (17/18/19/20).'],
     ['rules-check-drift', 'rules-check-drift.md', 'Advisory, read-only audit of CLAUDE.md/AGENTS.md/GEMINI.md drift.'],
   ]
   if (commands !== undefined) {
@@ -848,7 +848,7 @@ export function apply(ctx, config) {
       ctx.effect(() => commands.register({
         name: commandName,
         description,
-        input: { hint: commandName === 'rules-check-drift' ? '[diff range, e.g. main...HEAD]' : '<17|18|19> [module_name]' },
+        input: { hint: commandName === 'rules-check-drift' ? '[diff range, e.g. main...HEAD]' : '<17|18|19|20> [module_name]' },
         handler: async (invocation) => {
           try {
             const { version, rest } = parseVersionAndRest(invocation.rawInput)
@@ -862,7 +862,7 @@ export function apply(ctx, config) {
             }
             const target = version ?? detectWorkspace(agentCwd(invocation.agent)).version
             const versionLine = target === undefined || target === null
-              ? 'Ask the user for the Odoo version (17, 18, or 19) before proceeding.'
+              ? 'Ask the user for the Odoo version (17, 18, 19, or 20) before proceeding.'
               : `Odoo version: ${target}.`
             const moduleLine = rest === '' ? '' : `Module/argument: ${rest}.`
             const prompt = [body, '', versionLine, moduleLine].filter(line => line !== '').join('\n')
@@ -1239,7 +1239,7 @@ export function apply(ctx, config) {
   // ── guard ────────────────────────────────────────────────────────────────
   ctx.effect(() => ctx.tools.guard(execution => guardReason(execution, resolved)), 'odoo-agent-pro-kit.guard')
 
-  ctx.logger?.info?.('odoo-agent-pro-kit: Odoo 17/18/19 lifecycle, skills, commands, model discovery, and knowledge base ready')
+  ctx.logger?.info?.('odoo-agent-pro-kit: Odoo 17/18/19/20 lifecycle, skills, commands, model discovery, and knowledge base ready')
 }
 
 /** Default knowledge-base version when a call names none. */

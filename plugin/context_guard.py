@@ -97,7 +97,7 @@ def _module_version(module_dir: Path) -> str:
     for meta_name in ("module_meta.md",):
         meta = module_dir / "docs" / meta_name
         if meta.is_file():
-            match = re.search(r"(?:odoo[_ ]?version|version)\s*[:=]\s*\"?(1[789])", meta.read_text(errors="replace"), re.IGNORECASE)
+            match = re.search(r"(?:odoo[_ ]?version|version)\s*[:=]\s*\"?(1[789]|20)(?!\d)", meta.read_text(errors="replace"), re.IGNORECASE)
             if match:
                 return match.group(1)
     for version_dir in ("19.0", "18.0", "17.0"):

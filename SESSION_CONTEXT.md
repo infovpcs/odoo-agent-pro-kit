@@ -23,14 +23,34 @@ Before changing files:
 - Repository: `infovpcs/odoo-agent-pro-kit`
 - Organization: VPerfectCS
 - Public license: Apache-2.0
-- Supported Odoo versions: 17.0, 18.0, and 19.0
+- Supported Odoo versions: 17.0, 18.0, 19.0, and 20.0 (20.0: skills, detection, commands,
+  MCP, lint; Docker Sandbox remains 17/18/19 until an official `odoo:20.0` image is pinned)
 - Active workstream: public Docker Sandbox foundation and open-core commercial
   planning
 - Active branch: `main`
 - Branch base: `main` at commit `12368b7` (post-Phase-7, additive 0.2.0/0.3.0 work)
-- Last context update: 2026-08-20 (UTC, Phase 8 exit gate MET — all
+- Last context update: 2026-09-24 (UTC, Odoo 20.0 support added; earlier: 2026-08-20 Phase 8 exit gate MET — all
   Deliverables and all five platform/orchestration coverage checklist items
   verified with real evidence; Phase 8 is complete)
+
+## Latest additive work — Odoo 20.0 support (unreleased, 2026-09-24)
+
+Not a Docker Sandbox phase. Adds 20.0 alongside 17/18/19 across skills, detection, commands,
+MCP and hook lint. Evidence source: `odoo/odoo@20.0` `d3236ca5c7052e892a097b007c38b9501888e406`
+(released 2026-09-24). Details: `docs/odoo-20-migration-roadmap.md` "Release and kit support".
+
+Verified evidence (VPS, Ubuntu, Python 3.12 `.venv`, Node v26.7.0):
+- Baseline before change: `./scripts/validate.sh` OK, 238 passed.
+- RED: `tests/hooks/test_odoo20_support.py` 16 failed / 6 passed (17–19 checks already green).
+- After: `./scripts/validate.sh` OK, 265 passed (2 pydantic-dependent MCP tests skip in `.venv`;
+  both pass in a throwaway venv with `pydantic`/`python-dotenv`/`requests`: 27 passed).
+- `node integrations/deepseek/tests/plugin.test.mjs` OK (connection count 3→4, 25 skills).
+- Re-break: restoring the old `odoo_lint.py` makes 9 of the new tests fail.
+- Real-code scan: hook lint at version 20 over 6,065 Odoo 20 standard addon files → one expected
+  L9 warn (`mail_tracking` itself). An L5 false positive in `account/security/account_security.xml`
+  was found this way and fixed with a regression test.
+- Not done: Docker Sandbox 20.0 (no official `odoo:20.0` image on Docker Hub 2026-09-24), real
+  Odoo 20 module install test, drift-check catalogue L7–L10, `knowledge-20` OKF bundle.
 
 ## Latest additive work — DeepSeek Harness integration (unreleased)
 

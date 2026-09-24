@@ -8,13 +8,13 @@ from typing import Optional
 
 from .common import find_module_dir
 
-_META_RE = re.compile(r"(?:odoo[_ ]?version|version)\s*[:=]\s*\"?(1[789])", re.IGNORECASE)
+_META_RE = re.compile(r"(?:odoo[_ ]?version|version)\s*[:=]\s*\"?(1[789]|20)(?!\d)", re.IGNORECASE)
 
 
 def _norm(raw: Optional[str]) -> Optional[str]:
     if not raw:
         return None
-    m = re.match(r"\s*(1[789])", str(raw))
+    m = re.match(r"\s*(1[789]|20)(?!\d)", str(raw))
     return m.group(1) if m else None
 
 
@@ -36,7 +36,7 @@ def detect_odoo_version(cwd: Optional[Path] = None) -> Optional[str]:
 
     module_dir = find_module_dir(start)
     if module_dir is not None:
-        for v in ("19", "18", "17"):
+        for v in ("20", "19", "18", "17"):
             if (module_dir / f"{v}.0").is_dir() or (module_dir.parent / f"{v}.0").is_dir():
                 return v
         meta = module_dir / "docs" / "module_meta.md"

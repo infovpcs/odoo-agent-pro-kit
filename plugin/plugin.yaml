@@ -8,7 +8,7 @@
 name: odoo-agent-pro-kit
 version: "0.6.0"
 description: >-
-  Odoo 17/18/19 custom application development lifecycle for Hermes: native
+  Odoo 17/18/19/20 custom application development lifecycle for Hermes: native
   odoo_* MCP-equivalent tools (model/field/relationship discovery over live
   XML-RPC/JSON-RPC-2.0), /plan-analysis, /start-coding, /testing, /fleet,
   /rules-check-drift slash commands, session-start Odoo workspace
@@ -19,7 +19,7 @@ homepage: "https://github.com/infovpcs/odoo-agent-pro-kit"
 license: "Apache-2.0"
 manifest_version: 1
 api_version: 1
-tags: ["odoo", "odoo-17", "odoo-18", "odoo-19", "erp", "mcp", "docker-sandbox"]
+tags: ["odoo", "odoo-17", "odoo-18", "odoo-19", "odoo-20", "erp", "mcp", "docker-sandbox"]
 provides_tools:
   - odoo_search_models
   - odoo_get_fields
@@ -43,7 +43,7 @@ config_schema:
     type: str
     default: ""
     description: >-
-      Default Odoo version (17.0/18.0/19.0) used by odoo_* tools and slash
+      Default Odoo version (17.0/18.0/19.0/20.0) used by odoo_* tools and slash
       commands when a call omits an explicit version. Falls back to
       DEFAULT_ODOO_VERSION env var, then session-start auto-detection, then
       19.0.

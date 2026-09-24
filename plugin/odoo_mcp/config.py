@@ -190,7 +190,7 @@ def load_config(version: Optional[str] = None) -> OdooConfig:
     mcp_server_host = os.environ.get("MCP_SERVER_HOST", "localhost")
     
     # Version-aware port detection (Phase 12)
-    default_mcp_ports = {"17.0": 8765, "18.0": 8766, "19.0": 8767}
+    default_mcp_ports = {"17.0": 8765, "18.0": 8766, "19.0": 8767, "20.0": 8768}
     
     # Priority: 1. Specific env, 2. Version default, 3. Generic env
     # version_prefix is already the major number (17, 18, 19)

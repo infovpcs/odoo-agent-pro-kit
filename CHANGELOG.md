@@ -7,6 +7,29 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
 
 ### Added
 
+- **Odoo 20.0 support, 17.0/18.0/19.0 unchanged** — verified against `odoo/odoo@20.0`
+  `d3236ca5c7052e892a097b007c38b9501888e406` (2026-09-24, `version_info = (20, 0, 0, FINAL)`).
+  - Skills: `Odoo20CodingStandard`, `OdooTools20`, `Odoo20ExistingDependencyContext` (25 bundled
+    skills). The coding standard carries every 19.0 rule forward and adds `ir.access`, `mail_tracking`,
+    Material Symbols, JSON-2 API and `odoo-bin upgrade_code` guidance; review/security guidance defers
+    to Odoo's native `skills/` library.
+  - Version detection (`hooks/checks/version.py`, `common.py`, `context_guard.py`), Hermes/DSH
+    command parsing (`<17|18|19|20>`), DSH `VERSIONS`, Enterprise-path guard (`ent-20`).
+  - MCP: 20.0 → JSON-RPC 2.0 (was silently falling back to XML-RPC), default port 8768,
+    JSON-RPC version probe recognises 20.
+  - Hook lint: L1–L6 severities extended to 20; new 20.0-only rules **L7** `ir.model.access.csv`
+    (block), **L8** `ir.rule` records (block), **L9** `mail.tracking.value`/`tracking_value_ids`
+    (warn), **L10** `fa fa-*` classes (warn). 17/18/19 results unchanged.
+  - `tests/hooks/test_odoo20_support.py` (27 tests, 2 skip without `pydantic`; both pass with it).
+
+### Fixed
+
+- **L5 false positive** — the `res.groups` `category_id` rule could match across `</record>` into a
+  following `res.groups.privilege` record (flagged `odoo/odoo@20.0` `account/security/account_security.xml`).
+  The match is now confined to one record (affects 19 and 20).
+  - Not included: Docker Sandbox 20.0 — no official `odoo:20.0` image on Docker Hub yet; a test
+    keeps the sandbox schema aligned with pinned images.
+
 - **Requirement gap-analysis skill** - `plugin/skills/OdooRequirementGapAnalysis/` adds the
   `odoo_requirement_gap_analysis` skill (the 23rd bundled skill): a generic, project-agnostic method
   that turns a requirements document into a code-verified Fit/Partial/Gap mapping and an

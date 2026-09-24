@@ -248,7 +248,7 @@ check('no tool parameter uses a boolean `required` (the spec-dialect mistake)', 
   assert.deepEqual(offenders, [], `boolean required keywords present: ${offenders.join(', ')}`)
 })
 
-check('registers the 22 bundled skills under kebab-case names', () => {
+check('registers the 25 bundled skills under kebab-case names', () => {
   const skills = recorded.skills
   assert.ok(skills.length >= 20, `expected the bundled skill catalog, got ${skills.length}`)
   for (const skill of skills) {
@@ -260,6 +260,9 @@ check('registers the 22 bundled skills under kebab-case names', () => {
   const names = skills.map(skill => skill.name)
   assert.ok(names.includes('odoo-19-coding-standard'), 'missing odoo-19-coding-standard')
   assert.ok(names.includes('odoo-17-dependency-context'), 'missing odoo-17-dependency-context')
+  for (const odoo20 of ['odoo-20-coding-standard', 'odoo-tools-20', 'odoo-20-dependency-context']) {
+    assert.ok(names.includes(odoo20), `missing ${odoo20}`)
+  }
   assert.ok(names.includes('odoo-commanding-system'), 'missing odoo-commanding-system')
   assert.equal(new Set(names).size, names.length, 'skill names must be unique after normalization')
 })
@@ -413,7 +416,7 @@ const workspace = await workspaceTool.execute({}, { agent: { session: { header: 
 check('odoo_workspace_info reports config and detected workspace', () => {
   assert.equal(workspace.kit_root, REPO_ROOT)
   assert.ok(Array.isArray(workspace.connections))
-  assert.equal(workspace.connections.length, 3)
+  assert.equal(workspace.connections.length, 4) // one per supported version: 17, 18, 19, 20
   assert.equal(workspace.guard.allow_raw_odoo, false)
   assert.equal(workspace.guard.allow_vcs_write_env, false)
   assert.equal(workspace.guard.vcs_writes_allowed, false)
@@ -493,7 +496,7 @@ check('a malformed .env does not break resolution', async () => {
   writeFileSync(join(broken, '.env'), 'not a pair\n=novalue\nOK_KEY=value\n"bad"=x\n')
   try {
     const { out } = await workspaceInfo(broken)
-    assert.equal(out.connections.length, 3, 'a broken .env must not fail the call')
+    assert.equal(out.connections.length, 4, 'a broken .env must not fail the call')
   } finally {
     rmSync(broken, { recursive: true, force: true })
   }

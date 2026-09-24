@@ -9,7 +9,7 @@ from typing import Optional
 
 _TRUE = {"1", "true", "yes", "on"}
 
-_VERSION_TOKEN_RE = re.compile(r"^(1[789])(\.0)?$")
+_VERSION_TOKEN_RE = re.compile(r"^(1[789]|20)(\.0)?$")
 _MODULE_TOKEN_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 
 
@@ -66,7 +66,7 @@ def find_module_dir(start: Optional[Path] = None) -> Optional[Path]:
         if (candidate / "docs" / "tasks.md").is_file():
             return candidate
     for candidate in (current, *current.parents):
-        if any((candidate / v).is_dir() for v in ("17.0", "18.0", "19.0")):
+        if any((candidate / v).is_dir() for v in ("17.0", "18.0", "19.0", "20.0")):
             return candidate
     return None
 
@@ -77,7 +77,7 @@ def resolve_module_dir(cwd: Optional[Path], prompt_or_args: str) -> Optional[Pat
     ``/testing 19 mymod`` run from the *parent* of ``mymod`` must gate ``mymod``,
     not fall through to ``find_module_dir`` (which would return ``None``). Parse
     the tokens: drop a leading ``/command`` token, drop a leading version token
-    (``17`` / ``18`` / ``19`` / ``19.0``), and if the next token names an
+    (``17`` / ``18`` / ``19`` / ``20`` / ``20.0``), and if the next token names an
     existing sub-directory of ``cwd`` use it. Otherwise fall back to
     ``find_module_dir(cwd)``.
     """

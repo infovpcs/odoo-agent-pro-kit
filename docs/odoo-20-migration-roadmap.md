@@ -1,6 +1,6 @@
 # Odoo 20.0 Migration Roadmap
 
-Status: **tracking — pre-release**
+Status: **released 2026-09-24 — kit support in progress (see "Release and kit support")**
 Created: 2026-09-12
 Owner: Vinay Rana / infovpcs
 
@@ -162,3 +162,39 @@ following the 19.0 pattern, seeded from the (unchanged) official guideline
 content above plus a real Docker Sandbox install/migration test against
 Odoo 20 once it is installable. This needs a dedicated session, not an
 unattended cron run.
+
+## Release and kit support - 2026-09-24
+
+- Odoo 20 released at Odoo Experience; official notes public 2026-09-24T08:30Z at
+  https://www.odoo.com/odoo-20-release-notes. Community `20.0` @
+  `d3236ca5c7052e892a097b007c38b9501888e406` (`version_info = (20, 0, 0, FINAL, 0, '')`),
+  docs `20.0` @ `0f2e25d99173e62198e73eb2efa047922bc11679`. No `20.0` git tag yet.
+- `skills/` unchanged since `21764715` (2026-09-22); still byte-identical in structure to the
+  2026-09-11 snapshot above.
+
+### Decision: defer, don't duplicate
+Odoo's own `skills/` (guidelines, review, security, web) are the source of truth for Odoo 20
+review and coding rules. The kit keeps what they don't do: lifecycle commands, Docker Sandbox,
+install/upgrade/test runners, rules-drift, MCP discovery, KB tools, and version-aware hooks.
+
+### Code-verified 19 → 20 breaking changes (kit coverage)
+| Change | Evidence | Kit |
+|---|---|---|
+| `ir.model.access` + `ir.rule` → `ir.access` (`security/ir.access.csv`: `id,name,model_id,group_id/id,operation,domain`; `kind` = permission if group else restriction) | `odoo/addons/base/models/ir_access.py`; official rewriter `odoo/upgrade_code/19.4-00-ir-access.py` | L7/L8 block; `Odoo20CodingStandard` |
+| `mail.tracking.value` / `tracking_value_ids` moved to `mail_tracking` | `addons/mail_tracking/` | L9 warn |
+| Font Awesome → Material Symbols in web client | `addons/web/static/src/libs/materialsymbols/` | L10 warn |
+| `/xmlrpc`, `/jsonrpc` deprecated (removal in 22); JSON-2 `/json/2/<model>/<method>` | `addons/rpc/controllers/` | `OdooTools20`; MCP uses JSON-RPC 2.0 for 19–20 |
+
+### Backward-version support policy
+- 17.0, 18.0, 19.0 remain fully supported; all existing tests still pass and every 17–19 lint
+  severity is unchanged (asserted in `tests/hooks/test_odoo20_support.py`).
+- Migration paths: 17/18 → 20 run `odoo-bin upgrade_code --from 17.0 --to 20.0` (tree→list,
+  sql-constraint, route-jsonrpc, ir-access …) then sandbox-test; 19 → 20 mainly `ir-access`.
+
+### Remaining (not done)
+- [ ] Docker Sandbox 20.0: blocked on an official `odoo:20.0` image (Docker Hub shows 17/18/19
+      only on 2026-09-24). Then: pin digest, add `versions.yaml` 20 entry + Dockerfile, extend
+      schema enum and `lifecycle.sh`, run the Phase-7 acceptance on the Ubuntu KVM host.
+- [ ] Real install/migration test of a sample custom module on Odoo 20.
+- [ ] `OdooRulesDriftCheck` catalogue entries for L7–L10.
+- [ ] `knowledge-20` OKF bundle (DSH/Hermes `odoo_kb_*` tools have no 20 KB yet).

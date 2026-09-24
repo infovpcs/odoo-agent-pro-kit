@@ -44,7 +44,7 @@ works.
 ## 2. Confirm the roster entry
 
 Start DSH and open the agent-preset picker. **Odoo Agent Pro Kit** should be
-listed with the description *Full coding agent plus the Odoo 17/18/19
+listed with the description *Full coding agent plus the Odoo 17/18/19/20
 custom-application lifecycle…*. DSH re-reads preset roots on every roster read,
 so the entry appears without restarting the harness.
 
