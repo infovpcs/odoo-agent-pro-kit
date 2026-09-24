@@ -50,6 +50,9 @@ for a in env['ir.access'].search([('model_id.model', '=like', 'x_%')]):
 - `mail.tracking.value` / `tracking_value_ids` → depend on `mail_tracking`
 - `<tree>`, `attrs=`, `states=`, `type='json'`, `category_id` on `res.groups` → still blocked
 - `class="fa fa-` in new templates → prefer Material Symbols
+- `toggle_active` / `boolean_button`, `t-esc` in view arch, `registry._init` → removed in 20
+- kanban inheritance of views that now use `card_id` → inherit the `*_card` view instead
+- manifest `version` still `19.0.x` → module silently not installable
 
 ## Output Format (compact)
 ```

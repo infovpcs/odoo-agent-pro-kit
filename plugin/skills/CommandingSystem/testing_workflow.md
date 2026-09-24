@@ -1,6 +1,6 @@
 # /testing Workflow
 
-Complete step-by-step execution guide for the `/testing (17|18|19)` command.
+Complete step-by-step execution guide for the `/testing (17|18|19|20)` command.
 
 ---
 

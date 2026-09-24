@@ -3,7 +3,7 @@
 All notable changes to `odoo-agent-pro-kit` are documented here. Versions
 track the `plugin/.claude-plugin/plugin.json` `version` field.
 
-## Unreleased
+## 0.7.0 — 2026-09-24
 
 ### Added
 
@@ -12,23 +12,33 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
   - Skills: `Odoo20CodingStandard`, `OdooTools20`, `Odoo20ExistingDependencyContext` (25 bundled
     skills). The coding standard carries every 19.0 rule forward and adds `ir.access`, `mail_tracking`,
     Material Symbols, JSON-2 API and `odoo-bin upgrade_code` guidance; review/security guidance defers
-    to Odoo's native `skills/` library.
-  - Version detection (`hooks/checks/version.py`, `common.py`, `context_guard.py`), Hermes/DSH
-    command parsing (`<17|18|19|20>`), DSH `VERSIONS`, Enterprise-path guard (`ent-20`).
-  - MCP: 20.0 → JSON-RPC 2.0 (was silently falling back to XML-RPC), default port 8768,
-    JSON-RPC version probe recognises 20.
-  - Hook lint: L1–L6 severities extended to 20; new 20.0-only rules **L7** `ir.model.access.csv`
+    to Odoo's native `skills/` library. `CommandingSystem` routes version 20 to them.
+  - Commands: `/plan-analysis`, `/start-coding`, `/testing` accept `20` (Claude Code, Hermes, DSH,
+    Cursor, VS Code). `/fleet` stays 17/18/19 — it needs the Docker Sandbox, which has no 20 image.
+  - Version detection (`hooks/checks/version.py`, `common.py`, `context_guard.py`), DSH `VERSIONS`,
+    Enterprise-path guard (`ent-20`).
+  - MCP: 20.0 → JSON-RPC 2.0 (was silently falling back to XML-RPC), port 8768 in `config.py` and
+    `start_mcp_server.sh` (which previously mapped 20 to 8767 with the 17.0 credentials),
+    `ODOO20_*` env vars, JSON-RPC version probe recognises 20.
+  - Hook lint: L1–L6 severities extended to 20; new 20.0-only rules — **L7** `ir.model.access.csv`
     (block), **L8** `ir.rule` records (block), **L9** `mail.tracking.value`/`tracking_value_ids`
-    (warn), **L10** `fa fa-*` classes (warn). 17/18/19 results unchanged.
-  - `tests/hooks/test_odoo20_support.py` (27 tests, 2 skip without `pydantic`; both pass with it).
+    (warn), **L10** `fa fa-*` classes (warn), **L11** `toggle_active`/`boolean_button` (block),
+    **L12** `t-esc` in view arch (block), **L13** `Registry._init` (block). 17/18/19 results unchanged.
+  - L11–L13 and the migration pitfalls in `OdooTools20` came from a **live 19→20 migration** of two
+    real 19.0 modules (`upgrade_code --script 19.4-00-ir-access`, then install + tests on 20.0 vs a
+    19.0 baseline of the same source): the lint at version 20 flags exactly the lines that blocked
+    install; after the fixes the 20.0 run has no failures beyond the 19.0 baseline.
+  - `tests/hooks/test_odoo20_support.py` (33 tests, 2 skip without `pydantic`; both pass with it).
+  - Not included: Docker Sandbox 20.0 (no official `odoo:20.0` image on Docker Hub yet), drift-check
+    catalogue entries for L7–L13, `knowledge-20` OKF bundle.
 
 ### Fixed
 
 - **L5 false positive** — the `res.groups` `category_id` rule could match across `</record>` into a
   following `res.groups.privilege` record (flagged `odoo/odoo@20.0` `account/security/account_security.xml`).
   The match is now confined to one record (affects 19 and 20).
-  - Not included: Docker Sandbox 20.0 — no official `odoo:20.0` image on Docker Hub yet; a test
-    keeps the sandbox schema aligned with pinned images.
+
+### Added (since 0.6.0)
 
 - **Requirement gap-analysis skill** - `plugin/skills/OdooRequirementGapAnalysis/` adds the
   `odoo_requirement_gap_analysis` skill (the 23rd bundled skill): a generic, project-agnostic method

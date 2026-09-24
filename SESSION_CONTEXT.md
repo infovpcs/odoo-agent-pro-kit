@@ -33,7 +33,7 @@ Before changing files:
   Deliverables and all five platform/orchestration coverage checklist items
   verified with real evidence; Phase 8 is complete)
 
-## Latest additive work — Odoo 20.0 support (unreleased, 2026-09-24)
+## Latest additive work — Odoo 20.0 support (0.7.0, 2026-09-24)
 
 Not a Docker Sandbox phase. Adds 20.0 alongside 17/18/19 across skills, detection, commands,
 MCP and hook lint. Evidence source: `odoo/odoo@20.0` `d3236ca5c7052e892a097b007c38b9501888e406`
@@ -49,8 +49,22 @@ Verified evidence (VPS, Ubuntu, Python 3.12 `.venv`, Node v26.7.0):
 - Real-code scan: hook lint at version 20 over 6,065 Odoo 20 standard addon files → one expected
   L9 warn (`mail_tracking` itself). An L5 false positive in `account/security/account_security.xml`
   was found this way and fixed with a regression test.
-- Not done: Docker Sandbox 20.0 (no official `odoo:20.0` image on Docker Hub 2026-09-24), real
-  Odoo 20 module install test, drift-check catalogue L7–L10, `knowledge-20` OKF bundle.
+- **Live 19→20 migration (2026-09-24)** — two real 19.0 modules (`vpcs_llm_provider`,
+  `vpcs_progressive_payment_terms`) copied to a throwaway repo; 19.0 baseline on
+  `vpcscloud-staging-odoo:19.0-20260305-r1` (PG16): 3 failed / 16 errors of 34 tests (pre-existing).
+  `odoo-bin upgrade_code --script 19.4-00-ir-access` converted both CSVs to `ir.access.csv`
+  (ACL checked in `odoo-bin shell`: user r, manager crud, plain none). Then, on 20.0 source
+  (`d3236ca5`, Python 3.12 venv, PG16): 0 tests (19.0.x manifest → not installable) → install
+  failure `toggle_active` → kanban `card_id` split → `t-esc` forbidden → +13 runtime errors from
+  `Registry._init`. Final: 2 failed / 16 errors of 36 tests, **no failure absent from the 19.0
+  baseline**, one 19.0 failure fixed. New rules L11–L13 each written test-first (RED → GREEN);
+  lint at 20 over the untouched 19 source flags exactly those blockers. Pitfall: `upgrade_code`
+  also rewrote ~1,000 files of the Odoo checkout (restored; `git status` clean at `d3236ca5`).
+- Final: `./scripts/validate.sh` OK, 269 passed, 2 skipped; DSH `plugin.test.mjs` OK; lint at 20
+  over 10,933 Odoo 20 addon files → only L9 warns inside `mail_tracking` itself.
+- Released as **0.7.0** (0.6.0 was bumped but never tagged).
+- Not done: Docker Sandbox 20.0 (no official `odoo:20.0` image on Docker Hub 2026-09-24),
+  drift-check catalogue L7–L13, `knowledge-20` OKF bundle.
 
 ## Latest additive work — DeepSeek Harness integration (unreleased)
 

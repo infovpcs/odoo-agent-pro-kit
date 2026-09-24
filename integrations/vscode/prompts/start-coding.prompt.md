@@ -1,7 +1,7 @@
 ---
 name: start-coding
 description: "Odoo task-loop coding with backend tests per task, progress tracking, and git commit generation. Requires docs/tasks.md from /plan-analysis."
-argument-hint: "Odoo version: 17, 18, or 19"
+argument-hint: "Odoo version: 17, 18, 19, or 20"
 ---
 
 You are running the Odoo **start-coding** command.

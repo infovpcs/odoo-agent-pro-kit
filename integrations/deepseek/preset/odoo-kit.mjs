@@ -766,7 +766,7 @@ function lifecycleSectionText(config) {
     '  /plan-analysis <17|18|19|20> [module]   requirement analysis, model discovery, PRD generation',
     '  /start-coding <17|18|19|20> [module]    task-loop implementation with backend tests per task',
     '  /testing <17|18|19|20> [module]         frontend UI tests and documentation assets',
-    '  /fleet <17|18|19|20>                    parallel workspace orchestration across modules',
+    '  /fleet <17|18|19>                       parallel workspace orchestration (Docker Sandbox; no 20 image yet)',
     '  /rules-check-drift [range]           advisory audit of CLAUDE.md/AGENTS.md/GEMINI.md drift',
     '',
     'Always establish the target Odoo version before doing version-sensitive work, and load the',
@@ -848,7 +848,7 @@ export function apply(ctx, config) {
       ctx.effect(() => commands.register({
         name: commandName,
         description,
-        input: { hint: commandName === 'rules-check-drift' ? '[diff range, e.g. main...HEAD]' : '<17|18|19|20> [module_name]' },
+        input: { hint: commandName === 'rules-check-drift' ? '[diff range, e.g. main...HEAD]' : commandName === 'fleet' ? '<17|18|19>' : '<17|18|19|20> [module_name]' },
         handler: async (invocation) => {
           try {
             const { version, rest } = parseVersionAndRest(invocation.rawInput)
@@ -879,7 +879,7 @@ export function apply(ctx, config) {
   // ── live model discovery tools ────────────────────────────────────────────
   const versionParam = {
     type: 'string',
-    description: 'Odoo version: 17.0, 18.0, or 19.0. Defaults to the configured/detected version.',
+    description: 'Odoo version: 17.0, 18.0, 19.0, or 20.0. Defaults to the configured/detected version.',
     enum: VERSIONS,
   }
 

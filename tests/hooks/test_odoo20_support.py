@@ -6,6 +6,7 @@ d3236ca5c7052e892a097b007c38b9501888e406 (see docs/odoo-20-migration-roadmap.md)
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -215,3 +216,89 @@ def test_l5_does_not_span_into_a_following_privilege_record():
     )
     for v in ("19", "20"):
         assert "L5" not in _rules(odoo_lint.lint("m/security/s.xml", xml, v))
+
+
+def test_l11_toggle_active_and_boolean_button_block_on_20_only():
+    """Found by a live 19->20 migration: odoo/odoo@20.0 has no BaseModel.toggle_active
+    (19.0 had it at odoo/orm/models.py) and no boolean_button widget; upgrade_code does
+    not rewrite either, so install fails with "toggle_active is not a valid action"."""
+    xml = ('<form><sheet><div name="button_box"><button name="toggle_active" type="object">'
+           '<field name="active" widget="boolean_button"/></button></div></sheet></form>')
+    f20 = odoo_lint.lint("m/views/v.xml", xml, "20")
+    assert "L11" in _rules(f20) and _sev(f20, "L11") == "block"
+    assert "action_archive" in next(x.fix for x in f20 if x.rule == "L11")
+    assert "L11" in _rules(odoo_lint.lint("m/models/m.py", "rec.toggle_active()\n", "20"))
+    for v in ("17", "18", "19"):
+        assert "L11" not in _rules(odoo_lint.lint("m/views/v.xml", xml, v))
+    assert "L11" not in _rules(odoo_lint.lint("m/views/v.xml", '<field name="active" widget="boolean_toggle"/>', "20"))
+
+
+def test_l12_t_esc_in_view_arch_blocks_on_20_only():
+    """Found by a live 19->20 migration: Odoo 20 rejects t-esc in kanban/card view arch
+    ("Forbidden owl directive used in arch (t-esc)", ir_ui_view.py allowed_directives),
+    and upgrade_code's owl3 t-esc rewrite only touches /static/ files, not views/*.xml."""
+    xml = '<card><footer><t t-esc="record.x.value"/></footer></card>'
+    f20 = odoo_lint.lint("m/views/v.xml", xml, "20")
+    assert "L12" in _rules(f20) and _sev(f20, "L12") == "block"
+    assert "t-out" in next(x.fix for x in f20 if x.rule == "L12")
+    for v in ("17", "18", "19"):
+        assert "L12" not in _rules(odoo_lint.lint("m/views/v.xml", xml, v))
+    assert "L12" not in _rules(odoo_lint.lint("m/views/v.xml", '<t t-out="record.x.value"/>', "20"))
+
+
+def test_l13_registry_init_flag_blocks_on_20_only():
+    """Found by a live 19->20 migration: odoo/orm/registry.py on 20.0 no longer sets
+    Registry._init (19.0 did), so `self.env.registry._init` raises AttributeError in
+    constraints/computes at runtime; lint cannot see it at install time."""
+    py = "if self.env.registry._init:\n    return\n"
+    f20 = odoo_lint.lint("m/models/m.py", py, "20")
+    assert "L13" in _rules(f20) and _sev(f20, "L13") == "block"
+    assert "registry.ready" in next(x.fix for x in f20 if x.rule == "L13")
+    for v in ("17", "18", "19"):
+        assert "L13" not in _rules(odoo_lint.lint("m/models/m.py", py, v))
+    assert "L13" not in _rules(odoo_lint.lint("m/models/m.py", "self._init_column('x')\n", "20"))
+
+
+# --- Lifecycle commands / skill routing ----------------------------------------
+
+_LIFECYCLE = ("plan-analysis", "start-coding", "testing")
+
+
+def test_lifecycle_commands_accept_20_but_fleet_stays_sandbox_bound():
+    for name in _LIFECYCLE:
+        text = (REPO / "plugin" / "commands" / f"{name}.md").read_text()
+        assert "<17|18|19|20>" in text and "17, 18, 19, or 20" in text, name
+        assert "17, 18, or 19" not in text, name
+        cur = (REPO / "integrations" / "cursor" / "commands" / f"{name}.md").read_text()
+        assert "17|18|19|20" in cur, name
+        vs = (REPO / "integrations" / "vscode" / "prompts" / f"{name}.prompt.md").read_text()
+        assert "17, 18, 19, or 20" in vs, name
+    fleet = (REPO / "plugin" / "commands" / "fleet.md").read_text()
+    assert "<17|18|19>" in fleet and "Docker Sandbox" in fleet
+
+
+def test_commanding_system_routes_20_to_the_20_skills():
+    text = (REPO / "plugin" / "skills" / "CommandingSystem" / "SKILL.md").read_text()
+    block = text[text.index("### Odoo 20"):text.index("### Odoo 19")]
+    for skill in ("Odoo20CodingStandard", "OdooTools20", "Odoo20ExistingDependencyContext"):
+        assert skill in block
+    wf = (REPO / "plugin" / "skills" / "CommandingSystem" / "start_coding_workflow.md").read_text()
+    assert "**Odoo 20 standards:**" in wf and "ir.access.csv" in wf
+
+
+def _mcp_launcher_port(version):
+    script = REPO / "plugin" / "odoo_mcp" / "start_mcp_server.sh"
+    body = script.read_text()
+    fn = body[body.index("get_major_version() {"):body.index("get_pid_file_for_version()")] \
+        if "get_pid_file_for_version()" in body else None
+    assert fn, "launcher helpers moved"
+    out = subprocess.run(["bash", "-c", fn + f"\nget_mcp_port_for_version {version}"],
+                         capture_output=True, text=True, check=True)
+    return out.stdout.strip()
+
+
+def test_mcp_launcher_ports_and_20_credentials():
+    assert [_mcp_launcher_port(v) for v in ("17.0", "18.0", "19.0", "20.0")] == \
+        ["8765", "8766", "8767", "8768"]
+    body = (REPO / "plugin" / "odoo_mcp" / "start_mcp_server.sh").read_text()
+    assert '"20.0"' in body and "ODOO20_URL" in body and "ODOO20_DB_NAME" in body

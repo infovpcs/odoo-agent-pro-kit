@@ -142,7 +142,7 @@ class CoffeeRoastingBatch(models.Model):
 
 ### 2d. Data Files (CSV, XML) Changes
 - Adding/updating records in `data/*.xml`
-- Modifying `security/ir.model.access.csv`
+- Modifying `security/ir.model.access.csv` (17–19) or `security/ir.access.csv` (20)
 - Adding workflow definitions
 - Creating report templates
 

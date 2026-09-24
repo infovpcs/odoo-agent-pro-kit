@@ -21,4 +21,4 @@
 
 ## Instructions
 Load `.cursor/AgentSkills/CommandingSystem/SKILL.md` then load `.cursor/AgentSkills/CommandingSystem/start_coding_workflow.md`.
-Execute STEP 1 through STEP 5. Ask for version (17|18|19) and module name if not provided.
+Execute STEP 1 through STEP 5. Ask for version (17|18|19|20) and module name if not provided.

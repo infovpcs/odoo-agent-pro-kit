@@ -52,6 +52,24 @@ _RULES = [
      {"20": "warn"},
      "Font Awesome icon classes (web client uses Material Symbols in Odoo 20)",
      "Prefer the Material Symbols icon set; Font Awesome is only kept for compatibility.", "xml"),
+    ("L11", re.compile(r"name\s*=\s*[\"']toggle_active[\"']|widget\s*=\s*[\"']boolean_button[\"']"),
+     {"20": "block"},
+     "toggle_active button / boolean_button widget (both removed in Odoo 20)",
+     "Drop the stat button; archive via the standard action_archive/action_unarchive "
+     "(Action menu) or a web_ribbon on inactive records; use widget=\"boolean_toggle\" if a toggle is needed.", "xml"),
+    ("L11", re.compile(r"\.toggle_active\s*\("),
+     {"20": "block"},
+     "toggle_active() call (BaseModel.toggle_active removed in Odoo 20)",
+     "Call action_archive() / action_unarchive() instead.", "model"),
+    ("L12", re.compile(r"\bt-esc\s*="),
+     {"20": "block"},
+     "t-esc in a view arch (forbidden owl directive in Odoo 20 views)",
+     "Use t-out; `odoo-bin upgrade_code --script owl3-migration` only rewrites /static/ files, "
+     "so fix views/*.xml by hand.", "xml"),
+    ("L13", re.compile(r"\bregistry\._init\b"),
+     {"20": "block"},
+     "Registry._init (private flag removed in Odoo 20; AttributeError at runtime)",
+     "Use `not self.env.registry.ready` (or the install_mode/module context keys) instead.", "model"),
 ]
 
 _ROUTE_XML = ("/views/", "/security/", "/data/", "/report/", "/wizard/")

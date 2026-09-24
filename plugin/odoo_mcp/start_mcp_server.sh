@@ -33,7 +33,7 @@ DEFAULT_PORT=8765
 DEFAULT_HOST="localhost"
 
 # Odoo versions to check
-ODOO_VERSIONS=("17.0" "18.0" "19.0")
+ODOO_VERSIONS=("17.0" "18.0" "19.0" "20.0")
 
 # Base port for multi-version mode
 BASE_PORT=8765
@@ -50,6 +50,7 @@ get_mcp_port_for_version() {
     case "$major" in
         17) echo "8765" ;;
         18) echo "8766" ;;
+        20) echo "8768" ;;
         *) echo "8767" ;;
     esac
 }
@@ -200,6 +201,8 @@ check_odoo_servers() {
             url_var="ODOO17_URL"
         elif [ "$version" == "18.0" ]; then
             url_var="ODOO18_URL"
+        elif [ "$version" == "20.0" ]; then
+            url_var="ODOO20_URL"
         fi
 
         local url="${!url_var:-http://localhost:8069}"
@@ -322,7 +325,7 @@ start_server() {
     export PYTHONPATH="$PROJECT_DIR:$PYTHONPATH"
     cd "$PROJECT_DIR"
 
-    # Determine version-specific MCP port (17→8765, 18→8766, 19→8767)
+    # Determine version-specific MCP port (17→8765, 18→8766, 19→8767, 20→8768)
     major_version=$(get_major_version "$version")
     port=$(get_mcp_port_for_version "$version")
     pid_file=$(get_pid_file_for_version "$version")
@@ -333,6 +336,11 @@ start_server() {
         local odoo_db="${ODOO_DB_NAME:-odoo}"
         local odoo_user="${ODOO_DB_USER:-admin}"
         local odoo_pass="${ODOO_DB_PASSWORD:-admin}"
+    elif [ "$major_version" == "20" ]; then
+        local odoo_url="${ODOO20_URL:-http://localhost:8020}"
+        local odoo_db="${ODOO20_DB_NAME:-odoo20}"
+        local odoo_user="${ODOO20_DB_USER:-admin}"
+        local odoo_pass="${ODOO20_DB_PASSWORD:-admin}"
     elif [ "$major_version" == "18" ]; then
         local odoo_url="${ODOO18_URL:-http://localhost:8018}"
         local odoo_db="${ODOO18_DB_NAME:-odoo18}"
@@ -453,7 +461,7 @@ start_all_servers() {
 
     for version in "${ODOO_VERSIONS[@]}"; do
         local major=$(echo "$version" | cut -d. -f1)
-        local port=$((BASE_PORT + major - 17))   # 17→8765, 18→8766, 19→8767
+        local port=$((BASE_PORT + major - 17))   # 17→8765, 18→8766, 19→8767, 20→8768
         local pid_file="$SCRIPT_DIR/mcp_server_${version/./_}.pid"
         local log_file="$LOG_DIR/mcp_server_${version/./_}.log"
 
@@ -517,6 +525,7 @@ start_all_servers() {
         echo "  - Odoo 17.0: http://localhost:8765/sse"
         echo "  - Odoo 18.0: http://localhost:8766/sse"
         echo "  - Odoo 19.0: http://localhost:8767/sse"
+        echo "  - Odoo 20.0: http://localhost:8768/sse"
     else
         print_error "$failed servers failed to start"
     fi
@@ -571,17 +580,18 @@ show_help() {
     echo "  --status         Show server status"
     echo "  --all            Start all MCP Servers (17, 18, 19)"
     echo "  --stop-all       Stop all MCP Server instances"
-    echo "  --version VERSION  Connect to specific Odoo version (17.0, 18.0, or 19.0)"
+    echo "  --version VERSION  Connect to specific Odoo version (17.0, 18.0, 19.0, or 20.0)"
     echo ""
     echo "Configuration:"
     echo "  - Reads from .env file in project root"
     echo "  - Uses ODOO_URL for Odoo 19, ODOO18_URL for Odoo 18, ODOO17_URL for Odoo 17"
     echo ""
     echo "Multi-Version Mode:"
-    echo "  - Starting with --all runs 3 separate MCP servers on ports 8765, 8766, 8767"
+    echo "  - Starting with --all runs 4 separate MCP servers on ports 8765, 8766, 8767, 8768"
     echo "  - Odoo 17.0: port 8765"
     echo "  - Odoo 18.0: port 8766"
     echo "  - Odoo 19.0: port 8767"
+    echo "  - Odoo 20.0: port 8768"
     echo ""
     echo "Examples:"
     echo "  $0 --start                    # Start server (default: Odoo 19)"

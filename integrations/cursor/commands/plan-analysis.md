@@ -1,6 +1,6 @@
 # plan-analysis
 
-> **Odoo requirement analysis, MCP model discovery, and PRD generation** for Odoo 17, 18, or 19.
+> **Odoo requirement analysis, MCP model discovery, and PRD generation** for Odoo 17, 18, 19, or 20.
 > Produces a complete `docs/` folder with requirements, design, tasks, module metadata, and architecture diagram.
 
 ## Usage
@@ -19,4 +19,4 @@
 
 ## Instructions
 Load `.cursor/AgentSkills/CommandingSystem/SKILL.md` then load `.cursor/AgentSkills/CommandingSystem/plan_analysis_workflow.md`.
-Execute STEP 1 through STEP 11. Ask for version (17|18|19) if not provided.
+Execute STEP 1 through STEP 11. Ask for version (17|18|19|20) if not provided.

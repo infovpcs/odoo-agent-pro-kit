@@ -1,7 +1,7 @@
 ---
 name: odoo_tools_20
 description: Standard Odoo 20.0 development tools including scaffolding, shell, upgrade_code source rewriters, testing, linting, JSON-2 API, and profiling. Use when working with Odoo 20 development or 19→20 migration workflows.
-version: 20.0.0
+version: 20.0.1
 author: VPCS Team
 category: development_tools
 odoo_versions: ["20.0"]
@@ -20,18 +20,32 @@ Use standard Odoo 20.0 tooling to build, migrate, test, and review custom module
 - Tests: inside a Docker Sandbox session use `sandbox/bin/sandboxctl module <session> test <module>`
   only — never raw `odoo-bin --test-tags` for lifecycle gates (see `DockerSandboxOperations`).
   Local mode: `manage_modules.sh test <module>`.
-- Linting: pylint-odoo/black where available; the kit's hook lint adds 20.0 rules L7–L10.
+- Linting: pylint-odoo/black where available; the kit's hook lint adds 20.0 rules L7–L13.
 
 ## Migration: `odoo-bin upgrade_code` (source rewriter)
 Documented in `odoo/cli/upgrade_code.py`; scripts in `odoo/upgrade_code/`.
+
+Pitfalls verified in a live 19→20 run (odoo/odoo@20.0 d3236ca5):
+- **It rewrites Odoo's own addons too.** `--addons-path` is *added* to the server's default
+  path, so scripts such as `owl3-migration`, `19.1-00-t-call` and `19.5-00-tuple-rec_names_search`
+  rewrote ~1,000 files in the Odoo checkout. Run it against a throwaway Odoo checkout, or restore
+  afterwards with `git -C <odoo> checkout -- . && git -C <odoo> clean -fd -- addons odoo`, and
+  confirm the checkout SHA/clean state before installing.
+- **`--from 19.0` can abort** in `19.3-00-account-groups` (`KeyError: 'ar_base'`), stopping every
+  later script. Run the scripts that matter one by one with `--script`.
+- **Exit code 1 means "files were changed"** (`sys.exit(int(is_dirty))`), not failure; read the
+  `updated:` / `deleted:` lines.
+- It does **not** bump the manifest `version`; a `19.0.x` manifest is silently skipped as
+  "incompatible version" on 20. Bump to `20.0.x` yourself.
+
 ```bash
-./odoo-bin upgrade_code --addons-path=<custom_addons> --from 19.0 --to 20.0 --dry-run  # list files
-./odoo-bin upgrade_code --addons-path=<custom_addons> --script 19.4-00-ir-access        # one script
-./odoo-bin upgrade_code --addons-path=<custom_addons> --glob '**/security/*'           # limit files
+git -C <custom_repo> switch -c migrate-20            # commit before rewriting
+./odoo-bin upgrade_code --addons-path=<custom_addons> --script 19.4-00-ir-access
+git -C <odoo_checkout> status --short | wc -l         # must be 0 — restore if not
 ```
-Scripts are best-effort: commit before running, read WARNING/ERROR output, diff, then install
-+ test in the sandbox. For 17/18 sources run the full range (`--from 17.0 --to 20.0`) so
-`tree-to-list`, `sql-constraint`, and `route-jsonrpc` apply before `ir-access`.
+Then run the kit lint at version 20 (L7–L13) over the module, fix what remains by hand, install +
+test on 20, and compare failures test-by-test against a 19.0 baseline run of the same source.
+For 17/18 sources also run `17.5-01-tree-to-list`, `18.1-00-sql-constraint`, `18.1-02-route-jsonrpc`.
 
 ## External API (JSON-2)
 - New: `POST /json/2/<model>/<method>` with `Authorization: bearer <api_key>`

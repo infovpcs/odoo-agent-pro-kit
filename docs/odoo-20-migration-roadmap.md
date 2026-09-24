@@ -184,17 +184,23 @@ install/upgrade/test runners, rules-drift, MCP discovery, KB tools, and version-
 | `mail.tracking.value` / `tracking_value_ids` moved to `mail_tracking` | `addons/mail_tracking/` | L9 warn |
 | Font Awesome → Material Symbols in web client | `addons/web/static/src/libs/materialsymbols/` | L10 warn |
 | `/xmlrpc`, `/jsonrpc` deprecated (removal in 22); JSON-2 `/json/2/<model>/<method>` | `addons/rpc/controllers/` | `OdooTools20`; MCP uses JSON-RPC 2.0 for 19–20 |
+| `BaseModel.toggle_active` and `boolean_button` widget removed | `odoo/orm/models.py` (only `action_archive`/`action_unarchive`) | L11 block — found in live migration |
+| `t-esc` forbidden in view arch | `odoo/addons/base/models/ir_ui_view.py` allowed owl directives | L12 block — found in live migration |
+| `Registry._init` removed | `odoo/orm/registry.py` | L13 block — found in live migration |
+| Kanban cards split into a `card` view (`card_id`) | `project.view_task_card` etc. (7 standard kanbans) | `Odoo20CodingStandard` (no lint) |
+| Manifest `19.0.x` → silently not installable | module loader | `OdooTools20` |
 
 ### Backward-version support policy
 - 17.0, 18.0, 19.0 remain fully supported; all existing tests still pass and every 17–19 lint
   severity is unchanged (asserted in `tests/hooks/test_odoo20_support.py`).
-- Migration paths: 17/18 → 20 run `odoo-bin upgrade_code --from 17.0 --to 20.0` (tree→list,
-  sql-constraint, route-jsonrpc, ir-access …) then sandbox-test; 19 → 20 mainly `ir-access`.
+- Migration paths: run the needed `odoo-bin upgrade_code --script …` one by one (`--from 19.0`
+  can abort in `19.3-00-account-groups`), bump the manifest to `20.0.x`, lint at 20, fix L11–L13
+  and card-view inheritance by hand, then install + test against a 19.0 baseline.
 
 ### Remaining (not done)
 - [ ] Docker Sandbox 20.0: blocked on an official `odoo:20.0` image (Docker Hub shows 17/18/19
       only on 2026-09-24). Then: pin digest, add `versions.yaml` 20 entry + Dockerfile, extend
       schema enum and `lifecycle.sh`, run the Phase-7 acceptance on the Ubuntu KVM host.
-- [ ] Real install/migration test of a sample custom module on Odoo 20.
-- [ ] `OdooRulesDriftCheck` catalogue entries for L7–L10.
+- [x] Real install/migration test of custom modules on Odoo 20 (2026-09-24; see `SESSION_CONTEXT.md`).
+- [ ] `OdooRulesDriftCheck` catalogue entries for L7–L13.
 - [ ] `knowledge-20` OKF bundle (DSH/Hermes `odoo_kb_*` tools have no 20 KB yet).

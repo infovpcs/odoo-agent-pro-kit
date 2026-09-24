@@ -20,7 +20,7 @@ Before using the MCP Server, ensure you have:
 
 - **Python 3.8+** installed
 - **uv** package manager (for venv management)
-- **Odoo 17, 18, or 19** instances running
+- **Odoo 17, 18, 19, or 20** instances running
 - **Environment variables** configured in `.env` file
 - Required Python packages (automatically installed by start script)
 

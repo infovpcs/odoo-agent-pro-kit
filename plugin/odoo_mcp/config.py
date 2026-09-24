@@ -118,6 +118,7 @@ def load_config(version: Optional[str] = None) -> OdooConfig:
         - ODOO17_URL, ODOO17_DB_NAME, ODOO17_DB_USER, ODOO17_DB_PASSWORD
         - ODOO18_URL, ODOO18_DB_NAME, ODOO18_DB_USER, ODOO18_DB_PASSWORD
         - ODOO19_URL, ODOO19_DB_NAME, ODOO19_DB_USER, ODOO19_DB_PASSWORD
+        - ODOO20_URL, ODOO20_DB_NAME, ODOO20_DB_USER, ODOO20_DB_PASSWORD
     """
     load_session_environment()
     # Determine version

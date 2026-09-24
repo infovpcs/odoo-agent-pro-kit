@@ -1,7 +1,7 @@
 ---
 name: testing
 description: "Odoo frontend UI testing, screenshot capture, GIF animation generation, and responsive static/description/index.html documentation. Requires all tasks complete."
-argument-hint: "Odoo version: 17, 18, or 19"
+argument-hint: "Odoo version: 17, 18, 19, or 20"
 ---
 
 You are running the Odoo **testing** command.

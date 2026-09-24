@@ -38,6 +38,17 @@ When you receive a message starting with `/plan-analysis`, `/start-coding`, or `
 
 When processing any command, load these skills in order for the given version:
 
+### Odoo 20
+```
+1. AgentSkills/Odoo20CodingStandard/SKILL.md
+2. AgentSkills/OdooTools20/SKILL.md
+3. AgentSkills/Odoo20ExistingDependencyContext/SKILL.md
+4. AgentSkills/Agents/ (pick relevant agent)
+5. AgentSkills/PRD-Writing/SKILL.md (for /plan-analysis only)
+6. AgentSkills/excalidraw-diagram-skill/SKILL.md (for /plan-analysis only — architecture diagram generation)
+```
+No Docker Sandbox image for 20 yet — run against a source checkout (`odoo-bin`, port 8768 for MCP).
+
 ### Odoo 19
 ```
 1. AgentSkills/Odoo19CodingStandard/SKILL.md

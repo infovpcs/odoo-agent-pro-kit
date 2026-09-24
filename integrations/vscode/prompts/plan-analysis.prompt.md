@@ -1,7 +1,7 @@
 ---
 name: plan-analysis
 description: "Odoo requirement analysis, MCP model discovery, and PRD docs/ folder generation. Supports Odoo 17, 18, and 19."
-argument-hint: "Odoo version: 17, 18, or 19"
+argument-hint: "Odoo version: 17, 18, 19, or 20"
 ---
 
 You are running the Odoo **plan-analysis** command.

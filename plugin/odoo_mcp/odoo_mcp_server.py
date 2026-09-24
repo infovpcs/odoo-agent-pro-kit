@@ -601,7 +601,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Odoo MCP Server")
     parser.add_argument("--host", default="localhost", help="Server host")
     parser.add_argument("--port", type=int, default=8765, help="Server port")
-    parser.add_argument("--version", help="Odoo version (17.0, 18.0, 19.0)")
+    parser.add_argument("--version", help="Odoo version (17.0, 18.0, 19.0, 20.0)")
     parser.add_argument("--transport", default="stdio", choices=["stdio", "sse"], help="Transport mode")
 
     args = parser.parse_args()

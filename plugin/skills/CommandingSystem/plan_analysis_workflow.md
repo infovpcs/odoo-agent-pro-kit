@@ -1,6 +1,6 @@
 # /plan-analysis Workflow
 
-Complete step-by-step execution guide for the `/plan-analysis (17|18|19)` command.
+Complete step-by-step execution guide for the `/plan-analysis (17|18|19|20)` command.
 
 ---
 
@@ -13,7 +13,7 @@ Before requirements deep-dive, check whether the user wants to build on external
 # "Do you want to load an external repository first? (GitHub/GitLab URL optional)"
 
 if repo_url_provided:
-    # version from command (17|18|19)
+    # version from command (17|18|19|20)
     load_result = load_git_modules_tool(
         repo_url=repo_url,
         version=version,
@@ -48,9 +48,9 @@ User runs: /plan-analysis 19
 Load each skill in order and confirm it is read before proceeding:
 
 ```
-1. read AgentSkills/Odoo19CodingStandard/SKILL.md
-2. read AgentSkills/OdooTools19/SKILL.md
-3. read AgentSkills/Odoo19ExistingDependencyContext/SKILL.md
+1. read AgentSkills/Odoo{V}CodingStandard/SKILL.md
+2. read AgentSkills/OdooTools{V}/SKILL.md
+3. read AgentSkills/Odoo{V}ExistingDependencyContext/SKILL.md
 4. read AgentSkills/PRD-Writing/SKILL.md
 5. read AgentSkills/excalidraw-diagram-skill/SKILL.md
 ```

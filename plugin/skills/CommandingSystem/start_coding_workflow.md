@@ -1,6 +1,6 @@
 # /start-coding Workflow
 
-Complete step-by-step execution guide for the `/start-coding (17|18|19)` command.
+Complete step-by-step execution guide for the `/start-coding (17|18|19|20)` command.
 
 ---
 
@@ -170,6 +170,12 @@ elif "website" in current_task.title.lower():
 
 ### 4b. Implement the task
 Following Odoo{V}CodingStandard rules:
+
+**Odoo 20 standards:**
+- Security: `security/ir.access.csv` (`operation` + `domain`); no `ir.model.access.csv`, no `ir.rule`
+- Removed: `toggle_active`/`boolean_button`, `t-esc` in view arch, `Registry._init`
+- Kanban cards: inherit the `*_card` view when the kanban uses `card_id`
+- Tracking values: depend on `mail_tracking`; icons: prefer Material Symbols
 
 **Odoo 19 standards:**
 - Models: `_inherit`, `@api.constrains` (not `_sql_constraints`), `self.env.context`

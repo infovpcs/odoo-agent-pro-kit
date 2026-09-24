@@ -1,7 +1,7 @@
 ---
 name: odoo_20_coding_standard
 description: Odoo 20.0 coding standards for models, views, security (ir.access), mail tracking, icons, routes, external API, and tests. Use when developing or migrating Odoo 20 modules; carries every Odoo 19 rule forward plus the 20.0 breaking changes verified in odoo/odoo@20.0.
-version: 20.0.0
+version: 20.0.1
 author: VPCS Team
 category: coding_standards
 odoo_versions: ["20.0"]
@@ -75,11 +75,33 @@ those granted by the module's ACLs and warns on orphan rules.) Kit lint: L7/L8 b
   scheduled for Odoo 22** (`addons/rpc/controllers/__init__.py`). New integrations use
   `POST /json/2/<model>/<method>` with an API key (`addons/rpc/controllers/json2.py`).
 
+## 20.0: breaking changes `upgrade_code` does NOT fix (found in a live 19→20 migration)
+These made real 19.0 modules fail to install or fail at runtime on 20.0 even after running
+`19.4-00-ir-access`. The kit's hook lint blocks each one on 20:
+- **L11 — `toggle_active` / `boolean_button` removed.** `BaseModel.toggle_active` no longer exists
+  and there is no `boolean_button` widget ("toggle_active is not a valid action on …"). Replace the
+  archive stat button with `<widget name="web_ribbon" title="Archived" bg_color="text-bg-danger"
+  invisible="active"/>` + `<field name="active" invisible="1"/>`; call `action_archive()` /
+  `action_unarchive()` in Python.
+- **L12 — `t-esc` forbidden in view arch.** Kanban/card arch accepts only `t-out`, `t-set`,
+  `t-value`, `t-if/elif/else`, `t-foreach/as/key`, `t-att*`, `t-call`, `t-name`, `t-debug`,
+  `t-translation` (`ir_ui_view.py`). The owl3 script rewrites `t-esc` only under `/static/`, so
+  fix `views/*.xml` by hand.
+- **L13 — `Registry._init` removed.** Use `not self.env.registry.ready` (or the `install_mode` /
+  `module` context keys). Fails only at runtime (AttributeError), so lint is the early warning.
+- **Kanban cards moved to a separate `card` view.** `project.view_task_kanban` (and 6 other
+  standard kanbans) now reference `card_id="%(…_card)d"`; the fields/templates live in e.g.
+  `project.view_task_card`. Inherit the card view, not the kanban, or you get
+  "Element '<field name="stage_id">' cannot be located in parent view".
+- **Manifest `version` must be `20.0.x`.** A `19.0.x` manifest is silently marked
+  `installable=False` ("incompatible version") and `-i` installs nothing (0 tests run, exit 0).
+
 ## Upgrade-code scripts available on 20.0
 `odoo/upgrade_code/`: `17.5-01-tree-to-list`, `18.1-00-sql-constraint`, `18.1-02-route-jsonrpc`,
 `19.1-00-t-call`, `19.3-00-base64-in-xml`, `19.4-00-ir-access`, `19.4-00-ormcache-on-transaction`,
-`19.5-00-tuple-rec_names_search`, `owl3-migration`. Run with `--from <ver> --to 20.0 --dry-run`
-first; each is best-effort — re-run the module's tests afterwards.
+`19.5-00-tuple-rec_names_search`, `owl3-migration`. Each is best-effort — re-run the module's tests
+afterwards. See `OdooTools20` for the pitfalls observed running them (they also rewrite Odoo's own
+addons; `--from 19.0` can crash in `19.3-00-account-groups`; exit 1 means "files changed").
 
 ## Output expectation
 Reference the file/SHA you verified, run the kit's `/rules-check-drift`, and never mark a 20.0
