@@ -141,7 +141,10 @@ The default `exec` mode is unchanged for local KVM sessions.
 
 - The mixin allowlist must include `production.cloudfront.docker.com` (Docker
   Hub blob host); kit 0.5.2 has it.
-- GitHub clone and push need a cloud GitHub credential (owner action).
+- GitHub: with a valid cloud `github` secret the proxy authenticates `api.github.com`
+  calls, but git over HTTPS still fails (`could not read Username`, or `invalid credentials`
+  with a `$GH_TOKEN` credential helper; 2026-09-25). Ship code with tar + `sbx --cloud cp`
+  until a supported git path is confirmed.
 - `sbx --cloud exec` rejects `-d`, `--user`, and `--privileged`.
 
 ## Evidence (2026-09-25, client `sbx-cloud:0.45.1` on Intel macOS)

@@ -550,8 +550,10 @@ run mode, local `exec` mode is unchanged (full suite green), costs are recorded.
   - [ ] `/fleet` cloud allocation in `sandbox-fleet` (code shipped by archive, `sbx --cloud ports`
         gives a public URL — owner to decide public exposure vs internal-only) with three
         cloud sandboxes.
-  - [ ] Owner: replace the invalid cloud `github` secret (`sbx --cloud secret set github`,
-        fine-grained token), then clone inside the sandbox instead of `sbx cp`.
+  - [x] Owner: replace the invalid cloud `github` secret — done 2026-09-25; API calls
+        authenticate (`infovpcs`).
+  - [ ] Git over HTTPS in cloud still fails with the valid secret (`invalid credentials`);
+        find the supported clone path before replacing tar + `sbx cp`.
 
 ## Definition of done for every implementation task
 

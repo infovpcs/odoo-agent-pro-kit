@@ -1451,10 +1451,15 @@ auth volume `sbx_cloud_home`, detached `setsid nohup` launch, `rm --force` + `ls
 
 **Owner actions:**
 - Publish the CI fix commit to origin.
-- Replace the invalid cloud `github` secret (401 `Bad credentials`) from a real terminal:
-  `docker run -it --rm --platform linux/amd64 -v sbx_cloud_home:/home/sbx sbx-cloud:0.45.1 --cloud secret set github`
-  (fine-grained token, `infovpcs/odoo-agent-pro-kit`, Contents read/write); then clone inside the
-  sandbox instead of `sbx cp`.
+- Done 2026-09-25 ~15:00 UTC: the owner replaced the cloud `github` secret (fine-grained token,
+  `infovpcs/odoo-agent-pro-kit`, Contents read/write; `secret ls` keeps the original CREATED
+  time on update). Verified in two micro kit sandboxes (1 vCPU / 2 GiB, ~30 s each, removed):
+  `api.github.com/user` → login `infovpcs` (token valid, proxy injects it on API calls). **Git over
+  HTTPS still fails**: plain `git ls-remote` → `could not read Username`; with a credential helper
+  sending `x-access-token:$GH_TOKEN` → `remote: invalid credentials`. The proxy does not substitute
+  the placeholder into git's Basic auth (or does not inject for git at all) — not yet resolved.
+  Code delivery stays tar + `sbx --cloud cp`. Phase 10 task: find the supported git path (sbx docs
+  for the github service / `gh` auth inside the sandbox) before relying on clone/push in cloud.
 - Approve cloud spend per run; decide `/fleet` public-URL exposure.
 - Optional: a release tag for the Unreleased CHANGELOG entry; upstream reports for the two Odoo 20
   bugs found in 0.8.0.
