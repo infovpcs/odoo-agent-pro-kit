@@ -1,12 +1,24 @@
 #!/bin/bash
 # setup_local_macos.sh
-# macOS-compatible setup for Odoo 17, 18, 19 workspaces using uv and python 3.12
+# macOS setup for Odoo 17, 18, 19, and 20 workspaces using uv and Python 3.12.
+#
+# Usage: ./setup_local_macos.sh [--versions 17,18,19] [--base-dir DIR]
+#                               [--db-host HOST] [--db-port PORT] [--force] [--dry-run]
+#
+# Odoo 20.0 needs PostgreSQL >= 16 (odoo/release.py MIN_PG_VERSION). If the local
+# server is older, point the 20 workspace at a separate PostgreSQL 16 server with
+# --db-port (for example a postgres:16 container published on 127.0.0.1:5436).
 
 set -e
 
-# Default Base Directory
 BASE_DIR="${HOME}/odoo-workspaces"
 PYTHON_VERSION="3.12"
+VERSIONS="17,18,19"
+SUPPORTED_VERSIONS="17 18 19 20"
+DB_HOST="${DB_HOST:-localhost}"
+DB_PORT="${DB_PORT:-5432}"
+FORCE=0
+DRY_RUN=0
 
 # Colors
 GREEN='\033[0;32m'
@@ -31,9 +43,44 @@ print_warning() {
     echo -e "${YELLOW}WARNING:${NC} $1"
 }
 
+usage() {
+    cat <<USAGE
+Usage: $0 [options]
+
+Options:
+  --versions LIST   Comma list of Odoo versions: ${SUPPORTED_VERSIONS// /,} (default: ${VERSIONS})
+  --base-dir DIR    Directory holding <version>_workspace folders (default: ${BASE_DIR})
+  --db-host HOST    PostgreSQL host written to the config (default: ${DB_HOST})
+  --db-port PORT    PostgreSQL port written to the config (default: ${DB_PORT})
+  --force           Overwrite an existing config/odoo.conf.<version>
+  --dry-run         Print the plan and change nothing
+  -h, --help        Show help
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --versions) VERSIONS="$2"; shift 2 ;;
+        --base-dir) BASE_DIR="$2"; shift 2 ;;
+        --db-host) DB_HOST="$2"; shift 2 ;;
+        --db-port) DB_PORT="$2"; shift 2 ;;
+        --force) FORCE=1; shift ;;
+        --dry-run) DRY_RUN=1; shift ;;
+        -h|--help) usage; exit 0 ;;
+        *) print_error "Unknown argument: $1"; usage; exit 2 ;;
+    esac
+done
+
+for v in ${VERSIONS//,/ }; do
+    case " ${SUPPORTED_VERSIONS} " in
+        *" ${v} "*) ;;
+        *) print_error "Unsupported Odoo version: ${v} (supported: ${SUPPORTED_VERSIONS})"; exit 2 ;;
+    esac
+done
+
 check_prerequisites() {
     print_step "Checking prerequisites..."
-    
+
     # Check for brew
     if ! command -v brew &> /dev/null; then
         print_error "Homebrew not found. Please install Homebrew first."
@@ -65,6 +112,24 @@ check_prerequisites() {
     fi
 }
 
+# Warn when the PostgreSQL server at DB_HOST:DB_PORT is older than the checkout's
+# MIN_PG_VERSION (Odoo refuses to start on an unsupported server).
+check_postgres_version() {
+    local repo_dir=$1
+    local min_pg server_pg
+    min_pg="$(sed -n 's/^MIN_PG_VERSION *= *\([0-9]*\).*/\1/p' "${repo_dir}/odoo/release.py" 2>/dev/null)"
+    [ -n "${min_pg}" ] || return 0
+    command -v psql &> /dev/null || return 0
+    server_pg="$(psql -h "${DB_HOST}" -p "${DB_PORT}" -d postgres -Atc 'SHOW server_version_num' 2>/dev/null || true)"
+    if [ -z "${server_pg}" ]; then
+        print_warning "Could not reach PostgreSQL at ${DB_HOST}:${DB_PORT} to check it is >= ${min_pg}."
+    elif [ "$((server_pg / 10000))" -lt "${min_pg}" ]; then
+        print_warning "PostgreSQL $((server_pg / 10000)) at ${DB_HOST}:${DB_PORT} is older than the required ${min_pg}; use --db-port for a newer server."
+    else
+        print_success "PostgreSQL $((server_pg / 10000)) at ${DB_HOST}:${DB_PORT} meets MIN_PG_VERSION ${min_pg}."
+    fi
+}
+
 # Determine the directory where the script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
@@ -77,12 +142,13 @@ setup_workspace() {
     local config_src="${SCRIPT_DIR}/config/odoo.conf.${version}"
     local config_dest="${workspace_dir}/config/odoo.conf.${version}"
     local manage_script_src="${SCRIPT_DIR}/manage_modules.sh"
-    
+
     print_step "Setting up Odoo ${version} workspace at ${workspace_dir}..."
 
     # 1. Create Directories
     mkdir -p "${workspace_dir}"
     mkdir -p "${workspace_dir}/logs"
+    mkdir -p "${workspace_dir}/data"
     mkdir -p "${workspace_dir}/extra-${version}"
 
     # 2. Clone Repository (Shallow)
@@ -90,90 +156,95 @@ setup_workspace() {
         print_step "Cloning Odoo ${version} (shallow)..."
         git clone --depth 1 --branch "${version}.0" https://github.com/odoo/odoo.git "${repo_dir}"
     else
-        print_step "Odoo repo already exists. Pulling latest..."
-        cd "${repo_dir}" && git pull && cd - > /dev/null
+        print_step "Odoo repo already exists. Pulling latest (fast-forward only)..."
+        git -C "${repo_dir}" pull --ff-only || print_warning "git pull failed in ${repo_dir}; continuing with the current checkout."
     fi
 
     # 3. Create Virtual Environment with uv
     if [ ! -d "${venv_dir}" ]; then
         print_step "Creating virtual environment with uv (Python ${PYTHON_VERSION})..."
-        cd "${repo_dir}"
-        uv venv --python "${PYTHON_VERSION}" .venv
+        uv venv --python "${PYTHON_VERSION}" "${venv_dir}"
     else
         print_step "Virtual environment already exists."
     fi
 
     # 4. Install Dependencies
     print_step "Installing dependencies for Odoo ${version}..."
-    cd "${repo_dir}"
-    source .venv/bin/activate
-    
+
     # Core valid dependencies that always exist
     # Note: Added setuptools/wheel which are sometimes needed for building extensions
     UV_DEPS="psycopg2-binary werkzeug lxml pillow python-dateutil pytz pyyaml requests jinja2 reportlab polib passlib decorator gevent greenlet markupsafe psutil setuptools wheel"
-    
+
     # Version specific additions
-    if [ "$version" == "17" ] || [ "$version" == "18" ] || [ "$version" == "19" ]; then
+    if [ "$version" -ge 17 ]; then
          UV_DEPS="$UV_DEPS num2words xlwt pypdf"
     fi
 
     # Use uv pip install for speed
     print_step "Installing core dependencies list..."
-    uv pip install $UV_DEPS
-    
+    uv pip install --python "${venv_dir}/bin/python" $UV_DEPS
+
     # Try installing from requirements.txt if it exists
-    if [ -f "requirements.txt" ]; then
+    if [ -f "${repo_dir}/requirements.txt" ]; then
         print_step "Installing remaining requirements from requirements.txt..."
         # uv is fast, so we try it. If it fails on some specific package, we warn but don't stop.
-        uv pip install -r requirements.txt || print_warning "Some requirements failed to install. This is common on macOS. Ensure core deps are working."
+        uv pip install --python "${venv_dir}/bin/python" -r "${repo_dir}/requirements.txt" \
+            || print_warning "Some requirements failed to install. This is common on macOS. Ensure core deps are working."
     fi
 
-    # 5. Configure Odoo
+    # 5. Configure Odoo (never clobber a customised config unless --force)
     print_step "Generating configuration..."
     mkdir -p "$(dirname "${config_dest}")"
-    if [ -f "${config_src}" ]; then
-         cp "${config_src}" "${config_dest}"
-         
-         # Mac sed requires empty string for -i
-         # Replace Workspace Path
-         sed -i '' "s|{{WORKSPACE_PATH}}|${workspace_dir}|g" "${config_dest}"
-         
-         # Replace DB Credentials (with defaults)
+    if [ -f "${config_dest}" ] && [ "${FORCE}" -ne 1 ]; then
+         print_warning "Keeping existing ${config_dest} (use --force to regenerate it)."
+    elif [ -f "${config_src}" ]; then
          local db_user="${DB_USER:-odoo}"
          local db_pass="${DB_PASSWORD:-odoo}"
-         
-         sed -i '' "s|{{DB_USER}}|${db_user}|g" "${config_dest}"
-         sed -i '' "s|{{DB_PASSWORD}}|${db_pass}|g" "${config_dest}"
-         
+         sed -e "s|{{WORKSPACE_PATH}}|${workspace_dir}|g" \
+             -e "s|{{DB_USER}}|${db_user}|g" \
+             -e "s|{{DB_PASSWORD}}|${db_pass}|g" \
+             -e "s|{{DB_HOST}}|${DB_HOST}|g" \
+             -e "s|{{DB_PORT}}|${DB_PORT}|g" \
+             "${config_src}" > "${config_dest}"
          print_success "Configuration created at ${config_dest}"
     else
          print_error "Config template not found at ${config_src}! Configuration step FAILED."
          # We continue, but this is bad
     fi
 
-    # 6. Copy Manager Script
+    # 6. Copy Manager Script (back up a differing copy first)
     if [ -f "${manage_script_src}" ]; then
-        cp "${manage_script_src}" "${workspace_dir}/"
-        chmod +x "${workspace_dir}/manage_modules.sh"
+        local manage_dest="${workspace_dir}/manage_modules.sh"
+        if [ -f "${manage_dest}" ] && ! cmp -s "${manage_script_src}" "${manage_dest}"; then
+            cp "${manage_dest}" "${manage_dest}.bak"
+            print_warning "Existing manage_modules.sh differed; saved it as ${manage_dest}.bak"
+        fi
+        cp "${manage_script_src}" "${manage_dest}"
+        chmod +x "${manage_dest}"
         print_success "manage_modules.sh copied to ${workspace_dir}/"
     else
         print_error "manage_modules.sh not found at ${manage_script_src}! Copy failed."
     fi
+
+    check_postgres_version "${repo_dir}"
 
     print_success "Odoo ${version} setup complete!"
 }
 
 # Main Execution
 
+if [ "${DRY_RUN}" -eq 1 ]; then
+    for v in ${VERSIONS//,/ }; do
+        echo "Would set up ${BASE_DIR}/${v}_workspace (${v}.0, Python ${PYTHON_VERSION}, db ${DB_HOST}:${DB_PORT}, http port $((8090 + v)))"
+    done
+    exit 0
+fi
+
 check_prerequisites
 
 # Create Base Directory
 mkdir -p "${BASE_DIR}"
 
-# Run for 17, 18, 19
-setup_workspace "17"
-setup_workspace "18"
-setup_workspace "19"
-
-echo ""
-print_success "All workspaces set up successfully at ${BASE_DIR}"
+for v in ${VERSIONS//,/ }; do
+    setup_workspace "${v}"
+done

@@ -189,6 +189,12 @@ install/upgrade/test runners, rules-drift, MCP discovery, KB tools, and version-
 | `Registry._init` removed | `odoo/orm/registry.py` | L13 block — found in live migration |
 | Kanban cards split into a `card` view (`card_id`) | `project.view_task_card` etc. (7 standard kanbans) | `Odoo20CodingStandard` (no lint) |
 | Manifest `19.0.x` → silently not installable | module loader | `OdooTools20` |
+| `ir.config_parameter.get_param`/`set_param` removed → `get_*`/`set_*` typed API | `odoo/addons/base/models/ir_config_parameter.py`; live `AttributeError` (2026-09-25) | L14 block |
+| `Model._table_query` removed → `_table_sql` property | `odoo/orm/models.py` | L15 block |
+| `ir.attachment.datas` removed; writes silently dropped | `ir_attachment.py` fields; live `file_size = 0` | L16 block |
+| Binary fields hold `BinaryValue`; bytes → `TypeError`; RPC read `{'content','filename','size'}` | `odoo/orm/fields_binary.py`, `odoo/tools/binary.py`; live | L17 warn; `Odoo_Custom_Backend_Testing` |
+| Python ≥ 3.12, PostgreSQL ≥ 16 | `odoo/release.py` | `OdooTools20`; `setup_local_macos.sh` PG check |
+| Odoo MCP server `ai_mcp` (`POST /mcp`) is Enterprise-only (OEEL-1, depends `ai`) | `enterprise@20.0/ai_mcp` | `Odoo20CodingStandard`; Community keeps kit `odoo_mcp` |
 
 ### Backward-version support policy
 - 17.0, 18.0, 19.0 remain fully supported; all existing tests still pass and every 17–19 lint
@@ -202,5 +208,8 @@ install/upgrade/test runners, rules-drift, MCP discovery, KB tools, and version-
       only on 2026-09-24). Then: pin digest, add `versions.yaml` 20 entry + Dockerfile, extend
       schema enum and `lifecycle.sh`, run the Phase-7 acceptance on the Ubuntu KVM host.
 - [x] Real install/migration test of custom modules on Odoo 20 (2026-09-24; see `SESSION_CONTEXT.md`).
-- [ ] `OdooRulesDriftCheck` catalogue entries for L7–L13.
+- [x] `OdooRulesDriftCheck` catalogue entries for L7–L17 (0.8.0, 2026-09-25).
+- [x] 19.1–20.0 ORM changelog coverage: L14–L17 (0.8.0, verified live on local Odoo 20 / PG 16).
+- [ ] Docker Cloud Sandbox runtime for 17/18/19 (Phase 9), then a 20.0 image built from the
+      `nightly.odoo.com/20.0` deb until `odoo/docker` publishes a `20.0/` directory (Phase 10).
 - [ ] `knowledge-20` OKF bundle (DSH/Hermes `odoo_kb_*` tools have no 20 KB yet).

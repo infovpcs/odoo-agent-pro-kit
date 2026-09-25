@@ -29,9 +29,55 @@ Before changing files:
   planning
 - Active branch: `main`
 - Branch base: `main` at commit `12368b7` (post-Phase-7, additive 0.2.0/0.3.0 work)
-- Last context update: 2026-09-24 (UTC, Odoo 20.0 support added; earlier: 2026-08-20 Phase 8 exit gate MET — all
+- Last context update: 2026-09-25 (Phase A: Odoo 20 ORM-changelog lint L14–L17 + local 20 workspace, 0.8.0; 2026-09-24 Odoo 20.0 support added; earlier: 2026-08-20 Phase 8 exit gate MET — all
   Deliverables and all five platform/orchestration coverage checklist items
   verified with real evidence; Phase 8 is complete)
+
+## Latest additive work — Phase A: Odoo 20 content + local 20 workspace (0.8.0, 2026-09-25)
+
+Not a Docker Sandbox phase. Scope review found 20.0 also folds in the Odoo Online 19.1–19.4 ORM
+changes (doc-20 `content/developer/reference/backend/orm/changelog.rst`), which 0.7.0 missed.
+Evidence: `odoo/odoo@20.0` `87a1773b` (local), `d3236ca5` (VPS), `odoo/enterprise@20.0` `7c5431e6`,
+`odoo/documentation@20.0` `eba74df`, local `odoo/odoo@19.0` `9a272ea4b`.
+
+- Lint L14 `get_param`/`set_param` (block), L15 `_table_query` (block), L16 `ir.attachment.datas`
+  (block), L17 base64 bytes → binary-like field (warn); L2 quoted-value fix; lint scans `report/`,
+  `wizard(s)/`. All RED → GREEN; re-break with the old linter fails 6 of the new tests.
+- **Live on local Odoo 20.0 / PG 16.15** (`odoo-bin shell`, rolled back): `get_param` →
+  `AttributeError`; `get_str` works; `_table_query` absent, `_table_sql` present; binary `read()` →
+  `{'filename','content','size'}`; bytes to `image_1920` → `TypeError … use BinaryValue`;
+  `'datas'` write → attachment created with `file_size = 0` and no error.
+- Sweeps (`plugin/hooks/checks/odoo_lint.py` over every `.py`/`.xml`/`.csv` in scope):
+  20 CE+EE at 20 (18,238 files) → L14 `account_edi_ubl_cii/models/account_edi_common.py:2004` and
+  L16 Enterprise `social_demo/data/social_demo.xml:86` (both real upstream bugs) + 4 L9 warns in
+  `mail_tracking`; 19.0 at 19 (8,000 files) → 0 findings (old linter also 0 over 7,481);
+  19.0 at 20 → L14 192, L15 13, L16 61, L17 14 (spot-checked `rating.py`, `spreadsheet_mixin.py`:
+  Odoo 20 replaced both with `BinaryBytes`).
+- Odoo's MCP server `ai_mcp` is Enterprise-only (OEEL-1, depends `ai`; CE 20.0 has no `ai*`
+  module): `POST /mcp`, bearer API key (MCP scope) or OAuth, `initialize`/`tools/list`/`tools/call`,
+  tools = `ir.actions.server` with `use_in_mcp`. Community keeps the kit's `odoo_mcp`.
+- Local setup: `setup_local_macos.sh` rewritten (flags, `--dry-run`, unknown args exit 2, config
+  kept unless `--force`, `manage_modules.sh.bak`, PG `MIN_PG_VERSION` check); `odoo.conf.20`;
+  `manage_modules.sh` detects 20; MCP `ODOO20_URL` default 8110.
+- Local 20 workspace built on this Intel Mac (macOS 15, Darwin 24.6.0, x86_64, Docker 29.8.0):
+  `postgres:16-bookworm@sha256:efedf359…` container `odoo20-pg16` on `127.0.0.1:5436`
+  (volume `odoo20_pg16_data`; local Homebrew PG is 14.17, too old for 20);
+  `setup_local_macos.sh --versions 20 --base-dir ~/workspace --db-host 127.0.0.1 --db-port 5436`
+  → Python 3.12.0 uv venv, full `requirements.txt` installed, `config/odoo.conf.20`,
+  `manage_modules.sh`; `./manage_modules.sh install base` → success in 6m44s, 16 modules
+  `installed`, 0 ERROR/CRITICAL lines. Credentials only in `20_workspace/.env` and the config (0600);
+  PG keys are `ODOO20_PG_*` because `ODOO20_DB_USER/PASSWORD` are the MCP launcher's Odoo login.
+- Validation: macOS `./scripts/validate.sh` OK, 287 passed (Python 3.12.2); Ubuntu 24.04.4 VPS
+  (Python 3.12.3, throwaway worktree of `8e31d07` + this diff) `./scripts/validate.sh` OK,
+  285 passed, 2 skipped (no `pydantic` in that venv).
+- Incident: a RED-phase test ran the *old* `setup_local_macos.sh`, which ignored `--dry-run`, and
+  fast-forwarded `~/odoo-workspaces/17_workspace/17.0` from `23af2b443` to `b4c6b344a` (178 upstream
+  commits) before exiting; no venv, config or `manage_modules.sh` changed. The new script rejects
+  unknown arguments. Revert with `git -C ~/odoo-workspaces/17_workspace/17.0 reset --keep 23af2b443`
+  if wanted.
+- Next task: **Phase 9 — Docker Cloud Sandbox for 17/18/19** (this Intel Mac cannot run local
+  `sbx` microVMs; the cloud-only CLI can). First probe: `docker compose exec` inside a cloud
+  sandbox (documented `docker exec` limitation) before the acceptance matrix.
 
 ## Latest additive work — Odoo 20.0 support (0.7.0, 2026-09-24)
 

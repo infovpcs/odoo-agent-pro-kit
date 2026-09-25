@@ -2,7 +2,7 @@
 
 # ============================================================================
 # ODOO Module Management Script - Universal Multi-Version Support
-# Supports: Odoo 17.0, 18.0, 19.0
+# Supports: Odoo 17.0, 18.0, 19.0, 20.0
 # Features: Module installation, updates, testing, error filtering for AI agents
 # ============================================================================
 
@@ -16,7 +16,9 @@ set -e  # Exit on any error
 WORKSPACE_PATH="${WORKSPACE_PATH:-.}"
 ODOO_EXECUTOR="${ODOO_EXECUTOR:-local}"
 if [ -z "${ODOO_VERSION:-}" ]; then
-    if [ -d "$WORKSPACE_PATH/19.0" ]; then
+    if [ -d "$WORKSPACE_PATH/20.0" ]; then
+        ODOO_VERSION="20"
+    elif [ -d "$WORKSPACE_PATH/19.0" ]; then
         ODOO_VERSION="19"
     elif [ -d "$WORKSPACE_PATH/18.0" ]; then
         ODOO_VERSION="18"
@@ -136,7 +138,7 @@ get_env_file_value() {
 # back to `odoo19` and ran install/update with `-d odoo19`.
 DATABASE="${ODOO_DB_NAME:-$(get_env_file_value ODOO_DB_NAME "$PROJECT_DIR/.env")}"
 DATABASE="${DATABASE:-odoo${ODOO_VERSION}}"
-DEFAULT_PORT=$((8090 + ODOO_VERSION))  # 8107, 8108, 8109
+DEFAULT_PORT=$((8090 + ODOO_VERSION))  # 8107, 8108, 8109, 8110
 PORT_FROM_CONFIG="$(get_config_value "http_port" "$CONFIG_FILE")"
 PORT_FROM_XMLRPC="$(get_config_value "xmlrpc_port" "$CONFIG_FILE")"
 PORT="${ODOO_PORT:-${PORT_FROM_CONFIG:-${PORT_FROM_XMLRPC:-$DEFAULT_PORT}}}"
@@ -174,6 +176,10 @@ case $ODOO_VERSION in
     19)
         DEFAULT_MODULES="sale,purchase,stock,account,crm,project,website"
         VERSION_LABEL="Odoo 19.0 (Standard Enterprise Apps)"
+        ;;
+    20)
+        DEFAULT_MODULES="sale,purchase,stock,account,crm,project,website"
+        VERSION_LABEL="Odoo 20.0 (Standard Enterprise Apps)"
         ;;
     *)
         DEFAULT_MODULES="sale,purchase,stock"
@@ -560,7 +566,7 @@ show_usage() {
     echo -e "  ${YELLOW}clean                 ${NC}Clean logs and cache"
     echo ""
     echo -e "${CYAN}Environment Variables:${NC}"
-    echo -e "  ${YELLOW}ODOO_VERSION          ${NC}Version: 12-19 (default: auto-detect)"
+    echo -e "  ${YELLOW}ODOO_VERSION          ${NC}Version: 12-20 (default: auto-detect)"
     echo -e "  ${YELLOW}WORKSPACE_PATH        ${NC}Workspace path (default: current dir)"
     echo -e "  ${YELLOW}DATABASE              ${NC}Database name (default: odoo${ODOO_VERSION})"
     echo ""

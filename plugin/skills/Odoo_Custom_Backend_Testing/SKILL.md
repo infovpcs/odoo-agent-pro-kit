@@ -149,6 +149,11 @@ else:
 
 When using JSON-2, tests should switch to HTTP `requests` calls and bearer API keys. Provide both templates in `/scripts/` and prefer JSON-2 template when Odoo 19+.
 
+**Odoo 20 binary fields:** `read`/`search_read` return a binary field as
+`{'content': <base64>, 'filename'?, 'size'}` instead of a bare base64 string, and writes accept a
+base64 `str` (or that dict). Compare `value['content']` in 20.0 test scripts; writing raw `bytes`
+server-side raises `TypeError` (use `'raw': bytes` for attachments). See `Odoo20CodingStandard`.
+
 ## Executing Tests (recommended agent workflow)
 
 When `.sandbox/session.json` exists, use the controller contract:

@@ -30,6 +30,7 @@ updated to match the workspace's specific settings.
 **Note on Odoo Versions:**
 - Odoo 12-14: Requires Python 3.6/3.7 (uses pyenv)
 - Odoo 15-19: Requires Python 3.12 (uses uv)
+- Odoo 20: Requires Python >= 3.12 and PostgreSQL >= 16
 """
 
 from __future__ import annotations
@@ -95,7 +96,7 @@ def main() -> None:
     parser.add_argument("--detect-versions", action="store_true", help="Print min/max Python and min PG from repo")
     parser.add_argument("--repo", default="", help="Path to Odoo repo for --detect-versions")
     parser.add_argument("--workspace", help="Workspace path (e.g., /path/to/19_workspace)")
-    parser.add_argument("--version", help="Odoo major version (e.g., 12, 13, 14, 15, 16, 17, 18, 19)")
+    parser.add_argument("--version", help="Odoo major version (e.g., 12, 13, 14, 15, 16, 17, 18, 19, 20)")
     parser.add_argument("--db-user", default="odoo")
     parser.add_argument("--db-password", default="odoo")
     parser.add_argument("--db-host", default="localhost")

@@ -17,7 +17,7 @@ odoo_local_setup/bootstrap_odoo_env.sh, copies context-templates/ into each
 new workspace, and prints next steps for installing the agent plugin.
 
 Options:
-  --versions LIST     Comma list of Odoo versions to bootstrap: 17,18,19 (default: 19)
+  --versions LIST     Comma list of Odoo versions to bootstrap: 17,18,19,20 (default: 19)
   --base-dir DIR      Base directory for workspaces (default: ~/odoo-workspaces)
   --skip-deps         Do not install operating-system dependencies
   --skip-db           Do not create the PostgreSQL role or databases

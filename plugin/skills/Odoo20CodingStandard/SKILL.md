@@ -1,7 +1,7 @@
 ---
 name: odoo_20_coding_standard
 description: Odoo 20.0 coding standards for models, views, security (ir.access), mail tracking, icons, routes, external API, and tests. Use when developing or migrating Odoo 20 modules; carries every Odoo 19 rule forward plus the 20.0 breaking changes verified in odoo/odoo@20.0.
-version: 20.0.1
+version: 20.0.2
 author: VPCS Team
 category: coding_standards
 odoo_versions: ["20.0"]
@@ -17,7 +17,12 @@ too for the full view/controller/RNG/SCSS/SQL-computed-field guidance.
 
 ## Evidence (verify against your checkout, never from memory)
 - Community `odoo/odoo@20.0` `d3236ca5c7052e892a097b007c38b9501888e406` (2026-09-24),
-  `odoo/release.py` → `version_info = (20, 0, 0, FINAL, 0, '')`.
+  `odoo/release.py` → `version_info = (20, 0, 0, FINAL, 0, '')`; re-verified at `87a1773b`
+  (2026-09-25). Runtime minimums: **Python ≥ 3.12, PostgreSQL ≥ 16** (`MIN_PY_VERSION`,
+  `MIN_PG_VERSION`).
+- ORM changelog: `odoo/documentation@20.0` `content/developer/reference/backend/orm/changelog.rst`.
+  20.0 also contains every Odoo Online 19.1–19.4 change, so a 19.0 → 20.0 migration crosses
+  all of them.
 - Odoo's own agent skills ship in the repo at `skills/` (`odoo-guidelines`, `odoo-review`,
   `odoo-security`, `odoo-web-guidelines`). **Use them for review, security audit, and generic
   guidelines**; this skill only adds 20.0 migration specifics and the kit's lifecycle rules.
@@ -96,10 +101,50 @@ These made real 19.0 modules fail to install or fail at runtime on 20.0 even aft
 - **Manifest `version` must be `20.0.x`.** A `19.0.x` manifest is silently marked
   `installable=False` ("incompatible version") and `-i` installs nothing (0 tests run, exit 0).
 
+## 19.1 – 20.0 ORM changes (from the ORM changelog, verified in source at `87a1773b`)
+- **L14 — `ir.config_parameter.get_param()` / `set_param()` removed** (19.1 new API; runtime
+  `AttributeError`, verified live). Use the typed
+  API: `get_str/get_int/get_float/get_bool(key, default)` and `set_str/set_int/set_float/set_bool`.
+  Data files: `<function model="ir.config_parameter" name="set_str" eval="('key', 'value')"/>`.
+  No `upgrade_code` script rewrites this — 192 Odoo 19 source files needed it. The lint only fires
+  when the receiver is an `ir.config_parameter` chain or a variable assigned from one, so
+  `email.message.get_param('charset')` is not flagged.
+- **L15 — `Model._table_query` removed.** SQL-view models (`_auto = False`) define
+  `@property def _table_sql(self) -> SQL` returning the parenthesised query, e.g.
+  `SQL("(%s %s %s)", self._select(), self._from(), self._where())` (see `sale/report/sale_report.py`).
+- **L16 — `ir.attachment.datas` removed.** Only `raw` (bytes) and `db_datas` remain. A `'datas'`
+  value in `create`/`write` is **silently dropped** — the attachment is created with
+  `file_size = 0` and no error (verified live on 20.0). Use `{'raw': pdf_bytes}`; in XML data use
+  `<field name="raw" type="base64" file="..."/>`. Odoo removed 45 Python and 14 XML uses; the
+  Enterprise `social_demo/data/social_demo.xml` still has one (upstream bug).
+- **L17 — Binary fields hold a `BinaryValue`** (`odoo/tools/binary.py`). Writes accept a base64
+  `str` (RPC), a `BinaryValue`, or `{'content', 'filename'}`; **raw `bytes` raise
+  `TypeError: … use BinaryValue instead of bytes`**. Odoo's own fix:
+  `from odoo.tools import BinaryBytes` → `rec.image_1920 = BinaryBytes(raw_bytes)`. Reads return
+  `{'content': <base64>, 'filename'?, 'size'}`, not a bare base64 string — update integration and
+  test scripts that compare binary values. (Lint L17 warns, matching binary-like field names.)
+- `request` no longer belongs in model code (19.4); use `self.env.website` etc. Standard `ir_http`
+  models still import it, so this is guidance, not a lint rule.
+- New: domain operator `"access"` for access rules on a comodel (19.3), simpler
+  `Model.concat` / `Model.union` (19.3), `Field.compute_sql` for groupable/sortable computed
+  fields (19.1), thread-safe ormcache (19.4, script `19.4-00-ormcache-on-transaction`), h11-based
+  HTTP server (19.4), field `copy` functions ("(copy)" suffix for char `name`), manifest strings
+  translated in the module's own `.po` files (20.0).
+
+## Odoo's own MCP server is Enterprise-only
+`ai_mcp` (OEEL-1, depends on `ai`, auto-install) serves `POST /mcp` (`auth='bearer'`, API key with
+MCP scope, or OAuth with dynamic client registration) and implements `initialize`, `tools/list`,
+`tools/call`. Tools are `ir.actions.server` records with `use_in_mcp`; defaults are get models,
+get fields, search, read_group, and an initial-context tool. Community 20.0 ships no `ai*` module,
+so Community projects keep using the kit's `odoo_mcp` (JSON-RPC / JSON-2) discovery tools.
+
 ## Upgrade-code scripts available on 20.0
 `odoo/upgrade_code/`: `17.5-01-tree-to-list`, `18.1-00-sql-constraint`, `18.1-02-route-jsonrpc`,
-`19.1-00-t-call`, `19.3-00-base64-in-xml`, `19.4-00-ir-access`, `19.4-00-ormcache-on-transaction`,
-`19.5-00-tuple-rec_names_search`, `owl3-migration`. Each is best-effort — re-run the module's tests
+`18.2-00-l10n-translate`, `18.3-00-l10n-fiscal-position-taxes`, `18.5-00-deprecated-properties`,
+`18.5-00-domain-dynamic-dates`, `18.5-00-no-tax-tag-invert`, `19.1-00-t-call`,
+`19.3-00-account-groups`, `19.3-00-account-report-foldable`, `19.3-00-base64-in-xml`,
+`19.4-00-ir-access`, `19.4-00-ormcache-on-transaction`, `19.5-00-tuple-rec_names_search`,
+`owl3-migration`. Each is best-effort — re-run the module's tests
 afterwards. See `OdooTools20` for the pitfalls observed running them (they also rewrite Odoo's own
 addons; `--from 19.0` can crash in `19.3-00-account-groups`; exit 1 means "files changed").
 

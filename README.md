@@ -16,8 +16,12 @@ for Odoo 17.0, 18.0, 19.0, and 20.0 — without building any of it from scratch.
 
 > **Odoo 20.0 support (2026-09-24):** skills (`Odoo20CodingStandard`, `OdooTools20`,
 > `Odoo20ExistingDependencyContext`), version detection, slash commands, MCP discovery
-> (JSON-RPC 2.0, port 8768) and hook lint rules L7–L10 (`ir.access`, `mail_tracking`,
-> Material Symbols) cover 20.0. The **Docker Sandbox stays 17/18/19** until an official
+> (JSON-RPC 2.0, port 8768) and hook lint rules L7–L17 (`ir.access`, `mail_tracking`, Material
+> Symbols, removed `toggle_active`/`get_param`/`_table_query`/`ir.attachment.datas`, `BinaryValue`)
+> cover 20.0. Local 20 workspaces need Python ≥ 3.12 and **PostgreSQL ≥ 16**
+> (`odoo_local_setup/setup_local_macos.sh --versions 20 --db-port <pg16-port>`). Odoo's own MCP
+> server (`ai_mcp`) is Enterprise-only, so Community projects use the kit's `odoo_mcp`.
+> The **Docker Sandbox stays 17/18/19** until an official
 > `odoo:20.0` image is published and pinned in `sandbox/config/images.lock`. For Odoo 20
 > review/security guidelines the kit defers to Odoo's own `skills/` library in `odoo/odoo@20.0`.
 > See [docs/odoo-20-migration-roadmap.md](docs/odoo-20-migration-roadmap.md).
@@ -90,7 +94,7 @@ reads it natively). See `integrations/codex/INSTALL.md`.
 | 23 Odoo skills (coding standards, dependency context, tools, testing, docs, sandbox ops, rules-drift audit, requirement gap analysis) | `plugin/skills/` |
 | 5 slash commands (`/plan-analysis`, `/start-coding`, `/testing`, `/fleet`, `/rules-check-drift`) | `plugin/commands/` (Claude Code) / `plugin/__init__.py` (native Hermes) |
 | Hooks on SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop, SessionEnd, and PreCompact | `plugin/hooks/` (Claude Code) / `plugin/__init__.py` (native Hermes: `on_session_start`/`on_session_end`/`post_api_request`/`pre_tool_call`/`post_tool_call`) |
-| Deterministic pipeline hooks — `/start-coding` + `/testing` prerequisite gates, `odoo-bin`/`manage_modules.sh`/VCS/secret/Enterprise-source guardrails, sandbox operation-result verification, and a version-aware Odoo 17/18/19 coding-standard linter (rules L1–L6) | `plugin/hooks/odoo_hook.py` + `plugin/hooks/checks/` (Claude Code) / `plugin/__init__.py` `pre_tool_call`/`post_tool_call` (native Hermes) |
+| Deterministic pipeline hooks — `/start-coding` + `/testing` prerequisite gates, `odoo-bin`/`manage_modules.sh`/VCS/secret/Enterprise-source guardrails, sandbox operation-result verification, and a version-aware Odoo 17/18/19/20 coding-standard linter (rules L1–L17) | `plugin/hooks/odoo_hook.py` + `plugin/hooks/checks/` (Claude Code) / `plugin/__init__.py` `pre_tool_call`/`post_tool_call` (native Hermes) |
 | Live MCP server for Odoo 17/18/19/20 model discovery | `plugin/odoo_mcp/` (standalone server) / `plugin/__init__.py` (native Hermes in-process tools) |
 | DeepSeek Harness agent preset — lifecycle commands, all 23 skills, in-process `odoo_*` discovery tools (workspace `.env` aware), and per-version Odoo documentation retrieval from the OKF knowledge bundles | `integrations/deepseek/` |
 | Compose sidecar running odoo_mcp as a persistent service inside a Docker Sandbox session | `sandbox/mcp-sidecar/` |

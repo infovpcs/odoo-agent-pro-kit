@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-# Multi-version Odoo bootstrap (12-19)
-# Usage: ./bootstrap_odoo_env.sh --base-dir /opt/odoo --versions 12,13,14,15,16,17,18,19
+# Multi-version Odoo bootstrap (12-20)
+# Usage: ./bootstrap_odoo_env.sh --base-dir /opt/odoo --versions 12,13,14,15,16,17,18,19,20
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -25,7 +25,7 @@ Usage: $0 [options]
 
 Options:
   --base-dir PATH         Base directory for workspaces (default: cwd)
-  --versions LIST         Comma list: 12-19 (default: 17,18,19)
+  --versions LIST         Comma list: 12-20 (default: 17,18,19)
   --db-user USER          PostgreSQL user (default: odoo)
   --db-password PASS      PostgreSQL password (default: odoo)
   --db-host HOST          PostgreSQL host (default: localhost)

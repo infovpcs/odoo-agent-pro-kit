@@ -337,7 +337,7 @@ start_server() {
         local odoo_user="${ODOO_DB_USER:-admin}"
         local odoo_pass="${ODOO_DB_PASSWORD:-admin}"
     elif [ "$major_version" == "20" ]; then
-        local odoo_url="${ODOO20_URL:-http://localhost:8020}"
+        local odoo_url="${ODOO20_URL:-http://localhost:8110}"  # manage_modules.sh: 8090 + version
         local odoo_db="${ODOO20_DB_NAME:-odoo20}"
         local odoo_user="${ODOO20_DB_USER:-admin}"
         local odoo_pass="${ODOO20_DB_PASSWORD:-admin}"

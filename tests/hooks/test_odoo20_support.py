@@ -302,3 +302,100 @@ def test_mcp_launcher_ports_and_20_credentials():
         ["8765", "8766", "8767", "8768"]
     body = (REPO / "plugin" / "odoo_mcp" / "start_mcp_server.sh").read_text()
     assert '"20.0"' in body and "ODOO20_URL" in body and "ODOO20_DB_NAME" in body
+
+
+# --- lint: 19.1-20.0 ORM changelog rules (evidence: odoo/odoo@20.0 87a1773b, ---------
+# --- doc-20 content/developer/reference/backend/orm/changelog.rst) -------------------
+
+def test_l14_config_parameter_get_set_param_blocks_on_20_only():
+    py = ("ICP = self.env['ir.config_parameter'].sudo()\n"
+          "url = ICP.get_param('web.base.url')\n")
+    f20 = odoo_lint.lint("m/models/m.py", py, "20")
+    assert "L14" in _rules(f20) and _sev(f20, "L14") == "block"
+    assert _line_of_rule(f20, "L14") == 2
+    assert "get_str" in next(x.fix for x in f20 if x.rule == "L14")
+    setter = "self.env['ir.config_parameter'].set_param('k', True)\n"
+    assert "L14" in _rules(odoo_lint.lint("m/controllers/c.py", setter, "20"))
+    for v in ("17", "18", "19"):
+        assert "L14" not in _rules(odoo_lint.lint("m/models/m.py", py, v))
+
+
+def test_l14_ignores_email_message_get_param():
+    # addons/mail/models/mail_thread.py on 20.0 legitimately calls email.message.get_param
+    py = "if not part.get_param('charset'):\n    pass\n"
+    assert "L14" not in _rules(odoo_lint.lint("m/models/m.py", py, "20"))
+    typed = "self.env['ir.config_parameter'].sudo().get_str('web.base.url')\n"
+    assert "L14" not in _rules(odoo_lint.lint("m/models/m.py", typed, "20"))
+    # same file also using ir.config_parameter correctly must not flag the email call
+    mixed = typed + "if not part.get_param('charset'):\n    pass\n"
+    assert "L14" not in _rules(odoo_lint.lint("m/models/m.py", mixed, "20"))
+
+
+def test_l14_detects_direct_chain_and_assigned_receiver():
+    chain = "v = self.env['ir.config_parameter'].sudo().get_param('k', 'False')\n"
+    assert "L14" in _rules(odoo_lint.lint("m/models/m.py", chain, "20"))
+    chain2 = 'self.env["ir.config_parameter"].set_param("k", "v")\n'
+    assert "L14" in _rules(odoo_lint.lint("m/models/m.py", chain2, "20"))
+    assigned = ("IrConfigParam = self.env['ir.config_parameter'].sudo()\n"
+                "if not part.get_param('charset'):\n    pass\n"
+                "x = IrConfigParam.get_param('k')\n")
+    f = odoo_lint.lint("m/models/m.py", assigned, "20")
+    assert "L14" in _rules(f) and _line_of_rule(f, "L14") == 4
+
+
+def test_l2_ignores_python_assignment_embedded_in_xml_data():
+    # ent-20 hr_payroll/data/hr_payroll_warning_data.xml embeds `states = dict(...)` Python code
+    xml = '<field name="code">\nstates = dict(run._fields["state"].get_description(env))\n</field>'
+    for v in ("18", "19", "20"):
+        assert "L2" not in _rules(odoo_lint.lint("m/data/d.xml", xml, v))
+    assert "L2" in _rules(odoo_lint.lint("m/views/v.xml", "<field name='x' states='draft'/>", "19"))
+
+
+def test_l15_table_query_blocks_on_20_only_including_report_dir():
+    py = ("class R(models.Model):\n    _auto = False\n\n"
+          "    @property\n    def _table_query(self):\n        return 'SELECT 1'\n")
+    f20 = odoo_lint.lint("m/report/r.py", py, "20")
+    assert "L15" in _rules(f20) and _sev(f20, "L15") == "block"
+    assert "_table_sql" in next(x.fix for x in f20 if x.rule == "L15")
+    for v in ("17", "18", "19"):
+        assert "L15" not in _rules(odoo_lint.lint("m/report/r.py", py, v))
+    ok = "    @property\n    def _table_sql(self):\n        return SQL('(SELECT 1)')\n"
+    assert "L15" not in _rules(odoo_lint.lint("m/report/r.py", ok, "20"))
+
+
+def test_l16_attachment_datas_field_blocks_on_20_only():
+    # ir.attachment.datas was removed in 20.0: a write is silently dropped (file_size 0)
+    py = "self.env['ir.attachment'].create({'name': 'a.pdf', 'datas': base64.b64encode(pdf).decode()})\n"
+    f20 = odoo_lint.lint("m/wizard/w.py", py, "20")
+    assert "L16" in _rules(f20) and _sev(f20, "L16") == "block"
+    assert "'raw'" in next(x.fix for x in f20 if x.rule == "L16")
+    assert "L16" in _rules(odoo_lint.lint("m/models/m.py", "data = att.datas\n", "20"))
+    assert "L16" in _rules(odoo_lint.lint("m/controllers/c.py", "att.datas = payload\n", "20"))
+    xml = '<record model="ir.attachment"><field name="datas" type="base64" file="m/static/a.pdf"/></record>'
+    assert "L16" in _rules(odoo_lint.lint("m/data/d.xml", xml, "20"))
+    for v in ("17", "18", "19"):
+        assert "L16" not in _rules(odoo_lint.lint("m/wizard/w.py", py, v))
+        assert "L16" not in _rules(odoo_lint.lint("m/data/d.xml", xml, v))
+    assert "L16" not in _rules(odoo_lint.lint("m/models/m.py", "vals = {'raw': pdf}\n", "20"))
+    # web/controllers/export.py on 20.0 reads an export_data() dict key named 'datas'
+    assert "L16" not in _rules(odoo_lint.lint("m/controllers/c.py", "rows = res.get('datas', [])\n", "20"))
+
+
+def test_l17_base64_bytes_written_to_a_field_warns_on_20_only():
+    py = "partner.image_1920 = base64.b64encode(img)\n"
+    f20 = odoo_lint.lint("m/models/m.py", py, "20")
+    assert "L17" in _rules(f20) and _sev(f20, "L17") == "warn"
+    assert "TypeError" in next(x.message for x in f20 if x.rule == "L17")
+    assert "L17" in _rules(odoo_lint.lint("m/models/m.py", "vals = {'image_1920': base64.b64encode(img)}\n", "20"))
+    for v in ("17", "18", "19"):
+        assert "L17" not in _rules(odoo_lint.lint("m/models/m.py", py, v))
+    decoded = "partner.image_1920 = base64.b64encode(img).decode()\n"
+    assert "L17" not in _rules(odoo_lint.lint("m/models/m.py", decoded, "20"))
+    # addons/printer/models/ir_actions_report.py on 20.0: bytes in a job payload, not a field
+    job = 'jobs.append({"type": "zpl", "report": base64.b64encode(self._render(name, ids)[0])})\n'
+    assert "L17" not in _rules(odoo_lint.lint("m/models/m.py", job, "20"))
+    assert "L17" in _rules(odoo_lint.lint("m/models/m.py", "rec.x_signature_file = base64.b64encode(b)\n", "20"))
+
+
+def _line_of_rule(findings, rule):
+    return next(f.line for f in findings if f.rule == rule)

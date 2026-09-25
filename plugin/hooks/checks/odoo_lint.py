@@ -7,11 +7,16 @@ from .common import Finding
 
 # (rule, compiled regex, {version: severity}, message, fix, applies_to)
 #   applies_to: "xml" | "controller" | "model" | "csv"
+# Field names that are Binary fields in practice (L17 must not flag base64 in JSON/job payloads).
+_BINARY_NAME = r"\w*(?:image|logo|icon|avatar|file|attachment|pdf|signature|binary|document)\w*"
+_FIX16 = ("Use the 'raw' field with the file bytes ({'raw': pdf_bytes}) or BinaryBytes(...) from odoo.tools; "
+         "in XML data use <field name=\"raw\" type=\"base64\" file=\"...\"/>.")
+
 _RULES = [
     ("L1", re.compile(r"<tree[\s>/]"),
      {"18": "block", "19": "block", "20": "block"},
      "<tree> view element", "Replace <tree> with <list>.", "xml"),
-    ("L2", re.compile(r"\battrs\s*=|\bstates\s*="),
+    ("L2", re.compile(r"\b(?:attrs|states)\s*=\s*[\"']"),
      {"18": "warn", "19": "block", "20": "block"},
      "attrs=/states= on a view node",
      "Use direct attributes: invisible=, readonly=, required=.", "xml"),
@@ -70,9 +75,62 @@ _RULES = [
      {"20": "block"},
      "Registry._init (private flag removed in Odoo 20; AttributeError at runtime)",
      "Use `not self.env.registry.ready` (or the install_mode/module context keys) instead.", "model"),
+    # Odoo 20 ORM changelog 19.1-20.0 (evidence: odoo/odoo@20.0 87a1773b —
+    # odoo/addons/base/models/ir_config_parameter.py, odoo/orm/models.py, odoo/orm/fields_binary.py)
+    ("L14", re.compile(r"\.(?:get|set)_param\s*\("),
+     {"20": "block"},
+     "ir.config_parameter get_param()/set_param() (removed in Odoo 20; AttributeError at runtime)",
+     "Use the typed API: get_str/get_int/get_float/get_bool(key, default) and "
+     "set_str/set_int/set_float/set_bool(key, value). No upgrade_code script rewrites this.", "model"),
+    ("L14", re.compile(r"\.(?:get|set)_param\s*\("),
+     {"20": "block"},
+     "ir.config_parameter get_param()/set_param() (removed in Odoo 20; AttributeError at runtime)",
+     "Use the typed API: get_str/get_int/get_float/get_bool(key, default) and "
+     "set_str/set_int/set_float/set_bool(key, value). No upgrade_code script rewrites this.", "controller"),
+    ("L15", re.compile(r"\b_table_query\b"),
+     {"20": "block"},
+     "Model._table_query (removed in Odoo 20)",
+     "Define `@property def _table_sql(self) -> SQL` returning the parenthesised query, "
+     "e.g. SQL(\"(%s %s %s)\", self._select(), self._from(), self._where()).", "model"),
+    ("L16", re.compile(r"[\"']datas[\"']\s*:|\.datas\b"),
+     {"20": "block"},
+     "ir.attachment.datas (field removed in Odoo 20; writes are silently dropped, the attachment is empty)",
+     _FIX16, "model"),
+    ("L16", re.compile(r"[\"']datas[\"']\s*:|\.datas\b"),
+     {"20": "block"},
+     "ir.attachment.datas (field removed in Odoo 20; writes are silently dropped, the attachment is empty)",
+     _FIX16, "controller"),
+    ("L16", re.compile(r"<field\b[^>]*\bname\s*=\s*[\"']datas[\"']"),
+     {"20": "block"},
+     "ir.attachment.datas (field removed in Odoo 20; the record is created without content)",
+     _FIX16, "xml"),
+    ("L17", re.compile(r"(?:[\"']" + _BINARY_NAME + r"[\"']\s*:|\." + _BINARY_NAME + r"\s*=)"
+                        r"\s*base64\.b64encode\((?![^\n]*\.decode\()"),
+     {"20": "warn"},
+     "bytes from base64.b64encode() assigned to a field (Binary fields raise TypeError on bytes in Odoo 20)",
+     "Wrap raw bytes: `from odoo.tools import BinaryBytes` then `field = BinaryBytes(raw_bytes)` "
+     "(what Odoo 20 itself does), or pass a base64 str via .decode(); for attachments write 'raw'.", "model"),
 ]
 
+_ICP_CHAIN = re.compile(r"ir\.config_parameter[\"']\s*\](?:\s*\.\s*(?:sudo|with_\w+)\([^()]*\))*\s*$")
+_RECEIVER = re.compile(r"\b([A-Za-z_]\w*)(?:\s*\.\s*sudo\(\s*\))?\s*$")
+
+
+def _icp_receiver(text: str, m: re.Match) -> bool:
+    """L14: only ir.config_parameter receivers (email.message.get_param is stdlib)."""
+    before = text[text.rfind("\n", 0, m.start()) + 1:m.start()]
+    if _ICP_CHAIN.search(before):
+        return True
+    r = _RECEIVER.search(before)
+    return bool(r) and re.search(
+        r"\b%s\s*=\s*[^\n]*ir\.config_parameter" % re.escape(r.group(1)), text) is not None
+
+
+# Per-match predicates: a rule fires on the first match its predicate accepts.
+_PREDICATES = {"L14": _icp_receiver}
+
 _ROUTE_XML = ("/views/", "/security/", "/data/", "/report/", "/wizard/")
+_ROUTE_MODEL_PY = ("/models/", "/report/", "/wizard/", "/wizards/")
 
 
 def _kind(path: str) -> Optional[str]:
@@ -81,7 +139,7 @@ def _kind(path: str) -> Optional[str]:
         return "xml"
     if p.endswith(".py") and "/controllers/" in p:
         return "controller"
-    if p.endswith(".py") and "/models/" in p:
+    if p.endswith(".py") and any(seg in p for seg in _ROUTE_MODEL_PY):
         return "model"
     if p.endswith(".csv") and "/security/" in p:
         return "csv"
@@ -114,7 +172,8 @@ def lint(path: str, content: str, version: Optional[str]) -> List[Finding]:
     for rule, rx, sev_map, message, fix, applies in _RULES:
         if applies != kind:
             continue
-        m = rx.search(text)
+        pred = _PREDICATES.get(rule)
+        m = next((x for x in rx.finditer(text) if pred(text, x)), None) if pred else rx.search(text)
         if not m:
             continue
         if version is None:

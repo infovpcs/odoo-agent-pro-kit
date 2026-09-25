@@ -91,7 +91,8 @@ files assert:
 | Field name in a rule or example | Field dropped or renamed in a later commit | grep the model file; Tier 2 confirms |
 | Module `depends` list | `__manifest__.py` gained/lost a dependency | diff the manifest against the documented list |
 | Version idiom (`<tree>` vs `<list>`, `attrs=`) | Rules describe 17 idiom, module targets 18/19 | check `__manifest__.py` version vs the stated idiom |
-| MCP port (8765 / 8766 / 8767) | Port map changed in `odoo_mcp/config.py` | grep the config for the actual port constants |
+| Odoo 20 idiom (`ir.model.access.csv`, `ir.rule`, `toggle_active`, `t-esc` in views, `registry._init`, `get_param`/`set_param`, `_table_query`, `ir.attachment` `datas`, bytes written to Binary fields) | Rules or examples still teach the 19 API while `__manifest__.py` is `20.0.x` | grep the rules files for each idiom; the kit lint rules L7–L17 name the 20.0 replacement |
+| MCP port (8765 / 8766 / 8767 / 8768) | Port map changed in `odoo_mcp/config.py` | grep the config for the actual port constants |
 | Database / instance key | `.env` or `config.py` key renamed | grep `config.py` and the env template |
 | External ID / `view_id` / attachment ID | Record recreated with a new ID | Tier 2 only — IDs cannot be verified statically |
 | Backup, snapshot, or run identifier | **Retention pruned it** — only the last N runs survive | `test -d`/`test -f` the artifact for every id cited |

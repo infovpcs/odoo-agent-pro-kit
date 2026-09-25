@@ -3,6 +3,52 @@
 All notable changes to `odoo-agent-pro-kit` are documented here. Versions
 track the `plugin/.claude-plugin/plugin.json` `version` field.
 
+## 0.8.0 — 2026-09-25
+
+### Added
+
+- **Odoo 20 ORM-changelog lint rules** — the 20.0 release folds in the Odoo Online 19.1–19.4
+  changes, which 0.7.0 did not cover. Each rule was written test-first and verified against
+  `odoo/odoo@20.0` `87a1773b` source **and live on a local Odoo 20.0 / PostgreSQL 16 database**:
+  - **L14** (block) `ir.config_parameter.get_param()`/`set_param()` — removed, `AttributeError` at
+    runtime; replacement `get_str/get_int/get_float/get_bool` + `set_*`. No `upgrade_code` script
+    rewrites it (192 files in 19.0 standard addons needed it). Only fires on an
+    `ir.config_parameter` receiver, so `email.message.get_param('charset')` is not flagged.
+  - **L15** (block) `Model._table_query` — removed; use the `_table_sql` property returning `SQL`.
+  - **L16** (block) `ir.attachment.datas` — field removed; a `'datas'` write is **silently dropped**
+    (attachment created with `file_size = 0`, no error). Python and XML data files.
+  - **L17** (warn) `base64.b64encode()` bytes assigned to a binary-like field — Binary fields hold a
+    `BinaryValue` and raise `TypeError` on bytes; Odoo's own fix is `BinaryBytes(raw_bytes)`.
+- Lint now also scans `report/`, `wizard/`, `wizards/` Python files (SQL-view models live there).
+- `Odoo20CodingStandard` 20.0.2 / `OdooTools20` 20.0.2: Python ≥ 3.12 + PostgreSQL ≥ 16 runtime,
+  the 19.1–20.0 ORM changes, binary read format `{'content','filename','size'}`, the full
+  `upgrade_code` script list, the `populate` addon (`odoo-bin populate`), and the finding that
+  Odoo's own MCP server (`ai_mcp`, `POST /mcp`) is **Enterprise-only** — Community keeps the kit's
+  `odoo_mcp`. `OdooRulesDriftCheck` gains an Odoo 20 idiom row and MCP port 8768;
+  `Odoo_Custom_Backend_Testing` documents the 20.0 binary format.
+- **Local Odoo 20 workspace setup** — `odoo_local_setup/config/odoo.conf.20` (port 8110, db
+  `odoo20`, `{{DB_HOST}}`/`{{DB_PORT}}` placeholders), `manage_modules.sh` detects `20.0`,
+  `setup_local_macos.sh` gains `--versions`, `--base-dir`, `--db-host`, `--db-port`, `--force`,
+  `--dry-run` and a PostgreSQL `MIN_PG_VERSION` check. The MCP launcher's `ODOO20_URL` default is
+  now `http://localhost:8110` (was 8020, which nothing listened on).
+- `tests/test_local_setup_odoo20.py` (9 tests) and 10 new tests in `tests/hooks/test_odoo20_support.py`.
+
+### Fixed
+
+- **`setup_local_macos.sh` ignored unknown arguments and always set up 17, 18 and 19**, pulling
+  each checkout and overwriting every `config/odoo.conf.<version>` with the template. Unknown
+  arguments and versions now exit 2, `git pull` is `--ff-only`, an existing config is kept unless
+  `--force`, and a differing `manage_modules.sh` is saved as `.bak` before it is replaced.
+- **L2 false positive** — `attrs=`/`states=` now require a quoted attribute value, so Python code
+  embedded in XML data (`states = dict(...)` in Enterprise `hr_payroll` data) is not blocked (18–20).
+
+### Upstream Odoo 20.0 issues found by the lint
+
+- `addons/account_edi_ubl_cii/models/account_edi_common.py:2004` still calls `get_param`
+  (`AttributeError` when importing a UBL/CII XML without an embedded PDF).
+- Enterprise `social_demo/data/social_demo.xml:86` still writes `ir.attachment` `datas` (demo image
+  attachment created empty).
+
 ## 0.7.0 — 2026-09-24
 
 ### Added
