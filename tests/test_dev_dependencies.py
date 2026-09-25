@@ -141,6 +141,18 @@ class TestDevDependenciesDeclared(unittest.TestCase):
             "CI must install requirements-dev.txt rather than relying on the runner image",
         )
 
+    def test_every_workflow_running_validate_installs_the_declared_dependencies(self):
+        # docker-sandbox-release.yml installed only `pytest jsonschema`, so its validate job failed
+        # the PyYAML preflight on every push from 2026-09-14 and skipped the image/smoke jobs.
+        workflows = sorted((REPO_ROOT / ".github" / "workflows").glob("*.yml"))
+        running = [path for path in workflows if "scripts/validate.sh" in path.read_text(encoding="utf-8")]
+        self.assertTrue(running, "no workflow runs ./scripts/validate.sh")
+        for path in running:
+            self.assertIn(
+                "requirements-dev.txt", path.read_text(encoding="utf-8"),
+                f"{path.name} runs validate.sh but does not install requirements-dev.txt",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

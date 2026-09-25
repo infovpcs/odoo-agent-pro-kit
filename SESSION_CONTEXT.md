@@ -33,7 +33,20 @@ Before changing files:
   Deliverables and all five platform/orchestration coverage checklist items
   verified with real evidence; Phase 8 is complete)
 
-## Phase 9 — complete (2026-09-25, one focused commit, not pushed)
+## Phase 9 — complete (2026-09-25, commit `ba87f5c`, pushed to origin/main by the owner)
+
+CI follow-up (2026-09-25, after the push): the `Docker Sandbox release` workflow had failed on every
+push since `e4e1329` (2026-09-14) — its `validate` job installed only `pytest jsonschema`, so
+`./scripts/validate.sh` stopped at the PyYAML preflight, and `image-build` / `compose-smoke` were
+**skipped** (not run since `c9f340d`, 2026-09-12). `CI` (ci.yml) was green throughout. Fix: the
+workflow installs `requirements-dev.txt` (`jsonschema` was unused); new guard
+`test_every_workflow_running_validate_installs_the_declared_dependencies` (RED on the old
+workflow, GREEN after). Local equivalents of the skipped jobs on macOS Docker Desktop 29.8.0,
+default `exec` mode: `sandbox/tests/ci-smoke.sh` 17 PASS 169 s, 18 PASS 112 s, 19 PASS 96 s (no
+leftover containers/sessions); `validate-compose.sh`, `release-acceptance.py verify`,
+`dependency-inventory.py` OK; `./scripts/validate.sh` 314 passed. This is also the local-runtime
+`exec`-mode evidence the VPS run could not give. The GitHub result is only known after the fix is
+pushed.
 
 Working tree (not committed, not pushed; `main` = `6325ed6` = origin):
 `sandbox/bin/sandboxctl`, `odoo_local_setup/manage_modules.sh`, `sandbox/scripts/fixture-lifecycle.py`
@@ -1405,16 +1418,50 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Next task
 
-**Phase 10 — Odoo 20.0 sandbox runtime** (checklist: `docs/docker-sandbox/tasks.md` "Phase 10").
-Build the Odoo 20 image (from `nightly.odoo.com/20.0` until `odoo/docker` publishes `20.0/`), add the
-`POSTGRES_16` lock and the 20 entries across the runtime, then re-run the 19→20 migration of
-`vpcs_llm_provider` + `vpcs_progressive_payment_terms` in a sandbox. Carried over from Phase 9 and
-run together with that migration: Phase-7 step 7 (agent CLIs via the stored cloud
-`anthropic`/`openai` secrets), `/plan-analysis` → `/start-coding` → `/testing` in a cloud sandbox,
-and `/fleet` cloud allocation (owner decides public URL exposure first).
+Start a fresh session, read this file and `docs/docker-sandbox/tasks.md`, then work in this order.
 
-Owner actions: replace the invalid cloud `github` secret (`sbx --cloud secret set github`, fine-
-grained token); approve cloud spend per run; authorize any push of the Phase 9 commit.
+**0. CI (first, small).** The owner pushes the CI fix commit (release workflow installs
+`requirements-dev.txt`). Then check `gh run list --limit 4`: `Docker Sandbox release` must be green,
+including `image-build` and `compose-smoke` for 17/18/19, which have not run on GitHub since
+2026-09-12. If a job fails, fix it before Phase 10 (`gh run view <id> --log-failed`).
+
+**1. Phase 10 — Odoo 20.0 sandbox runtime** (`tasks.md` "Phase 10"):
+   1. Odoo 20 image: build from `nightly.odoo.com/20.0` (ubuntu:noble, Python 3.12, pinned deb
+      checksum) until `odoo/docker` publishes `20.0/`; then pin the official `odoo:20.0` digest.
+   2. `POSTGRES_16` lock (Odoo 20 `MIN_PG_VERSION = 16`), `versions.yaml` 20 entry,
+      `20.Dockerfile`, schema enum, `lifecycle.sh` / `ci-smoke.sh` / `multiarch-build.sh`,
+      `sandbox-fleet`, release workflow matrix (add 20), `/fleet` accepts 20. Test-first.
+   3. Local exec-mode smoke for 20 (`ci-smoke.sh 20`), then cloud run mode (`lifecycle.sh` with
+      `SANDBOX_LIFECYCLE_VERSIONS=20`, then `phase9-cloud-acceptance.sh` extended to 20).
+   4. Re-run the 19→20 migration of `vpcs_llm_provider` + `vpcs_progressive_payment_terms`
+      inside a sandbox; Phase-7 acceptance for 20.
+
+**2. Carried over from Phase 9, run together with that migration** (owner decision 2026-09-25):
+   1. Phase-7 acceptance step 7 in cloud: Codex + one more agent CLI using the stored cloud
+      `anthropic` / `openai` secrets (untested so far); SSH probe or the approved `sbx exec`
+      fallback.
+   2. `/plan-analysis` → `/start-coding` → `/testing` with hooks inside a cloud sandbox, driving
+      the 19→20 migration task.
+   3. `/fleet` cloud allocation in `sandbox-fleet`: code shipped by archive, `sbx --cloud ports`
+      gives a **public** URL — ask the owner "public URL vs internal-only" before building it;
+      then three cloud sandboxes.
+
+**Cloud how-to:** `docs/docker-sandbox/phase-9/cloud-runbook.md` (client image `sbx-cloud:0.45.1`,
+auth volume `sbx_cloud_home`, detached `setsid nohup` launch, `rm --force` + `ls` cleanup).
+
+**Owner actions:**
+- Publish the CI fix commit to origin.
+- Replace the invalid cloud `github` secret (401 `Bad credentials`) from a real terminal:
+  `docker run -it --rm --platform linux/amd64 -v sbx_cloud_home:/home/sbx sbx-cloud:0.45.1 --cloud secret set github`
+  (fine-grained token, `infovpcs/odoo-agent-pro-kit`, Contents read/write); then clone inside the
+  sandbox instead of `sbx cp`.
+- Approve cloud spend per run; decide `/fleet` public-URL exposure.
+- Optional: a release tag for the Unreleased CHANGELOG entry; upstream reports for the two Odoo 20
+  bugs found in 0.8.0.
+
+**Constraints to remember:** the Oracle VPS has ~6.7 GB free (85%) beside live staging containers —
+do not pull Odoo images there without clearing space first. Publishing to origin is blocked by the
+contributor hook unless `AGENTS_PHASE_AUTHORIZED=1`; the owner usually publishes with a `!` command.
 
 ## Following tasks
 

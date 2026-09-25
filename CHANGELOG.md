@@ -25,6 +25,13 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
 - `artifacts.lock` adds `sbx_cloud_version` 0.45.x next to the unchanged local `sbx_version` 0.38.x;
   `release-acceptance.py compare` reports both.
 
+### Fixed
+
+- `Docker Sandbox release` workflow: the `validate` job now installs `requirements-dev.txt`. It had
+  installed only `pytest jsonschema`, so it failed the PyYAML preflight on every push since
+  2026-09-14 and the `image-build` / `compose-smoke` jobs were skipped. A test now requires every
+  workflow that runs `validate.sh` to install the declared dependencies.
+
 ## 0.8.0 — 2026-09-25
 
 ### Added
