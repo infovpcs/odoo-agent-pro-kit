@@ -58,11 +58,130 @@ def load_env(session):
     return values
 
 
-def compose(session, *args, capture=False, check=True, input_text=None):
+# Executor modes. `exec` (default) talks to running containers with `compose exec` and waits on
+# Docker health checks. `run` is for Docker Cloud Sandboxes, where `docker exec` into a running
+# container reaches neither the container nor the VM filesystem (health checks never pass): every
+# exec becomes a one-shot `compose run --rm --no-deps`, and readiness is probed over the Compose
+# network from one-shot containers.
+EXEC_MODES = ("exec", "run")
+DB_SERVICE = "db"
+ODOO_SERVICE = "odoo"
+ODOO_URL = "http://odoo:8069"
+
+
+def runtime_exec_mode():
+    mode = os.environ.get("SANDBOX_EXEC_MODE") or "exec"
+    if mode not in EXEC_MODES:
+        raise SystemExit(f"unsupported SANDBOX_EXEC_MODE {mode!r}; use exec or run")
+    return mode
+
+
+def session_exec_mode(session):
+    mode = load_env(session).get("SANDBOX_EXEC_MODE") or "exec"
+    if mode not in EXEC_MODES:
+        raise RuntimeError(f"unsupported SANDBOX_EXEC_MODE {mode!r} in runtime.env; use exec or run")
+    return mode
+
+
+def _docker_compose(session, args, capture=False, check=True, input_text=None, stdout=None, stdin=None, extra_env=None):
     env = os.environ.copy()
     env.update(load_env(session))
+    env.update(extra_env or {})
     command = ["docker", "compose", "--env-file", str(state_dir(session) / "runtime.env"), "-f", str(COMPOSE), *args]
+    if stdout is not None or stdin is not None:
+        return subprocess.run(command, env=env, check=check, stdout=stdout, stdin=stdin)
     return subprocess.run(command, env=env, text=True, check=check, capture_output=capture, input=input_text)
+
+
+def _split_options(args):
+    """Split `[opts..., service, command...]` at the first non-option token."""
+    for index, token in enumerate(args):
+        if not token.startswith("-"):
+            return list(args[:index]), list(args[index:])
+    return list(args), []
+
+
+def _db_client(session, command):
+    """A one-shot PostgreSQL client container; the password travels only in the environment."""
+    env = load_env(session)
+    args = ["run", "--rm", "--no-deps", "-T", "-e", "PGPASSWORD", DB_SERVICE, command[0], *command[1:],
+            "-h", DB_SERVICE, "-U", env["POSTGRES_USER"], "-d", env["ODOO_DB_NAME"]]
+    return args, {"PGPASSWORD": env["POSTGRES_PASSWORD"]}
+
+
+def _probe(session, service):
+    if service == DB_SERVICE:
+        args, extra = _db_client(session, ["pg_isready"])
+        return _docker_compose(session, args, capture=True, check=False, extra_env=extra).returncode == 0
+    health = f"import urllib.request; urllib.request.urlopen('{ODOO_URL}/web/health', timeout=3).read()"
+    args = ["run", "--rm", "--no-deps", "-T", ODOO_SERVICE, "python3", "-c", health]
+    return _docker_compose(session, args, capture=True, check=False).returncode == 0
+
+
+def wait_services(session, services, timeout):
+    """Run-mode readiness: probe each service over the Compose network until it answers."""
+    deadline = time.monotonic() + timeout
+    pending = list(services)
+    while True:
+        pending = [service for service in pending if not _probe(session, service)]
+        if not pending:
+            return
+        if time.monotonic() >= deadline:
+            raise RuntimeError(f"services not ready within {timeout}s: {', '.join(pending)}")
+        time.sleep(3)
+
+
+def service_rows(session):
+    """`compose ps` rows. In run mode Docker health never passes, so running services get their
+    `Health` from a network probe and keep Docker's value as `DockerHealth`."""
+    rows = compose_json(compose(session, "ps", "--format", "json", capture=True, check=False).stdout)
+    if session_exec_mode(session) == "run":
+        for row in rows:
+            if row.get("Service") in (DB_SERVICE, ODOO_SERVICE) and row.get("State") == "running":
+                row["DockerHealth"] = row.get("Health", "")
+                row["Health"] = "healthy" if _probe(session, row["Service"]) else "unhealthy"
+    return rows
+
+
+def _run_mode_up(session, args, capture, check):
+    wait, timeout, options, services = False, 180, [], []
+    tokens = iter(args)
+    for token in tokens:
+        if token == "--wait":
+            wait = True
+        elif token == "--wait-timeout":
+            timeout = int(next(tokens))
+        elif token.startswith("-"):
+            options.append(token)
+        else:
+            services.append(token)
+    proc = None
+    # Sequential and dependency-free: `depends_on: service_healthy` can never be met in run mode.
+    for service in services or [DB_SERVICE, ODOO_SERVICE]:
+        proc = _docker_compose(session, ["up", *options, "--no-deps", service], capture=capture, check=check)
+        if proc.returncode:
+            return proc
+        if wait:
+            wait_services(session, [service], timeout)
+    return proc
+
+
+def compose(session, *args, capture=False, check=True, input_text=None):
+    args = list(args)
+    if args and session_exec_mode(session) == "run":
+        verb, rest = args[0], args[1:]
+        if verb == "up":
+            return _run_mode_up(session, rest, capture, check)
+        if verb == "start":
+            return _run_mode_up(session, ["-d", *rest], capture, check)
+        if verb == "run" and "--no-deps" not in rest:
+            at = 1 if rest[:1] == ["--rm"] else 0
+            args = ["run", *rest[:at], "--no-deps", *rest[at:]]
+        elif verb == "exec":
+            options, target = _split_options(rest)
+            url = ["-e", f"ODOO_URL={ODOO_URL}"] if target[:1] == [ODOO_SERVICE] else []
+            args = ["run", "--rm", "--no-deps", *options, *url, *target]
+    return _docker_compose(session, args, capture=capture, check=check, input_text=input_text)
 
 
 def version_config(requested):
@@ -223,6 +342,13 @@ def diagnostics(session, reason="failure", policy_file=None):
 
 
 def wait_ready(session, timeout=180):
+    if session_exec_mode(session) == "run":
+        try:
+            wait_services(session, [DB_SERVICE, ODOO_SERVICE], timeout)
+            return
+        except RuntimeError as exc:
+            bundle = diagnostics(session, "readiness-timeout")
+            raise RuntimeError(f"{exc}; diagnostics: {bundle}") from exc
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         proc = compose(session, "ps", "--format", "json", capture=True, check=False)
@@ -291,6 +417,7 @@ def cmd_create(args):
         "ODOO_MEMORY_LIMIT": os.environ.get("ODOO_MEMORY_LIMIT", "3g"), "ODOO_CPU_LIMIT": os.environ.get("ODOO_CPU_LIMIT", "1.5"),
         "POSTGRES_MEMORY_LIMIT": os.environ.get("POSTGRES_MEMORY_LIMIT", "2g"), "POSTGRES_CPU_LIMIT": os.environ.get("POSTGRES_CPU_LIMIT", "1.0"),
         "SANDBOX_OTEL_LOG_ENDPOINT": os.environ.get("SANDBOX_OTEL_LOG_ENDPOINT", ""),
+        "SANDBOX_EXEC_MODE": runtime_exec_mode(),
     }
     (directory / "runtime.env").write_text("".join(f"{key}={value}\n" for key, value in env.items()))
     os.chmod(directory / "runtime.env", 0o600)
@@ -417,8 +544,12 @@ def print_logs(session, service=None, follow=False, since=None):
 def database_backup(session):
     started = time.time(); target = state_dir(session) / "backups" / f"{session}-{int(started)}.dump"
     env = load_env(session)
+    if session_exec_mode(session) == "run":
+        args, extra = _db_client(session, ["pg_dump", "-Fc"])
+    else:
+        args, extra = ["exec", "-T", "db", "pg_dump", "-Fc", "-U", env["POSTGRES_USER"], "-d", env["ODOO_DB_NAME"]], None
     with target.open("wb") as stream:
-        proc = subprocess.run(["docker", "compose", "--env-file", str(state_dir(session) / "runtime.env"), "-f", str(COMPOSE), "exec", "-T", "db", "pg_dump", "-Fc", "-U", env["POSTGRES_USER"], "-d", env["ODOO_DB_NAME"]], stdout=stream)
+        proc = _docker_compose(session, args, check=False, stdout=stream, extra_env=extra)
     if proc.returncode: target.unlink(missing_ok=True); raise RuntimeError("database backup failed")
     result(session, "backup", started, "succeeded", 0, artifacts=[str(target)]); print(target)
 
@@ -469,8 +600,12 @@ def database_restore(session, source):
         # Full-stack quarantine may have removed the DB container. An explicit
         # restore retry is the only operation allowed to recreate it.
         compose(session, "up", "-d", "--wait", "--wait-timeout", "180", "db")
+        if session_exec_mode(session) == "run":
+            args, extra = _db_client(session, ["pg_restore", "--clean", "--if-exists", "--no-owner"])
+        else:
+            args, extra = ["exec", "-T", "db", "pg_restore", "--clean", "--if-exists", "--no-owner", "-U", env["POSTGRES_USER"], "-d", env["ODOO_DB_NAME"]], None
         with source.open("rb") as stream:
-            proc = subprocess.run(["docker", "compose", "--env-file", str(state_dir(session) / "runtime.env"), "-f", str(COMPOSE), "exec", "-T", "db", "pg_restore", "--clean", "--if-exists", "--no-owner", "-U", env["POSTGRES_USER"], "-d", env["ODOO_DB_NAME"]], stdin=stream)
+            proc = _docker_compose(session, args, check=False, stdin=stream, extra_env=extra)
         if proc.returncode: raise RuntimeError("database restore failed")
         compose(session, "start", "odoo"); wait_ready(session)
     except (Exception, KeyboardInterrupt) as exc:
@@ -541,7 +676,7 @@ def main():
     if args.command == "create": return cmd_create(args)
     if not state_dir(args.session).is_dir(): raise SystemExit(f"unknown session: {args.session}")
     if args.command == "status":
-        data = manifest(args.session); proc = compose(args.session, "ps", "--format", "json", capture=True, check=False); data["services"] = compose_json(proc.stdout); print(json.dumps(data, indent=2)); return
+        data = manifest(args.session); data["services"] = service_rows(args.session); print(json.dumps(data, indent=2)); return
     if args.command == "exec":
         require_restore_integrity(args.session, "exec")
         command = args.remainder[1:] if args.remainder[:1] == ["--"] else args.remainder

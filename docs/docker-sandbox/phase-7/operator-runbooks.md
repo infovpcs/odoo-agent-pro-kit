@@ -20,7 +20,9 @@ sandbox/scripts/validate-compose.sh
 
 The released Sandbox integration is pinned to `sbx` 0.38.x and must pass
 `sandbox/bin/sandbox-agent preflight`. A newer minor version requires a fresh
-capability and acceptance review.
+capability and acceptance review. Docker Cloud Sandboxes use the separate
+`sbx_cloud_version` pin (0.45.x) and the runbook in
+[`../phase-9/cloud-runbook.md`](../phase-9/cloud-runbook.md).
 
 ## Ubuntu 24.04+ KVM — validated runtime target
 

@@ -19,6 +19,10 @@ description: Configure, migrate, operate, validate, benchmark, upgrade, roll bac
 3. Run `./scripts/validate.sh` and `python3 sandbox/scripts/release-acceptance.py verify`.
 4. Use `sandbox/bin/sandbox-agent preflight` before creating an outer agent Sandbox.
 
+## Docker Cloud Sandboxes
+
+Follow `docs/docker-sandbox/phase-9/cloud-runbook.md`. Cloud needs `sbx` in the `sbx_cloud_version` range (0.45.x) and owner approval for every billed run. Create sessions with `SANDBOX_EXEC_MODE=run`, because `docker exec` into running containers does not work in cloud. Launch long runs with `setsid nohup` (a plain `&` dies when the `sbx --cloud exec` stream closes). Always finish with `sbx --cloud rm --force <name>` and `sbx --cloud ls`.
+
 ## Operate a session
 
 Use `sandbox/bin/sandboxctl` for inner runtime lifecycle and module operations. Use `sandbox/bin/sandbox-fleet` only for bounded single-host concurrency. Never invoke raw `odoo-bin` for an install, update, or test lifecycle gate.

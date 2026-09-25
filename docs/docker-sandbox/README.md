@@ -13,6 +13,8 @@ earlier Docker Sandbox research into a versioned, test-gated product design.
 - `phase-7/operator-runbooks.md` configures supported and candidate host platforms.
 - `phase-7/release-acceptance.md` defines CI, clean-host, upgrade, and rollback gates.
 - `phase-7/migration-capacity.md` covers local migration and measured capacity evidence.
+- `phase-9/cloud-runbook.md` runs the runtime in Docker Cloud Sandboxes (`sbx --cloud`,
+  `SANDBOX_EXEC_MODE=run`).
 - `community-platform-validation.md` explains candidate-platform testing, issue
   evidence, bug triage, pull requests, and promotion to validated support.
 - `source-review.md` records the decisions made while consolidating the earlier

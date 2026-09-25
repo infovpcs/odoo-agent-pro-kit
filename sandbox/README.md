@@ -48,7 +48,16 @@ The fixture is intentionally public and contains no Enterprise source. Each
 session receives a private copy whose manifest series matches the selected
 Odoo version. Run the concurrent amd64 runtime matrix with
 `sandbox/tests/lifecycle.sh`, and validate both amd64 and arm64 image builds
-with `sandbox/tests/multiarch-build.sh`.
+with `sandbox/tests/multiarch-build.sh`. `SANDBOX_LIFECYCLE_VERSIONS="19"`
+limits the matrix to the listed versions.
+
+In Docker Cloud Sandboxes, `docker exec` into running containers does not work,
+so health checks never pass. Export `SANDBOX_EXEC_MODE=run` before `create`: it
+is recorded in `runtime.env`, and the controller, `manage_modules.sh`, and
+`lifecycle.sh` then use one-shot `compose run --rm --no-deps` containers and
+readiness probes over the Compose network (`pg_isready -h db`,
+`http://odoo:8069/web/health`). The default `exec` mode is unchanged. See
+`docs/docker-sandbox/phase-9/cloud-runbook.md`.
 
 Phase 3 adds `sandboxctl module <session> install|update|test <module>`. The
 controller delegates to `manage_modules.sh`, which selects local or Compose

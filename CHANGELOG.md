@@ -3,6 +3,28 @@
 All notable changes to `odoo-agent-pro-kit` are documented here. Versions
 track the `plugin/.claude-plugin/plugin.json` `version` field.
 
+## Unreleased
+
+### Added
+
+- **Docker Cloud Sandbox runtime (Phase 9)** — the Odoo 17/18/19 inner runtime now runs in Docker
+  Cloud Sandboxes (`sbx --cloud`). Cloud sandboxes cannot `docker exec` into running containers,
+  so sessions created with `SANDBOX_EXEC_MODE=run` use one-shot `compose run --rm --no-deps`
+  containers and network readiness probes; `sandboxctl status` reports `Health` from those probes
+  (Docker's value kept as `DockerHealth`); backup/restore use a one-shot client with the password
+  only in the environment. `manage_modules.sh`, `lifecycle.sh` (plus `SANDBOX_LIFECYCLE_VERSIONS`)
+  and `phase6-proof.sh` follow the same rules. The default `exec` mode is unchanged.
+- `sandbox/tests/phase9-cloud-acceptance.sh` runs Phase 7 acceptance steps 1–6 and 8 in one cloud
+  sandbox; all passed on 2026-09-25 (cold 17/18/19 lifecycle 115.6 s, warm Odoo 19 ready 22.6 s).
+- `docs/docker-sandbox/phase-9/cloud-runbook.md`, a `DockerSandboxOperations` cloud section, and an
+  `AGENTS.md` rule accepting Cloud Sandboxes as a runtime LIVE TEST host for cloud tasks.
+
+### Changed
+
+- `odoo-mixin` kit 0.5.2 allows `production.cloudfront.docker.com` (Docker Hub blob host).
+- `artifacts.lock` adds `sbx_cloud_version` 0.45.x next to the unchanged local `sbx_version` 0.38.x;
+  `release-acceptance.py compare` reports both.
+
 ## 0.8.0 — 2026-09-25
 
 ### Added

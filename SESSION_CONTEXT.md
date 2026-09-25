@@ -29,9 +29,159 @@ Before changing files:
   planning
 - Active branch: `main`
 - Branch base: `main` at commit `12368b7` (post-Phase-7, additive 0.2.0/0.3.0 work)
-- Last context update: 2026-09-25 (Phase A: Odoo 20 ORM-changelog lint L14–L17 + local 20 workspace, 0.8.0; 2026-09-24 Odoo 20.0 support added; earlier: 2026-08-20 Phase 8 exit gate MET — all
+- Last context update: 2026-09-25 (Phase 9 in progress — run-mode executor, uncommitted; Phase A: Odoo 20 ORM-changelog lint L14–L17 + local 20 workspace, 0.8.0; 2026-09-24 Odoo 20.0 support added; earlier: 2026-08-20 Phase 8 exit gate MET — all
   Deliverables and all five platform/orchestration coverage checklist items
   verified with real evidence; Phase 8 is complete)
+
+## Phase 9 — complete (2026-09-25, one focused commit, not pushed)
+
+Working tree (not committed, not pushed; `main` = `6325ed6` = origin):
+`sandbox/bin/sandboxctl`, `odoo_local_setup/manage_modules.sh`, `sandbox/scripts/fixture-lifecycle.py`
+(`ODOO_URL` env), `sandbox/kits/odoo-mixin/spec.yaml` (0.5.2 + `production.cloudfront.docker.com`),
+`sandbox/config/artifacts.lock` (0.5.2, new `spec_sha256`), `sandbox/tests/upgrade-rollback.py`
+(version from lock), new `tests/test_phase9_cloud_exec.py` (18 tests), `docs/docker-sandbox/tasks.md`
+(Phase 9/10 sections), this file.
+
+- `SANDBOX_EXEC_MODE=run` (recorded in `runtime.env` at create; default `exec` unchanged):
+  `compose()` translates `exec` → `run --rm --no-deps [-e ODOO_URL=http://odoo:8069]`, `run` → adds
+  `--no-deps`, `up [--wait]`/`start` → sequential `up -d --no-deps db` then `odoo` with network
+  probes (`pg_isready -h db` / `urlopen http://odoo:8069/web/health` from one-shot containers);
+  `wait_ready` uses probes; backup/restore use a one-shot `pg_dump`/`pg_restore -h db` with
+  `PGPASSWORD` in env only. `manage_modules.sh` mirrors it (psql check, `--no-deps`, health probe).
+- Tests: RED → GREEN; re-break with the old code fails 11 of the new tests (the 3 exec-mode
+  "unchanged" tests pass on both). `./scripts/validate.sh` on macOS: OK, **303 passed**. Not yet
+  run on the Ubuntu VPS.
+- Live cloud run (sandbox `kit-live-19` = `sbx_001m3c5dt832myastvfesept1x6`, medium amd64, 11:32–11:36
+  UTC, removed): kit 0.5.2 allowlist applied (policy shows the cloudfront host); working tree via
+  `sbx cp`; `SANDBOX_EXEC_MODE=run` with the kit's own `sandboxctl`: create 79 s, module install 8 s,
+  module test 9 s, backup 1 s, restore 5 s, stop, start, status (`ready`, db+odoo running), export,
+  destroy — **PASS**; `exec` fixture CRUD **FAIL** (`assert seeded[0]["lifecycle_marker"] ==
+  "updated"`): the live script skipped `lifecycle.sh`'s fixture-update step; the exec itself ran
+  and reached Odoo via `ODOO_URL`. Not yet proven to be only a sequencing issue.
+- `sandbox/tests/lifecycle.sh` run-mode aware (2026-09-25, follow-up session, uncommitted): reads
+  `SANDBOX_EXEC_MODE` from the session `runtime.env`; run mode uses `run --rm --no-deps` for the
+  init/update one-shots and `up -d --no-deps odoo` instead of `start odoo`; the readiness probe
+  targets `ODOO_URL` (falls back to loopback in exec mode); `SANDBOX_LIFECYCLE_VERSIONS` (default
+  `17 18 19`) allows a single-version cloud run. 3 new tests with fake `docker`/`sandboxctl` in a
+  copied repo (RED: 1 failing before the change; the ordering and exec-unchanged tests pass on both).
+  `./scripts/validate.sh` on macOS: OK, **306 passed**. Live cloud re-run of `lifecycle.sh` with
+  `SANDBOX_EXEC_MODE=run SANDBOX_LIFECYCLE_VERSIONS=19`: see next bullet.
+- Live cloud `lifecycle.sh`, Odoo 19, run mode — **PASS** (owner-approved, 2026-09-25): sandbox
+  `kit-life-19` = `sbx_001m3cdb7qwvwa60k3kf3ztyqz3` (`shell`, `--cpus 4 --memory 8g --platform
+  linux/amd64 --ttl 60m --kit sandbox/kits/odoo-mixin`), lived 13:51:09–13:55:17 UTC (~4 min, medium),
+  removed with `rm --force`; no sandboxes left. Working tree (incl. uncommitted Phase 9 changes)
+  shipped as `git ls-files -co --exclude-standard | tar` + `sbx --cloud cp`. Command:
+  `SANDBOX_EXEC_MODE=run SANDBOX_LIFECYCLE_VERSIONS=19 SANDBOX_MATRIX_RUN_ID=cloud bash
+  sandbox/tests/lifecycle.sh` → create, `--init`, fixture update, `--update`, `up -d --no-deps odoo`,
+  readiness via `ODOO_URL`, fixture CRUD `{"protocol": "json2", "server_version": "19.0", "crud":
+  "passed"}` (includes `lifecycle_marker == "updated"`), stop, start, export, destroy, volume check →
+  `EXIT=0`, 42 s wall-clock (odoo:19.0 image layers cached by an earlier aborted attempt in the same
+  sandbox). This confirms the earlier CRUD failure was the skipped update step.
+  Operational finding: a plain background job started through `sbx --cloud exec` is killed when the
+  exec stream closes (`RunExecSession: stream error … interact stream closed`); long runs must be
+  launched with `setsid nohup bash script &` and polled. Cost per run not reported by `sbx`; only
+  the sandbox lifetime above is recorded.
+- Live cloud `lifecycle.sh`, Odoo 17/18/19 concurrent, run mode — **PASS** (owner-approved,
+  2026-09-25): sandbox `kit-matrix` = `sbx_001m3cds9x16kz1bfwaevv72ger` (`shell`, `--cpus 8 --memory
+  16g` = large, amd64, `--ttl 60m`, `odoo-mixin` 0.5.2), created 13:58:52 (8 s), removed 14:02:15 UTC
+  (~3.5 min large); no sandboxes left. Fresh sandbox, so all three Odoo images pulled cold. Command:
+  `SANDBOX_EXEC_MODE=run SANDBOX_MATRIX_RUN_ID=cloud bash sandbox/tests/lifecycle.sh` → `EXIT=0`,
+  **117 s** wall-clock; CRUD `19.0 json2`, `17.0-20260810 xmlrpc`, `18.0-20260810 xmlrpc` all
+  `passed`; 2 readiness-probe retries (`Connection refused` while Odoo started) are expected loop
+  iterations; after destroy 0 containers, 0 volumes, 0 sessions. This covers Phase 7 matrix step 2
+  only (cold create/install/update/CRUD/restart/export/destroy per version; `module test` was proven
+  for 19 in `kit-live-19`). Steps 3–8 (warm 90 s target, six sessions + Phase 6 fault injection,
+  upgrade/rollback + backup/restore into a new session, migration, agent CLIs/SSH, final
+  no-leftovers proof incl. networks/ports) are not yet run in cloud.
+- Docs/decision batch (2026-09-25, uncommitted, no cloud spend): `sbx_cloud_version: "0.45.x"`
+  added to `artifacts.lock` next to the unchanged `sbx_version: "0.38.x"`; `release-acceptance.py
+  compare` reports it (2 new tests). New `docs/docker-sandbox/phase-9/cloud-runbook.md` (client
+  image, create, code shipping, detached launch, polling, cleanup, run mode, limits, evidence);
+  pointers in README, `sandbox/README.md`, docs index, Phase 7 operator runbook, and
+  `DockerSandboxOperations` skill. `AGENTS.md` rule 3 amended to accept Cloud Sandboxes as a runtime
+  LIVE TEST host for cloud-behaviour tasks (owner-approved spend, sandboxes removed, does not
+  replace KVM LIVE TESTs) — wording **approved by the owner** 2026-09-25.
+- Run-mode fixes found while preparing the cloud acceptance run (tests first, RED → GREEN):
+  `sandboxctl status` in run mode fills `Health` from the network probes (Docker's value kept as
+  `DockerHealth`), because Docker health never passes in cloud and `phase6-live.sh`/agents read
+  `Health`; `phase6-proof.sh` uses a one-shot `psql -h db` client in run mode. New driver
+  `sandbox/tests/phase9-cloud-acceptance.sh` (per-step PASS/FAIL, continues on failure). 313 tests.
+- Live cloud acceptance (owner-approved batch, 2026-09-25): sandbox `kit-accept` =
+  `sbx_001m3cekgap6y6kqh1y28gs4cmp`, large (8 vCPU / 16 GiB), amd64, kernel 6.12.103, created
+  14:13:10, removed 14:22:06 UTC (~9 min large). `bash sandbox/tests/phase9-cloud-acceptance.sh`
+  (started 14:13:40): 1-preflight PASS; 2-cold 17/18/19 lifecycle PASS 115.6 s; 3-warm lifecycle
+  PASS 47.6 s; 3-warm Odoo 19 create-to-ready PASS 22.6 s (< 90 s target); 4-six sessions (2 per
+  version, concurrent, one sandbox) PASS 33.0 s, 12 containers used 1.39 GB of 16.8 GB;
+  4-phase6-live PASS 65.8 s (install/test artifacts, backup/restore, Odoo + Postgres SIGKILL →
+  recover, invalid module, SIGINT, disk pressure, controller restart, redaction); 4-phase6-proof
+  PASS; 4-denied-network PASS (`curl https://example.com` → `CONNECT tunnel failed, response 403`,
+  default deny); 4-phase6-verify PASS (all reasons, redaction); 4-siblings-healthy PASS (5
+  siblings); 5-upgrade-rollback PASS; 5-restore-new-session **FAIL** — driver bug: `sandboxctl
+  restore` only accepts the target session's own `backups/` artifacts (intended guard); driver fixed
+  to import the backup first and step 5 re-run in the same sandbox → PASS (seed 23 s, restore 28 s,
+  probe count 1); 6-migrate-local PASS (`secrets_copied: false`, no `.git`/`.env`); 8-destroy-all
+  PASS (0 containers, 0 volumes, only bridge/host/none networks; `ss` absent in the image).
+  Not covered: step 7 (agent CLIs, SSH) — needs agent credentials.
+- Cloud `github` secret (global, created 08:59) is **invalid**: from inside `kit-accept`,
+  `api.github.com/user` → 401 `Bad credentials` (the proxy injects it even with an empty header);
+  `git ls-remote` with the token → `remote: invalid credentials`. Owner to replace it with a
+  fine-grained token (`sbx --cloud secret set github`). Other global secrets present: anthropic,
+  openai, groq (not tested).
+- Owner decision (2026-09-25): Phase-7 step 7 (agent CLIs/SSH), `/plan-analysis` → `/start-coding`
+  → `/testing` in a cloud sandbox, and `/fleet` cloud allocation move to Phase 10, to run with the
+  19→20 custom-app migration once the Odoo 20 image exists (`tasks.md` Phase 10 "Carried over").
+- Ubuntu validation (2026-09-25): working tree copied to a scratch dir on the Oracle VPS
+  (Ubuntu 24.04, kernel 6.17.0-1018-oracle, 2 vCPU, Docker 29.7.2, Compose 5.5.0, `sbx` 0.38.0),
+  scratch venv from `requirements-dev.txt`: `./scripts/validate.sh` OK, **311 passed, 2 skipped**
+  (Odoo 20 MCP tests need `pydantic`, unrelated), `sbx` kit validation ran. A runtime `exec`-mode
+  lifecycle on the VPS was **not** run: no Odoo/Postgres images cached, 6.7 GB free (85% used) next
+  to live staging containers; exec-mode commands are pinned by unit tests. Scratch dir removed.
+  macOS: `./scripts/validate.sh` OK, 313 passed.
+- Tooling (outside the repo): local image `sbx-cloud:0.45.1`, auth volume `sbx_cloud_home`, helper
+  pattern `docker run --rm [-it] --platform linux/amd64 -v sbx_cloud_home:/home/sbx [-v DIR:/work]
+  sbx-cloud:0.45.1 --cloud …`; `sbx --cloud rm --force` needed without a TTY. No cloud sandboxes left.
+
+Unrelated incident handled this session: a GitHub PAT was revoked after a developer pushed a
+workspace copy (incl. `odoo_whatsapp_mcp/bridge/store/{messages,whatsapp}.db`) to an external
+public repo. Not in any `infovpcs` repo (all public repos + kit remote refs scanned clean);
+`infovpcs/VPCS-Cloud` `.gitignore` already excludes those files. The developer is deleting and
+rebuilding the external repos; the owner re-pairs the WhatsApp device and issues a new token.
+
+## Phase 9 probe — Docker Cloud Sandbox, Odoo 19 (2026-09-25, not a completed phase)
+
+Client: Intel macOS via local image `sbx-cloud:0.45.1` (official linux/amd64 `docker-sbx_0.45.1`,
+sha256 `a5470cab…74f7` = SLSA provenance), auth volume `sbx_cloud_home` (owner device login as
+`vinusoft85`). Sandbox `kit-probe-19` = `sbx_001m3c3x3v4zvm08320d7ngzcrs`, `shell` agent,
+`--cpus 4 --memory 8g --platform linux/amd64 --ttl 60m --kit sandbox/kits/odoo-mixin`; created in
+~10 s, lived 11:06:10–11:12:57 UTC, removed with `sbx --cloud rm --force`. Kit tree copied in with
+`git archive 6325ed6` + `sbx --cloud cp` (no workspace follows a cloud sandbox).
+
+Inside: Ubuntu 26.04.1, kernel 6.12.103, 4 vCPU, 7 GiB, 30 GB overlay, Docker 29.8.1, Compose
+v5.5.1, Python 3.14.4, git 2.53.0; mixin env `ODOO_AGENT_RUNTIME=sandbox` present; default network
+policy **deny-all** plus the mixin allowlist; all egress through a credentials proxy.
+
+Findings (blockers for the shipped controller):
+1. `git clone https://github.com/...` of the public kit → `could not read Username` (proxy-managed
+   `GH_TOKEN` placeholder, no cloud GitHub credential; `codeload.github.com` CONNECT 403).
+2. Docker Hub blobs now come from `production.cloudfront.docker.com`; the mixin allows only
+   `production.cloudflare.docker.com`, so `sandboxctl create` failed the pinned `odoo:19.0@sha256:94a4…`
+   pull with `Forbidden`. Adding the host to the sandbox policy fixed it (image build 119 s).
+3. **`docker exec` into a running container is broken** (documented cloud limitation, now
+   reproduced): `docker exec cloud19-db-1 pg_isready` → "executable file not found"; even the
+   absolute `/usr/lib/postgresql/15/bin/pg_isready` "no such file"; `/etc/os-release` absent — neither
+   the container nor the VM filesystem. Health checks use the same path, so `compose up --wait db`
+   never goes healthy although Postgres logs "ready to accept connections"; `sandboxctl exec` and
+   `sandboxctl module … test` fail.
+Workaround proven: one-shot containers work — `docker run --rm --network cloud19_default postgres:15
+pg_isready -h db` → accepting connections; `docker compose run --rm --no-deps odoo odoo … --init
+sandbox_fixture --stop-after-init` → exit 0, DB shows `base|installed|19.0.1.3`,
+`sandbox_fixture|installed|19.0.1.0.0` (fixture has 0 tagged tests); `pg_dump -Fc` via a one-shot
+container → 1.2 MB dump, `pg_restore --list` 135 table-data entries.
+
+Phase 9 design consequence: a cloud executor mode that replaces health-check `--wait` with
+network-level readiness probes from one-shot containers and every `compose exec` (module ops,
+`exec`, backup/restore) with `compose run --rm`; mixin allowlist + `production.cloudfront.docker.com`
+(with the `artifacts.lock` bump); a cloud GitHub credential (owner) or `sbx cp` delivery.
 
 ## Latest additive work — Phase A: Odoo 20 content + local 20 workspace (0.8.0, 2026-09-25)
 
@@ -1255,35 +1405,16 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Next task
 
-Both Tier-1 module sequences are complete. Phase 8's broader exit gate is
-**not yet met**. The sole next task is to close the remaining phase-level
-evidence package:
+**Phase 10 — Odoo 20.0 sandbox runtime** (checklist: `docs/docker-sandbox/tasks.md` "Phase 10").
+Build the Odoo 20 image (from `nightly.odoo.com/20.0` until `odoo/docker` publishes `20.0/`), add the
+`POSTGRES_16` lock and the 20 entries across the runtime, then re-run the 19→20 migration of
+`vpcs_llm_provider` + `vpcs_progressive_payment_terms` in a sandbox. Carried over from Phase 9 and
+run together with that migration: Phase-7 step 7 (agent CLIs via the stored cloud
+`anthropic`/`openai` secrets), `/plan-analysis` → `/start-coding` → `/testing` in a cloud sandbox,
+and `/fleet` cloud allocation (owner decides public URL exposure first).
 
-1. Confirm the pipeline behaves correctly for a module with a real Odoo
-   **Enterprise dependency** — dependency detection must flag it without
-   ever fetching, bundling, or committing licensed Enterprise source.
-2. Turn the captured `hr_document_report` measurements into the separate
-   resource-sizing writeup against the Phase 7 host capacity.
-3. Write the standalone Phase 8 design note
-   (`docs/docker-sandbox/phase-8/design.md`) naming the canonical skill
-   invocation order, referenced from `CommandingSystem/SKILL.md`.
-4. Record a go/no-go decision on batching the remaining ~45 backlog modules
-   through this sequence, based on the measured single-module cost above.
-
-Update `docs/docker-sandbox/tasks.md`'s "Scope"/"Deliverables" checkboxes and
-mark the Phase 8 exit gate PASS only once all of the above have real
-recorded evidence. Update this file's Completed/Current state/Next task
-together with that result. Only after Phase 8 fully passes should the
-remaining VPCSCloud migration backlog batching begin (see Following tasks
-below), and only then should the currently-staged local commits (this
-repo's docs/evidence changes, and the `vpcs_apps_cloud_18` bugfix
-separately) be pushed, per the user's explicit push policy.
-
-Before starting new work, first commit this session's completed Step
-7/9/10 evidence (this repo) and the pricelist bugfix (`vpcs_apps_cloud_18`,
-branch `18.0`) as the Phase 8 pilot-module-completion commits, per
-AGENTS.md's one-focused-commit-per-session rule — do not mix them with the
-second-module work above.
+Owner actions: replace the invalid cloud `github` secret (`sbx --cloud secret set github`, fine-
+grained token); approve cloud spend per run; authorize any push of the Phase 9 commit.
 
 ## Following tasks
 

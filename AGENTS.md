@@ -13,6 +13,12 @@ Read `SESSION_CONTEXT.md` before starting work and treat
    Intel macOS workstation. Run all Docker Sandbox microVM and runtime LIVE
    TESTS on the designated Ubuntu 24.04+ KVM validation host. Do not require an
    Apple Silicon host unless a task specifically tests macOS Sandbox behavior.
+   Docker Cloud Sandboxes (`sbx --cloud`, `sbx_cloud_version` in
+   `sandbox/config/artifacts.lock`) are also an accepted runtime LIVE TEST host
+   for tasks that test cloud behavior, following
+   `docs/docker-sandbox/phase-9/cloud-runbook.md`. Every cloud run needs the
+   owner's approval of the spend, and every cloud sandbox is removed when the
+   run ends. Cloud evidence does not replace a required KVM-host LIVE TEST.
 4. Update implementation, `README.md`, related requirements/design/runbooks,
    `docs/docker-sandbox/tasks.md`, and `SESSION_CONTEXT.md` together.
 5. Run `./scripts/validate.sh` and all phase-specific tests from a clean shell.

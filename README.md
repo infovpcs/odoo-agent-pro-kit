@@ -168,6 +168,15 @@ exit gate in full** (see CHANGELOG 0.4.0 and
 See [`docs/docker-sandbox/tasks.md`](docs/docker-sandbox/tasks.md)
 "Phase 8" for the exact skill sequence and exit gate.
 
+Phase 9 (in progress) runs the same Odoo 17/18/19 runtime in **Docker Cloud
+Sandboxes** (`sbx --cloud`, `sbx_cloud_version` 0.45.x in `artifacts.lock`), so no
+local KVM host is needed. Cloud sandboxes cannot `docker exec` into running
+containers, so sessions created with `SANDBOX_EXEC_MODE=run` use one-shot
+containers and network readiness probes instead; local sessions are unchanged.
+The concurrent 17/18/19 lifecycle has passed in one cloud sandbox; the rest of
+the release matrix is still open. See
+[`docs/docker-sandbox/phase-9/cloud-runbook.md`](docs/docker-sandbox/phase-9/cloud-runbook.md).
+
 The Odoo 17/18/19 inner runtime controller is documented in
 [`sandbox/README.md`](sandbox/README.md). Phase gates remain authoritative in
 [`docs/docker-sandbox/tasks.md`](docs/docker-sandbox/tasks.md).

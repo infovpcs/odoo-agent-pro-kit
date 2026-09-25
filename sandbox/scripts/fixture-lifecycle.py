@@ -6,7 +6,7 @@ import os
 import urllib.request
 import xmlrpc.client
 
-URL = "http://127.0.0.1:8069"
+URL = os.environ.get("ODOO_URL", "http://127.0.0.1:8069")
 DB = "sandbox_db"
 MODEL = "sandbox.fixture"
 

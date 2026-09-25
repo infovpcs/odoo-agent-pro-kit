@@ -5,7 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CTL="$REPO_ROOT/sandbox/bin/sandboxctl"
 RUN_ID="${SANDBOX_MATRIX_RUN_ID:-live}"
-VERSIONS=(17 18 19)
+# Space-separated override, e.g. "19" for a single-version Cloud Sandbox run.
+read -ra VERSIONS <<< "${SANDBOX_LIFECYCLE_VERSIONS:-17 18 19}"
 
 cd "$REPO_ROOT"
 
@@ -35,16 +36,24 @@ for version in "${VERSIONS[@]}"; do
     session="${version}-fixture-${RUN_ID}"
     env_file="$REPO_ROOT/.sandbox/sessions/$session/runtime.env"
     compose=(docker compose --env-file "$env_file" -f "$REPO_ROOT/sandbox/compose/compose.yaml")
+    # Run mode (Docker Cloud Sandboxes): `depends_on: service_healthy` can never be met, so
+    # one-shot containers skip dependencies and Odoo starts without them.
+    run=(run --rm)
+    start=(start odoo)
+    if [ "$(sed -n 's/^SANDBOX_EXEC_MODE=//p' "$env_file")" = "run" ]; then
+      run=(run --rm --no-deps)
+      start=(up -d --no-deps odoo)
+    fi
 
     "${compose[@]}" stop odoo
-    "${compose[@]}" run --rm odoo odoo --config /etc/odoo/odoo.conf --database sandbox_db --init sandbox_fixture --stop-after-init --no-http
+    "${compose[@]}" "${run[@]}" odoo odoo --config /etc/odoo/odoo.conf --database sandbox_db --init sandbox_fixture --stop-after-init --no-http
     sed -i.bak 's/>installed</>updated</' "$REPO_ROOT/.sandbox/sessions/$session/addons/sandbox_fixture/data/fixture_data.xml"
     rm "$REPO_ROOT/.sandbox/sessions/$session/addons/sandbox_fixture/data/fixture_data.xml.bak"
-    "${compose[@]}" run --rm odoo odoo --config /etc/odoo/odoo.conf --database sandbox_db --update sandbox_fixture --stop-after-init --no-http
-    "${compose[@]}" start odoo
+    "${compose[@]}" "${run[@]}" odoo odoo --config /etc/odoo/odoo.conf --database sandbox_db --update sandbox_fixture --stop-after-init --no-http
+    "${compose[@]}" "${start[@]}"
 
     for _ in $(seq 1 60); do
-      if "$CTL" exec "$session" -- python3 -c 'import urllib.request; urllib.request.urlopen("http://127.0.0.1:8069/web/health", timeout=2).read()'; then
+      if "$CTL" exec "$session" -- python3 -c 'import os, urllib.request; urllib.request.urlopen(os.environ.get("ODOO_URL", "http://127.0.0.1:8069") + "/web/health", timeout=2).read()'; then
         break
       fi
       sleep 2
@@ -68,4 +77,4 @@ for version in "${VERSIONS[@]}"; do
 done
 trap - EXIT
 
-echo "OK: concurrent Odoo 17/18/19 install, update, protocol CRUD, restart, export, and cleanup passed."
+echo "OK: concurrent Odoo ${VERSIONS[*]} install, update, protocol CRUD, restart, export, and cleanup passed."

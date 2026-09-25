@@ -196,6 +196,10 @@ COMPOSE_FILE="${COMPOSE_FILE:-}"
 COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-}"
 COMPOSE_SERVICE="${COMPOSE_SERVICE:-odoo}"
 COMPOSE_DB_SERVICE="${COMPOSE_DB_SERVICE:-db}"
+# exec (default): talk to running containers and wait on Docker health checks.
+# run: Docker Cloud Sandboxes, where `docker exec` into a running container does not reach it;
+# use one-shot `compose run --rm --no-deps` containers and probe readiness over the network.
+SANDBOX_EXEC_MODE="${SANDBOX_EXEC_MODE:-exec}"
 SESSION_ID="${SESSION_ID:-local-${ODOO_VERSION}-session}"
 RESULTS_DIR="${ODOO_RESULTS_DIR:-$TEST_LOG_DIR}"
 PROGRESS_FILE="${ODOO_PROGRESS_FILE:-$RESULTS_DIR/module-progress.json}"
@@ -456,7 +460,11 @@ compose_run() {
 
 module_is_installed() {
     local module="$1"
-    if [ "$ODOO_EXECUTOR" = "compose" ]; then
+    if [ "$ODOO_EXECUTOR" = "compose" ] && [ "$SANDBOX_EXEC_MODE" = "run" ]; then
+        PGPASSWORD="${POSTGRES_PASSWORD:-}" compose_run run --rm --no-deps -T -e PGPASSWORD "$COMPOSE_DB_SERVICE" \
+            psql -h "$COMPOSE_DB_SERVICE" -U "${POSTGRES_USER:-odoo_runtime}" -d "$DATABASE" -Atqc \
+            "SELECT 1 FROM ir_module_module WHERE name = '$module' AND state = 'installed' LIMIT 1" 2>/dev/null | grep -qx 1
+    elif [ "$ODOO_EXECUTOR" = "compose" ]; then
         compose_run exec -T "$COMPOSE_DB_SERVICE" psql -U "${POSTGRES_USER:-odoo_runtime}" -d "$DATABASE" -Atqc \
             "SELECT 1 FROM ir_module_module WHERE name = '$module' AND state = 'installed' LIMIT 1" 2>/dev/null | grep -qx 1
     else
@@ -505,6 +513,21 @@ PY
     echo "RESULT_FILE=$result_file"
 }
 
+# Run mode: start Odoo without its health-gated dependency and wait until /web/health answers
+# from a one-shot container on the Compose network.
+compose_start_odoo_run_mode() {
+    local deadline=$(( $(date +%s) + ${ODOO_READY_TIMEOUT:-180} ))
+    compose_run up -d --no-deps "$COMPOSE_SERVICE" || return $?
+    until compose_run run --rm --no-deps -T "$COMPOSE_SERVICE" python3 -c \
+        "import urllib.request; urllib.request.urlopen('http://$COMPOSE_SERVICE:8069/web/health', timeout=3).read()"; do
+        if [ "$(date +%s)" -ge "$deadline" ]; then
+            echo "Odoo did not answer /web/health within ${ODOO_READY_TIMEOUT:-180}s"
+            return 1
+        fi
+        sleep 3
+    done
+}
+
 compose_module_operation() {
     local requested="$1" modules="$2"
     local operation="$requested" flag="--update" rc=0
@@ -530,11 +553,17 @@ compose_module_operation() {
     if [ "$rc" -eq 0 ]; then
         compose_run stop "$COMPOSE_SERVICE" >>"$operation_log" 2>&1 || rc=$?
     fi
+    local run_opts=(--rm)
+    [ "$SANDBOX_EXEC_MODE" = "run" ] && run_opts+=(--no-deps)
     if [ "$rc" -eq 0 ]; then
-        compose_run run --rm -T "$COMPOSE_SERVICE" odoo --config "$CONFIG_FILE" --database "$DATABASE" \
+        compose_run run "${run_opts[@]}" -T "$COMPOSE_SERVICE" odoo --config "$CONFIG_FILE" --database "$DATABASE" \
             "$flag" "$modules" "${test_args[@]}" --stop-after-init "${http_args[@]}" >>"$operation_log" 2>&1 || rc=$?
     fi
-    compose_run up -d --wait --wait-timeout "${ODOO_READY_TIMEOUT:-180}" "$COMPOSE_SERVICE" >>"$operation_log" 2>&1 || [ "$rc" -ne 0 ] || rc=$?
+    if [ "$SANDBOX_EXEC_MODE" = "run" ]; then
+        compose_start_odoo_run_mode >>"$operation_log" 2>&1 || [ "$rc" -ne 0 ] || rc=$?
+    else
+        compose_run up -d --wait --wait-timeout "${ODOO_READY_TIMEOUT:-180}" "$COMPOSE_SERVICE" >>"$operation_log" 2>&1 || [ "$rc" -ne 0 ] || rc=$?
+    fi
     # Odoo's -i/-u CLI path treats an unresolvable module dependency as a
     # skip-with-warning, not a hard error, so a clean exit code alone does
     # not prove the requested module actually reached the "installed"

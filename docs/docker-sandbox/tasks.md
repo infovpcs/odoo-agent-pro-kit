@@ -477,6 +477,82 @@ step 10 is independently verified (not self-reported by the same
 uninterrupted session), and the go/no-go batching decision is recorded.
 **MET.**
 
+## Phase 9: Docker Cloud Sandbox runtime (Odoo 17/18/19) — complete
+
+Cloud Sandboxes run the same microVM isolation on Docker-managed compute (`sbx --cloud`,
+`sbx` ≥ 0.45.1). The maintainer workstation is Intel macOS, where the `sbx` cask and every macOS
+binary are arm64-only, so the client is the official linux/amd64 `sbx` in a local container image
+(`sbx-cloud:0.45.1`). Evidence: `SESSION_CONTEXT.md` "Phase 9 probe" and "Phase 9 run mode".
+
+- [x] Cloud-only `sbx` client on Intel macOS (checksum = SLSA provenance), owner device login.
+- [x] Probe: medium amd64 sandbox + `odoo-mixin`; found `docker exec` into running containers
+      broken in cloud (health checks never pass), Docker Hub blob host missing from the allowlist,
+      GitHub clone blocked without a cloud credential.
+- [x] `SANDBOX_EXEC_MODE=run` executor in `sandboxctl` and `manage_modules.sh`: every exec →
+      `compose run --rm --no-deps`, health-check waits → network probes from one-shot containers,
+      `pg_dump`/`pg_restore` via a one-shot client (password only in env); recorded in
+      `runtime.env` at create; `exec` mode unchanged. Tests: `tests/test_phase9_cloud_exec.py`.
+- [x] `odoo-mixin` 0.5.2: allow `production.cloudfront.docker.com`; `artifacts.lock` bumped;
+      `upgrade-rollback.py` derives the kit version from the lock.
+- [x] Live Odoo 19 cloud run with the kit's own controller: create, module install, module test,
+      backup, restore, stop, start, status, export, destroy — PASS.
+- [x] `exec` fixture CRUD in run mode: failed `lifecycle_marker == "updated"` because the live
+      script skipped `lifecycle.sh`'s fixture update step. Make `sandbox/tests/lifecycle.sh`
+      run-mode aware (its direct `compose run`/`stop`/`start` calls need `--no-deps` and network
+      readiness) and re-run.
+      Code done 2026-09-25: `lifecycle.sh` reads `SANDBOX_EXEC_MODE` from the session's
+      `runtime.env` (`--no-deps` runs, `up -d --no-deps odoo`, probe via `ODOO_URL`) and takes
+      `SANDBOX_LIFECYCLE_VERSIONS`; tests in `tests/test_phase9_cloud_exec.py`. Live Odoo 19 cloud `lifecycle.sh` run mode: PASS
+      (42 s, sandbox lived ~4 min medium); long runs need `setsid nohup` under `sbx --cloud exec`.
+- [x] Phase-7 acceptance matrix for 17, 18 and 19 in cloud (concurrent sessions in one `large`
+      sandbox or one `medium` sandbox per version); record wall-clock and cost per run.
+      Step 2 PASS 2026-09-25: concurrent 17/18/19 `lifecycle.sh` in one `large` sandbox, 117 s,
+      sandbox lived ~3.5 min. Steps 1, 3, 4, 5, 6, 8 PASS 2026-09-25 via
+      `sandbox/tests/phase9-cloud-acceptance.sh` (large, ~9 min; step 5 after a driver fix).
+      Step 7 (agent CLIs/SSH) deferred to Phase 10 by the owner (2026-09-25).
+- [~] `/plan-analysis` → `/start-coding` → `/testing` with hooks inside a cloud sandbox — deferred
+      to Phase 10 by the owner (2026-09-25), to run with the 19→20 custom-app migration.
+- [~] `/fleet` with three cloud sandboxes (`sandbox-fleet` cloud allocation) — deferred to Phase 10
+      by the owner (2026-09-25).
+- [x] Code delivery: documented `git archive` / working-tree tar + `sbx --cloud cp` (runbook).
+      The stored cloud `github` secret is invalid (401); replacing it is an owner action tracked
+      in Phase 10.
+- [x] Decide the `sbx_version` contract: `artifacts.lock` pins `0.38.x` (local KVM); cloud needs
+      ≥ 0.45.1. Decided 2026-09-25: keep `sbx_version` 0.38.x, add `sbx_cloud_version` 0.45.x
+      (validated 0.45.1); `release-acceptance.py compare` reports both.
+- [x] Cloud runbook (`docs/docker-sandbox/phase-9/`), `DockerSandboxOperations` skill, README,
+      and an `AGENTS.md` amendment accepting Cloud Sandboxes as a runtime LIVE TEST host.
+      Drafted 2026-09-25 (uncommitted): `phase-9/cloud-runbook.md`, skill section, README +
+      `sandbox/README.md` + docs index + Phase 7 runbook pointers, `AGENTS.md` rule 3 amendment —
+      `AGENTS.md` wording approved by the owner 2026-09-25.
+- [x] `./scripts/validate.sh`, SESSION_CONTEXT evidence, one focused commit. macOS 313 passed;
+      Ubuntu 24.04 VPS (`sbx` 0.38.0) 311 passed + 2 unrelated `pydantic` skips, kit validation ran.
+
+Exit gate: Odoo 17/18/19 acceptance passes in Docker Cloud Sandboxes through `sandboxctl` in
+run mode, local `exec` mode is unchanged (full suite green), costs are recorded. Items marked
+`[~]` were moved to Phase 10 by the owner and do not block this gate.
+
+## Phase 10: Odoo 20.0 sandbox runtime — not started
+
+- [ ] Odoo 20 image: build from `nightly.odoo.com/20.0` (ubuntu:noble, Python 3.12, pinned deb
+      checksum) until `odoo/docker` publishes `20.0/`; then pin the official `odoo:20.0` digest.
+- [ ] `POSTGRES_16` lock (Odoo 20 `MIN_PG_VERSION = 16`), `versions.yaml` 20 entry,
+      `20.Dockerfile`, schema enum, `lifecycle.sh`/`ci-smoke.sh`/`multiarch-build.sh`,
+      `sandbox-fleet`, release workflow matrix, `/fleet` accepts 20.
+- [ ] Re-run the 19→20 migration of `vpcs_llm_provider` + `vpcs_progressive_payment_terms`
+      inside a sandbox; Phase-7 acceptance for 20.
+- [ ] Carried over from Phase 9 (owner decision 2026-09-25), run together with the 19→20
+      custom-app migration once the Odoo 20 image is ready:
+  - [ ] Phase-7 acceptance step 7 in cloud: Codex + one more agent CLI via the stored cloud
+        `anthropic`/`openai` secrets (untested), SSH probe or the approved `sbx exec` fallback.
+  - [ ] `/plan-analysis` → `/start-coding` → `/testing` with hooks inside a cloud sandbox,
+        driving the migration task.
+  - [ ] `/fleet` cloud allocation in `sandbox-fleet` (code shipped by archive, `sbx --cloud ports`
+        gives a public URL — owner to decide public exposure vs internal-only) with three
+        cloud sandboxes.
+  - [ ] Owner: replace the invalid cloud `github` secret (`sbx --cloud secret set github`,
+        fine-grained token), then clone inside the sandbox instead of `sbx cp`.
+
 ## Definition of done for every implementation task
 
 - Code/config and user documentation are updated together.

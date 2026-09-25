@@ -44,7 +44,7 @@ def compare(previous):
     current, versions, images = load()
     old = json.loads(Path(previous).read_text())
     changes = []
-    for key in ("schema_version", "sbx_version", "release"):
+    for key in ("schema_version", "sbx_version", "sbx_cloud_version", "release"):
         if old.get(key) != current.get(key):
             changes.append({"component": key, "from": old.get(key), "to": current.get(key)})
     if semver(current["schema_version"]) < semver(old.get("schema_version", "0.0.0")):
