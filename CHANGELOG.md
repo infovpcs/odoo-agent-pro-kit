@@ -15,17 +15,14 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
   `.env` (0600, never printed). Verified live on local Odoo 20.0 (all 7 MCP tools over `/json/2`).
 - `manage_modules.sh` runs the MCP launcher with the workspace `.env` (`MCP_ENV_FILE`) and finds it
   through `ODOO_AGENT_PRO_KIT_HOME` from that `.env`; `setup_local_macos.sh` records that key.
-
-### Fixed
-
-- `start_mcp_server.sh --all` connected the Odoo 20 MCP server with the Odoo 17 URL and login; both
-  start paths now share `resolve_odoo_target`.
-- `start_mcp_server.sh` installed `plugin/requirements.txt` (absent) and hid the failure, so a fresh
-  checkout started an MCP server without `mcp`; it now installs `odoo_mcp/requirements.txt` and fails
-  loudly.
-- `start_mcp_server.sh` `load_env` sourced `.env` as shell and overrode variables the caller had
-  exported; it now parses `KEY=VALUE` lines and keeps caller values.
-
+- **PDF report dependencies.** The Linux bootstrap installs checksum-pinned wkhtmltopdf 0.12.6.1
+  with patched Qt (official jammy/bookworm `.deb`, amd64/arm64) and `libmagic1`; both setup
+  scripts add `phonenumbers` and `rl-renderPM` for 17+, which Odoo ships only via
+  `debian/control`. `setup_local_macos.sh` warns when wkhtmltopdf is missing or unpatched.
+- **Linux Odoo 20 verified end to end** in a fresh `ubuntu:24.04` container: `./bootstrap.sh
+  --versions 20`, `sale_management` install, 114/114 previously failing tests green, MCP over
+  `/json/2`. `LINUX_SETUP_GUIDE.md` documents the path (it named a `setup_complete.sh` that is not
+  shipped). Architecture diagram and README cover Odoo 20.
 - **Docker Cloud Sandbox runtime (Phase 9)** — the Odoo 17/18/19 inner runtime now runs in Docker
   Cloud Sandboxes (`sbx --cloud`). Cloud sandboxes cannot `docker exec` into running containers,
   so sessions created with `SANDBOX_EXEC_MODE=run` use one-shot `compose run --rm --no-deps`
@@ -46,6 +43,19 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
 
 ### Fixed
 
+- Linux bootstrap failed on Ubuntu 23.04+: `pip install uv` into the system Python is refused
+  (PEP 668). `uv` is now the standalone binary; PostgreSQL is started when not running; the
+  workspace `.env` records `ODOO_AGENT_PRO_KIT_HOME` once (`bootstrap.sh` no longer duplicates it).
+- `start_mcp_server.sh` needed `uv` on PATH (falls back to `~/.local/bin`, then `python3 -m venv`),
+  checked every Odoo on :8069 with `nc` (now per-version URLs over bash `/dev/tcp`), and
+  `--stop --version X` ignored the version, so `manage_modules.sh stop` left the MCP server running.
+- `start_mcp_server.sh --all` connected the Odoo 20 MCP server with the Odoo 17 URL and login; both
+  start paths now share `resolve_odoo_target`.
+- `start_mcp_server.sh` installed `plugin/requirements.txt` (absent) and hid the failure, so a fresh
+  checkout started an MCP server without `mcp`; it now installs `odoo_mcp/requirements.txt` and fails
+  loudly.
+- `start_mcp_server.sh` `load_env` sourced `.env` as shell and overrode variables the caller had
+  exported; it now parses `KEY=VALUE` lines and keeps caller values.
 - `Docker Sandbox release` workflow: the `validate` job now installs `requirements-dev.txt`. It had
   installed only `pytest jsonschema`, so it failed the PyYAML preflight on every push since
   2026-09-14 and the `image-build` / `compose-smoke` jobs were skipped. A test now requires every

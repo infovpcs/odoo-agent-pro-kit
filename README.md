@@ -18,8 +18,9 @@ for Odoo 17.0, 18.0, 19.0, and 20.0 — without building any of it from scratch.
 > `Odoo20ExistingDependencyContext`), version detection, slash commands, MCP discovery
 > (JSON-RPC 2.0, port 8768) and hook lint rules L7–L17 (`ir.access`, `mail_tracking`, Material
 > Symbols, removed `toggle_active`/`get_param`/`_table_query`/`ir.attachment.datas`, `BinaryValue`)
-> cover 20.0. Local 20 workspaces need Python ≥ 3.12 and **PostgreSQL ≥ 16**
-> (`odoo_local_setup/setup_local_macos.sh --versions 20 --db-port <pg16-port>`). Odoo's own MCP
+> cover 20.0. Local 20 workspaces need Python ≥ 3.12 and **PostgreSQL ≥ 16**: on Linux
+> `./bootstrap.sh --versions 20` (Ubuntu 24.04 ships both), on macOS
+> `odoo_local_setup/setup_local_macos.sh --versions 20 --db-port <pg16-port>`. Odoo's own MCP
 > server (`ai_mcp`) is Enterprise-only, so Community projects use the kit's `odoo_mcp`, which on
 > 19/20 talks to Odoo's External JSON-2 API (`/json/2`, bearer API key) once
 > `./manage_modules.sh mcp-apikey` has stored `ODOO20_API_KEY` in the workspace `.env`
@@ -49,7 +50,22 @@ cd odoo-agent-pro-kit
 
 This bootstraps a local Odoo 19.0 workspace under `~/odoo-workspaces/19_workspace`
 and copies the agent context templates into it. See `./bootstrap.sh --help` for
-multi-version setup.
+multi-version setup. `bootstrap.sh` uses `apt` (Ubuntu/Debian); on macOS use
+`odoo_local_setup/setup_local_macos.sh`.
+
+Odoo 20 with live MCP model discovery, on Linux:
+
+```bash
+./bootstrap.sh --versions 20
+cd ~/odoo-workspaces/20_workspace
+./manage_modules.sh install sale_management   # installs and runs the modules' tests
+./manage_modules.sh start                     # Odoo :8110; the MCP server starts on :8768
+./manage_modules.sh mcp-apikey                # scope 'rpc' API key -> ODOO20_API_KEY in .env
+./manage_modules.sh mcp-stop && ./manage_modules.sh mcp-start   # MCP now uses /json/2
+```
+
+Details and troubleshooting: [`odoo_local_setup/LINUX_SETUP_GUIDE.md`](odoo_local_setup/LINUX_SETUP_GUIDE.md)
+and [`plugin/odoo_mcp/MCP_SERVER_USAGE.md`](plugin/odoo_mcp/MCP_SERVER_USAGE.md).
 
 ## Install the agent plugin
 
@@ -98,11 +114,11 @@ reads it natively). See `integrations/codex/INSTALL.md`.
 | 5 slash commands (`/plan-analysis`, `/start-coding`, `/testing`, `/fleet`, `/rules-check-drift`) | `plugin/commands/` (Claude Code) / `plugin/__init__.py` (native Hermes) |
 | Hooks on SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop, SessionEnd, and PreCompact | `plugin/hooks/` (Claude Code) / `plugin/__init__.py` (native Hermes: `on_session_start`/`on_session_end`/`post_api_request`/`pre_tool_call`/`post_tool_call`) |
 | Deterministic pipeline hooks — `/start-coding` + `/testing` prerequisite gates, `odoo-bin`/`manage_modules.sh`/VCS/secret/Enterprise-source guardrails, sandbox operation-result verification, and a version-aware Odoo 17/18/19/20 coding-standard linter (rules L1–L17) | `plugin/hooks/odoo_hook.py` + `plugin/hooks/checks/` (Claude Code) / `plugin/__init__.py` `pre_tool_call`/`post_tool_call` (native Hermes) |
-| Live MCP server for Odoo 17/18/19/20 model discovery | `plugin/odoo_mcp/` (standalone server) / `plugin/__init__.py` (native Hermes in-process tools) |
+| Live MCP server for Odoo 17/18/19/20 model discovery — XML-RPC on 17/18, the External JSON-2 API with an `rpc` API key on 19/20 (`/jsonrpc` fallback without a key) | `plugin/odoo_mcp/` (standalone server) / `plugin/__init__.py` (native Hermes in-process tools) |
 | DeepSeek Harness agent preset — lifecycle commands, all 23 skills, in-process `odoo_*` discovery tools (workspace `.env` aware), and per-version Odoo documentation retrieval from the OKF knowledge bundles | `integrations/deepseek/` |
 | Compose sidecar running odoo_mcp as a persistent service inside a Docker Sandbox session | `sandbox/mcp-sidecar/` |
 | Portable playbook for provisioning an AI agent host for Odoo dev (any agent/IDE, any project) | `plugin/skills/OdooHermesEnvironmentSetup/` |
-| Local Odoo workspace bootstrap/management scripts | `odoo_local_setup/` |
+| Local Odoo 17–20 workspace bootstrap (Linux `bootstrap_odoo_env.sh`, macOS `setup_local_macos.sh`) and `manage_modules.sh` (install/update/test, start/stop, `mcp-start`/`mcp-stop`/`mcp-status`/`mcp-apikey`) | `odoo_local_setup/` |
 | Generic agent context templates | `context-templates/` |
 | Seven agent/IDE integrations | `integrations/` |
 

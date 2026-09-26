@@ -79,7 +79,7 @@ install_deps() {
     git curl ca-certificates build-essential \
     libxml2-dev libxslt1-dev libldap2-dev libsasl2-dev \
     libssl-dev libjpeg-dev libpq-dev libffi-dev zlib1g-dev \
-    libreadline-dev libyaml-dev libzip-dev postgresql postgresql-contrib \
+    libreadline-dev libyaml-dev libzip-dev libmagic1 postgresql postgresql-contrib \
     software-properties-common 2>&1 | tail -20
   
   # Install Python 3.12 from deadsnakes PPA
@@ -87,54 +87,79 @@ install_deps() {
   sudo add-apt-repository -y ppa:deadsnakes/ppa 2>&1 | tail -5
   sudo apt-get update -y 2>&1 | tail -5
   sudo apt-get install -y python3.12 python3.12-venv python3.12-dev 2>&1 | tail -20
-  
-  # Install pip for Python 3.12
-  echo "Installing pip for Python 3.12..."
-  curl https://bootstrap.pypa.io/get-pip.py -s | sudo python3.12 2>&1 | tail -10
-  
-  # Verify we have Python 3.12 and pip
-  if command -v python3.12 >/dev/null 2>&1; then
-    echo "✓ Python 3.12 is available"
-    python3.12 --version
-    if python3.12 -m pip --version >/dev/null 2>&1; then
-      echo "✓ pip is available for Python 3.12"
-    fi
-  else
-    die "Python 3.12 installation failed"
+  command -v python3.12 >/dev/null 2>&1 || die "Python 3.12 installation failed"
+
+  install_wkhtmltopdf
+  resolve_uv
+}
+
+# "<build> <sha256>" of the official patched-Qt wkhtmltopdf .deb for a distro
+# codename + dpkg architecture; empty when no build exists (e.g. focal).
+wkhtmltopdf_deb_for() {
+  local codename="$1" arch="$2" build
+  case "$codename" in
+    jammy|noble) build="jammy" ;;
+    bookworm|trixie) build="bookworm" ;;
+    *) return 0 ;;
+  esac
+  case "${build}_${arch}" in
+    jammy_amd64) echo "jammy_amd64 4f723b2691ad8638a9df960e0421d346d7315083e3583a334f33362280ddba15" ;;
+    jammy_arm64) echo "jammy_arm64 2095f20256661ebf0983b9311168596c9d012666e21a94bc24f304db6ac69ec5" ;;
+    bookworm_amd64) echo "bookworm_amd64 98ba0d157b50d36f23bd0dedf4c0aa28c7b0c50fcdcdc54aa5b6bbba81a3941d" ;;
+    bookworm_arm64) echo "bookworm_arm64 b6606157b27c13e044d0abbe670301f88de4e1782afca4f9c06a5817f3e03a9c" ;;
+  esac
+}
+
+# Odoo PDF reports need wkhtmltopdf 0.12.6 built with patched Qt (distro packages
+# are unpatched: no headers/footers, no multi-document PDFs). Checksum-pinned.
+install_wkhtmltopdf() {
+  if command -v wkhtmltopdf >/dev/null 2>&1 && wkhtmltopdf --version 2>/dev/null | grep -q "patched qt"; then
+    echo "✓ $(wkhtmltopdf --version)"
+    return
   fi
-  
-  # Install uv immediately
-  echo ""
-  echo "Installing uv package manager..."
-  python3.12 -m pip install --upgrade uv 2>&1 | tail -15
-  
-  if python3.12 -m pip show uv >/dev/null 2>&1; then
-    echo "✓ uv is ready"
-    python3.12 -m uv --version
-  else
-    die "uv installation failed"
+  local codename arch sel build sha deb
+  codename="$(. /etc/os-release && echo "${VERSION_CODENAME:-}")"
+  arch="$(dpkg --print-architecture)"
+  sel="$(wkhtmltopdf_deb_for "$codename" "$arch")"
+  if [[ -z "$sel" ]]; then
+    echo "WARNING: no patched-Qt wkhtmltopdf build for ${codename}/${arch}; PDF reports will not print."
+    return
   fi
+  read -r build sha <<<"$sel"
+  deb="$(mktemp -d)/wkhtmltox_0.12.6.1-3.${build}.deb"
+  echo "Installing wkhtmltopdf 0.12.6.1-3 (patched qt, ${build})..."
+  curl -fsSL -o "$deb" "https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-3/wkhtmltox_0.12.6.1-3.${build}.deb" \
+    || die "wkhtmltopdf download failed"
+  echo "${sha}  ${deb}" | sha256sum -c --quiet - || die "wkhtmltopdf checksum mismatch"
+  chmod 644 "$deb"
+  sudo apt-get install -y "$deb" 2>&1 | tail -3
+  wkhtmltopdf --version | grep -q "patched qt" || die "wkhtmltopdf installed without patched qt"
+  rm -rf "$(dirname "$deb")"
+}
+
+# uv as a standalone binary. Ubuntu 23.04+ refuses `pip install` into the system
+# Python (PEP 668, "externally-managed-environment"), so uv is never pip-installed.
+UV_BIN=""
+resolve_uv() {
+  if [[ -n "$UV_BIN" ]]; then
+    return
+  fi
+  if command -v uv >/dev/null 2>&1; then
+    UV_BIN="$(command -v uv)"
+  elif [[ -x "$HOME/.local/bin/uv" ]]; then
+    UV_BIN="$HOME/.local/bin/uv"
+  else
+    echo "Installing uv (standalone installer)..."
+    curl -LsSf https://astral.sh/uv/install.sh | env UV_NO_MODIFY_PATH=1 sh >/dev/null \
+      || die "uv installation failed"
+    UV_BIN="$HOME/.local/bin/uv"
+  fi
+  [[ -x "$UV_BIN" ]] || die "uv not found after install"
+  echo "✓ uv ready: $("$UV_BIN" --version)"
 }
 
 ensure_uv() {
-  if python3.12 -m pip show uv >/dev/null 2>&1; then
-    echo "✓ uv is already installed and ready"
-    return
-  fi
-
-  if ! command -v python3.12 >/dev/null 2>&1; then
-    die "uv is not available and python3.12 was not found"
-  fi
-
-  echo "Installing uv package manager..."
-  python3.12 -m pip install --upgrade uv 2>&1 | tail -15
-
-  if python3.12 -m pip show uv >/dev/null 2>&1; then
-    echo "✓ uv is ready"
-    python3.12 -m uv --version
-  else
-    die "uv installation failed"
-  fi
+  resolve_uv
 }
 
 ensure_pyenv() {
@@ -211,6 +236,11 @@ setup_postgres() {
     if [[ -n "$installed_pg" && "$installed_pg" -lt "$REQUIRED_MIN_PG" ]]; then
       echo "WARNING: PostgreSQL ${installed_pg} detected; Odoo recommends >= ${REQUIRED_MIN_PG}."
     fi
+  fi
+
+  # apt starts the server under systemd; containers and WSL need an explicit start.
+  if ! pg_isready -q 2>/dev/null; then
+    sudo service postgresql start || die "PostgreSQL is not running and could not be started"
   fi
 
   echo "Ensuring PostgreSQL role and databases exist..."
@@ -399,9 +429,14 @@ setup_venv() {
     # Modern Odoo 15+: use uv for speed
     ensure_uv
     echo "Using uv venv for Odoo ${version}.0..."
-    python3.12 -m uv venv --python "$pybin" "$odoo_dir/.venv"
-    python3.12 -m uv pip install --python "$odoo_dir/.venv/bin/python" setuptools
-    python3.12 -m uv pip install --python "$odoo_dir/.venv/bin/python" -r "$odoo_dir/requirements.txt"
+    "$UV_BIN" venv --python "$pybin" "$odoo_dir/.venv"
+    "$UV_BIN" pip install --python "$odoo_dir/.venv/bin/python" setuptools
+    "$UV_BIN" pip install --python "$odoo_dir/.venv/bin/python" -r "$odoo_dir/requirements.txt"
+    if [[ "$version" -ge 17 ]]; then
+      # Shipped by Odoo's debian/control, absent from requirements.txt off Windows:
+      # phone_validation needs phonenumbers; reportlab 4 QR/barcode rendering needs rl-renderPM.
+      "$UV_BIN" pip install --python "$odoo_dir/.venv/bin/python" phonenumbers rl-renderPM
+    fi
   fi
   
   if declare -f deactivate >/dev/null 2>&1; then
@@ -459,6 +494,15 @@ copy_manage_modules() {
   fi
 }
 
+# Let manage_modules.sh find this kit's MCP launcher (plugin/odoo_mcp).
+record_kit_home() {
+  local env_file="$1/.env"
+  if ! grep -q -E "^[[:space:]]*ODOO_AGENT_PRO_KIT_HOME=" "$env_file" 2>/dev/null; then
+    printf 'ODOO_AGENT_PRO_KIT_HOME=%s\n' "$(cd "$SCRIPT_DIR/.." && pwd)" >> "$env_file"
+    chmod 600 "$env_file"
+  fi
+}
+
 main() {
   need_cmd git
   install_deps
@@ -476,10 +520,11 @@ main() {
     local data_dir="$ws/data"
     local port=$((8090 + v))
 
-    echo "\n=== Odoo ${v}.0 workspace: $ws ==="
+    printf "\n=== Odoo %s.0 workspace: %s ===\n" "$v" "$ws"
     mkdir -p "$ws" "$extra_dir" "$config_dir" "$logs_dir" "$data_dir"
 
     copy_manage_modules "$ws" "$v"
+    record_kit_home "$ws"
     clone_repo "$v" "$odoo_dir"
   done
 
@@ -495,7 +540,7 @@ main() {
     write_config "$ws" "$v" "$port"
   done
 
-  echo "\nBootstrap complete. Next steps:"
+  printf "\nBootstrap complete. Next steps:\n"
   for v in ${VERSIONS//,/ }; do
     local ws="$BASE_DIR/${v}_workspace"
     local port=$((8090 + v))

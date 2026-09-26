@@ -106,6 +106,16 @@ check_prerequisites() {
         exit 1
     fi
 
+    # PDF reports need wkhtmltopdf 0.12.6 built with patched Qt (not installed here:
+    # the official macOS build is a signed .pkg that needs an interactive installer).
+    if ! command -v wkhtmltopdf &> /dev/null; then
+        print_warning "wkhtmltopdf not found: PDF reports will not print. Install the patched-Qt build:"
+        print_warning "  https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-2/wkhtmltox-0.12.6-2.macos-cocoa.pkg"
+    elif ! wkhtmltopdf --version 2>/dev/null | grep -q "patched qt"; then
+        print_warning "$(wkhtmltopdf --version) lacks patched qt: headers/footers and multi-document PDFs break."
+        print_warning "  Replace it with https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-2/wkhtmltox-0.12.6-2.macos-cocoa.pkg"
+    fi
+
     # Check for PostgreSQL (optional check, but good to warn)
     if ! command -v psql &> /dev/null; then
         print_warning "PostgreSQL CLI (psql) not found. Ensure Postgres is installed and running."
@@ -177,7 +187,7 @@ setup_workspace() {
 
     # Version specific additions
     if [ "$version" -ge 17 ]; then
-         UV_DEPS="$UV_DEPS num2words xlwt pypdf"
+         UV_DEPS="$UV_DEPS num2words xlwt pypdf phonenumbers rl-renderPM"  # last two: debian/control only
     fi
 
     # Use uv pip install for speed

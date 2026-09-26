@@ -1,6 +1,48 @@
 # Odoo Multi-Version Setup Guide for Linux
 
-Complete guide for setting up **Odoo 17, 18, 19** with **AI Agent Integration** on Linux/Ubuntu.
+Complete guide for setting up **Odoo 17, 18, 19, 20** with **AI Agent Integration** on Linux/Ubuntu.
+
+> **Current entry point:** `odoo_local_setup/bootstrap_odoo_env.sh`. The `setup_complete.sh`
+> script named in the older sections below is not shipped in this repository; read those
+> sections as background only.
+
+## Odoo 20 on Ubuntu 24.04 (verified 2026-09-26)
+
+Verified end to end in a fresh `ubuntu:24.04` container (x86_64; PostgreSQL 16.15, Python 3.12.3,
+`odoo/odoo@20.0` `7434faa9`, wkhtmltopdf 0.12.6.1 patched qt): bootstrap exit 0, `sale_management`
+(59 modules) installed with 0 errors, the previously failing report/phone/QR/avatar tests
+114/114 green, all 7 MCP tools over `/json/2`, `stop` shuts down Odoo and MCP.
+
+```bash
+sudo apt-get install -y git curl ca-certificates sudo
+git clone <this repo> ~/odoo-agent-pro-kit
+cd ~/odoo-agent-pro-kit
+./bootstrap.sh --versions 20          # wraps odoo_local_setup/bootstrap_odoo_env.sh
+
+cd ~/odoo-workspaces/20_workspace
+./manage_modules.sh install sale_management   # installs and runs the modules' tests
+./manage_modules.sh start                     # Odoo on :8110, starts the MCP server on :8768
+./manage_modules.sh mcp-apikey                # 'rpc' API key -> ODOO20_API_KEY in .env
+./manage_modules.sh mcp-stop && ./manage_modules.sh mcp-start   # MCP now uses /json/2
+```
+
+- Odoo 20 needs **PostgreSQL >= 16** and **Python >= 3.12**. Ubuntu 24.04's packages satisfy both;
+  on 22.04 or older point `--db-host/--db-port` at a PostgreSQL 16 server.
+- `uv` is installed as a standalone binary in `~/.local/bin`: Ubuntu 23.04+ refuses `pip install`
+  into the system Python (PEP 668).
+- The bootstrap starts PostgreSQL itself when it is not running (containers, WSL).
+- PDF reports: the bootstrap installs **wkhtmltopdf 0.12.6.1 with patched Qt** from the official
+  `wkhtmltopdf/packaging` release (checksum-pinned; jammy build on Ubuntu 22.04/24.04, bookworm on
+  Debian 12; Ubuntu 20.04 has no build and gets a warning). Distro `wkhtmltopdf` packages are
+  unpatched: no report headers/footers and no multi-document PDFs.
+- Python packages Odoo ships only through `debian/control` are added to the venv for 17+:
+  `phonenumbers` (phone_validation, invoice import) and `rl-renderPM` (reportlab QR codes and
+  barcodes). `libmagic1` is installed so `python-magic` loads.
+- The workspace `.env` gets `ODOO_AGENT_PRO_KIT_HOME`, which `manage_modules.sh` uses to find the
+  MCP launcher. Odoo's own MCP server (`ai_mcp`) is Enterprise-only; see
+  `plugin/odoo_mcp/MCP_SERVER_USAGE.md` for the JSON-2 API-key connection.
+- The config template listens on `0.0.0.0:8110`; on a shared or public host set
+  `http_interface = 127.0.0.1` in `config/odoo.conf.20`.
 
 ## System Requirements
 

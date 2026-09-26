@@ -224,6 +224,26 @@ password.
   tools listed, `get_version_info` `protocol: json-2`, `search_models`, `validate_field`,
   `get_relationships` OK; Odoo log shows only `POST /json/2/...` 200, 0 deprecation warnings.
 - Not done: Docker Sandbox/sidecar still uses password auth (17/18/19 only); no release bump.
+- LIVE Linux (2026-09-26, owner-approved, host `156.67.105.242` Ubuntu 20.04 production box running
+  Odoo 18/19 containers): all work inside disposable `ubuntu:24.04` containers capped at
+  1.5 GiB / 2 CPUs (host had ~2 GiB available, no swap), no published ports.
+  Run 1 (`bootstrap_odoo_env.sh`, commit `b57317c`): failed on PEP 668 (`pip install uv`); after
+  the fix, bootstrap exit 0; `manage_modules.sh install sale_management` installed 59 modules in
+  264 s; the full at/post-install suite surfaced missing `phonenumbers`, `rl-renderPM`,
+  `libmagic1`, `wkhtmltopdf` (stopped after ~58 min, container peak 799 MiB).
+  Run 2 (working tree, `./bootstrap.sh --versions 20`): exit 0 — PG 16.15, Python 3.12.3,
+  uv 0.12.19, wkhtmltopdf 0.12.6.1 patched qt (jammy .deb, sha256 pinned); install 0 ERROR;
+  `--test-tags` phone_validation, base TestAvatarMixin, account_qr_code_sepa, web TestReports,
+  account TestAccountMoveSend + TestAccountIncomingSupplierInvoice: 114 tests, 0 failed.
+  Found + fixed launcher bugs (uv off PATH, :8069/nc server check, `--stop --version`);
+  then `start` → `mcp-apikey` → `mcp-start` → 7 tools over `/json/2` (6 calls, all 200,
+  0 deprecation warnings) → `stop` stopped Odoo and MCP.
+  Cleanup verified: container + `ubuntu:24.04` image + `/root/odoo-kit-e2e` removed; container
+  list identical to the pre-test baseline; odoo18/19 containers up throughout.
+- Mac report printing: `wkhtmltopdf 0.12.6 (with patched qt)` (2020 macOS build) is correct; the
+  -11 crash at 10:49 on 2026-09-26 did not reproduce (4/4 renders of invoice 3 OK, incl. icons);
+  upstream `web` `test_report_icon_is_a_glyph` fails on that build (Material Symbols not
+  embedded) but passes with Linux 0.12.6.1. `phonenumbers` + `rl-renderPM` added to the Mac venv.
 
 ## Latest additive work — Phase A: Odoo 20 content + local 20 workspace (0.8.0, 2026-09-25)
 

@@ -115,9 +115,10 @@ extract_port_from_url() {
     fi
 }
 
+# True when something listens on 127.0.0.1:<port> (bash /dev/tcp; nc is often absent).
 is_port_open() {
     local port="$1"
-    nc -z localhost "$port" 2>/dev/null
+    (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null
 }
 
 ensure_odoo_running_for_version() {
@@ -185,19 +186,41 @@ ensure_odoo_running_for_version() {
 }
 
 # Setup Python virtual environment with uv
+# uv on PATH, or where its standalone installer puts it without editing PATH.
+find_uv() {
+    local candidate
+    for candidate in "$(command -v uv 2>/dev/null)" "$HOME/.local/bin/uv" "$HOME/.cargo/bin/uv"; do
+        if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+            echo "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
 setup_venv() {
+    local uv_bin
+    uv_bin="$(find_uv || true)"
     if [ -d "$VENV_DIR" ]; then
         print_status "Using existing virtual environment at $VENV_DIR"
-    else
+    elif [ -n "$uv_bin" ]; then
         print_status "Creating new virtual environment with uv..."
-        cd "$PROJECT_DIR"
-        uv venv "$VENV_DIR"
+        "$uv_bin" venv -q "$VENV_DIR"
         print_status "Virtual environment created"
+    else
+        print_status "uv not found; creating the virtual environment with python3 -m venv..."
+        python3 -m venv "$VENV_DIR"
     fi
 
     # Install requirements
     print_status "Installing/updating packages from requirements.txt..."
-    if ! uv pip install -q -r "$SCRIPT_DIR/requirements.txt" --python "$VENV_DIR/bin/python"; then
+    local installed=0
+    if [ -n "$uv_bin" ]; then
+        "$uv_bin" pip install -q -r "$SCRIPT_DIR/requirements.txt" --python "$VENV_DIR/bin/python" && installed=1
+    else
+        "$VENV_DIR/bin/python" -m pip install -q -r "$SCRIPT_DIR/requirements.txt" && installed=1
+    fi
+    if [ "$installed" -ne 1 ]; then
         print_error "Failed to install $SCRIPT_DIR/requirements.txt into $VENV_DIR"
         return 1
     fi
@@ -219,21 +242,11 @@ check_odoo_servers() {
     local odoo_running=0
 
     for version in "${ODOO_VERSIONS[@]}"; do
-        # Get URL from env based on version
-        # Odoo 19 uses ODOO_URL, Odoo 18 uses ODOO18_URL, Odoo 17 uses ODOO17_URL
-        local url_var="ODOO_URL"
-        if [ "$version" == "17.0" ]; then
-            url_var="ODOO17_URL"
-        elif [ "$version" == "18.0" ]; then
-            url_var="ODOO18_URL"
-        elif [ "$version" == "20.0" ]; then
-            url_var="ODOO20_URL"
-        fi
-
-        local url="${!url_var:-http://localhost:8069}"
+        resolve_odoo_target "$(get_major_version "$version")"
+        local url="$ODOO_T_URL"
         local port=$(extract_port_from_url "$url")
 
-        if nc -z localhost "$port" 2>/dev/null; then
+        if is_port_open "$port"; then
             print_status "Odoo $version is running on port $port (URL: $url)"
             odoo_running=$((odoo_running + 1))
         else
@@ -420,6 +433,26 @@ start_server() {
 
 # Stop the MCP server
 stop_server() {
+    # --version X: stop that version's server (its own PID file, or its command line).
+    if [ -n "${SPECIFIC_VERSION:-}" ]; then
+        local version="$SPECIFIC_VERSION" pid_file pids
+        [[ "$version" == *.* ]] || version="${version}.0"
+        pid_file=$(get_pid_file_for_version "$version")
+        pids="$( { [ -f "$pid_file" ] && cat "$pid_file"; pgrep -f "odoo_mcp.odoo_mcp_server.*--version $version"; } 2>/dev/null | sort -u)"
+        rm -f "$pid_file"
+        local stopped=0 pid
+        for pid in $pids; do
+            if kill "$pid" 2>/dev/null; then
+                stopped=1
+            fi
+        done
+        if [ "$stopped" -eq 1 ]; then
+            print_status "MCP Server for Odoo $version stopped"
+        else
+            print_warning "MCP Server for Odoo $version is not running"
+        fi
+        return 0
+    fi
     if [ -f "$PID_FILE" ]; then
         local pid=$(cat "$PID_FILE")
         if kill -0 "$pid" 2>/dev/null; then

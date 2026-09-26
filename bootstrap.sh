@@ -52,8 +52,9 @@ for v in "${VERSION_LIST[@]}"; do
   cp "$REPO_ROOT/context-templates/GEMINI.md" "$ws/GEMINI.md"
   cp "$REPO_ROOT/context-templates/copilot-instructions.md" "$ws/.github/copilot-instructions.md"
   touch "$ws/.env"
-  if grep -q '^export ODOO_AGENT_PRO_KIT_HOME=' "$ws/.env"; then
-    sed -i.bak "s|^export ODOO_AGENT_PRO_KIT_HOME=.*|export ODOO_AGENT_PRO_KIT_HOME=\"$REPO_ROOT\"|" "$ws/.env"
+  # bootstrap_odoo_env.sh may already have written the unexported form; keep one line.
+  if grep -qE '^(export )?ODOO_AGENT_PRO_KIT_HOME=' "$ws/.env"; then
+    sed -i.bak -E "s|^(export )?ODOO_AGENT_PRO_KIT_HOME=.*|export ODOO_AGENT_PRO_KIT_HOME=\"$REPO_ROOT\"|" "$ws/.env"
     rm -f "$ws/.env.bak"
   else
     printf 'export ODOO_AGENT_PRO_KIT_HOME="%s"\n' "$REPO_ROOT" >> "$ws/.env"

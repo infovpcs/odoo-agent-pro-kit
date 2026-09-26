@@ -181,7 +181,7 @@ def test_launcher_passes_api_key_per_version():
     body = LAUNCHER.read_text()
     # Both the single-version and the --all start paths hand the key to the server.
     assert body.count('ODOO_API_KEY="$odoo_api_key"') == 2
-    assert body.count('resolve_odoo_target "') == 2
+    assert body.count('resolve_odoo_target "') >= 2
 
 
 def test_launcher_env_file_does_not_override_caller_env(tmp_path):
@@ -235,3 +235,48 @@ def test_launcher_installs_its_own_requirements_file():
     assert (LAUNCHER.parent / "requirements.txt").is_file()
     assert '-r "$SCRIPT_DIR/requirements.txt"' in body
     assert "requirements.txt --python \"$VENV_DIR/bin/python\" 2>/dev/null || true" not in body
+
+
+def _launcher_fn(name, end_marker):
+    body = LAUNCHER.read_text()
+    return body[body.index(f"{name}() {{"):body.index(end_marker, body.index(f"{name}() {{"))]
+
+
+def test_launcher_finds_uv_outside_path(tmp_path):
+    # bootstrap_odoo_env.sh installs uv to ~/.local/bin without touching PATH.
+    uv = tmp_path / ".local" / "bin" / "uv"
+    uv.parent.mkdir(parents=True)
+    uv.write_text("#!/bin/sh\n")
+    uv.chmod(0o755)
+    fn = _launcher_fn("find_uv", "\n}\n") + "\n}\n"
+    out = subprocess.run(["bash", "-c", fn + "\nfind_uv"], capture_output=True, text=True,
+                         env={"PATH": "/usr/bin:/bin", "HOME": str(tmp_path)})
+    assert out.stdout.strip() == str(uv)
+
+
+def test_launcher_venv_falls_back_to_python_venv_without_uv():
+    body = LAUNCHER.read_text()
+    assert 'python3 -m venv "$VENV_DIR"' in body and '"$VENV_DIR/bin/python" -m pip install' in body
+
+
+def test_odoo_server_check_uses_per_version_defaults_and_no_nc():
+    fn = _launcher_fn("check_odoo_servers", "\n}\n")
+    assert "resolve_odoo_target" in fn and "is_port_open" in fn
+    assert "nc -z" not in LAUNCHER.read_text()
+
+
+def test_launcher_stop_with_version_stops_that_version(tmp_path):
+    # manage_modules.sh stop/mcp-stop call `--stop --version 20.0`; stop_server only read the
+    # generic mcp_server.pid, so a per-version server kept running.
+    body = LAUNCHER.read_text()
+    helpers = body[body.index("get_major_version() {"):body.index("get_log_file_for_version()")]
+    fn = body[body.index("stop_server() {"):body.index("# Stop all MCP server instances")]
+    fake = subprocess.Popen(["bash", "-c", "exec -a 'python -m odoo_mcp.odoo_mcp_server --version 20.0' sleep 30"])
+    try:
+        script = ("print_status(){ :; }; print_warning(){ :; }\n" + helpers + fn +
+                  f'\nSCRIPT_DIR="{tmp_path}"; PID_FILE="{tmp_path}/mcp_server.pid"; SPECIFIC_VERSION=20.0; stop_server')
+        subprocess.run(["bash", "-c", script], check=True, timeout=20)
+        assert fake.wait(timeout=10) is not None
+    finally:
+        if fake.poll() is None:
+            fake.kill()
