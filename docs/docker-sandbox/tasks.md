@@ -534,11 +534,16 @@ run mode, local `exec` mode is unchanged (full suite green), costs are recorded.
 
 ## Phase 10: Odoo 20.0 sandbox runtime — not started
 
-- [ ] Odoo 20 image: build from `nightly.odoo.com/20.0` (ubuntu:noble, Python 3.12, pinned deb
-      checksum) until `odoo/docker` publishes `20.0/`; then pin the official `odoo:20.0` digest.
+- [ ] Odoo 20 image: `odoo/docker` published `20.0/` on 2026-09-26 (`d543160420`: ubuntu:noble,
+      nightly deb `20260926` sha1-pinned, wkhtmltopdf 0.12.6.1-3, pgdg `postgresql-client`), but
+      Docker Hub has no `odoo:20.0` tag yet. Build the base from that commit, layer
+      `sandbox/images/odoo-dev/20.Dockerfile`, record the digest in `images.lock`; switch to the
+      official `odoo:20.0` digest once Hub publishes it.
 - [ ] `POSTGRES_16` lock (Odoo 20 `MIN_PG_VERSION = 16`), `versions.yaml` 20 entry,
       `20.Dockerfile`, schema enum, `lifecycle.sh`/`ci-smoke.sh`/`multiarch-build.sh`,
       `sandbox-fleet`, release workflow matrix, `/fleet` accepts 20.
+- [ ] MCP sidecar for 20: create a scope-`rpc` API key in the session database and pass it as
+      `ODOO_API_KEY` so `odoo_mcp` uses `/json/2` (the sidecar still sends a password today).
 - [ ] Re-run the 19→20 migration of `vpcs_llm_provider` + `vpcs_progressive_payment_terms`
       inside a sandbox; Phase-7 acceptance for 20.
 - [ ] Carried over from Phase 9 (owner decision 2026-09-25), run together with the 19→20
