@@ -51,6 +51,9 @@ class OdooConfig(BaseModel):
     database: str = Field(..., description="Odoo database name")
     username: str = Field(default="admin", description="Odoo username")
     password: str = Field(..., description="Odoo password")
+    # Odoo 19+ API key (Preferences > Account Security > New API Key, scope "rpc").
+    # When set on 19+, the External JSON-2 API (/json/2) is used instead of /jsonrpc.
+    api_key: str = Field(default="", repr=False, description="Odoo API key for /json/2")
 
     # Version settings
     odoo_version: Optional[str] = Field(default=None, description="Odoo version (auto-detect if not set)")
@@ -70,7 +73,7 @@ class OdooConfig(BaseModel):
     auto_refresh: bool = Field(default=True, description="Auto-refresh context on version switch")
 
     # Protocol (auto-selected based on version)
-    protocol: Optional[Literal["xml-rpc", "json-rpc-2.0"]] = Field(default=None, description="Protocol to use")
+    protocol: Optional[Literal["xml-rpc", "json-rpc-2.0", "json-2"]] = Field(default=None, description="Protocol to use")
 
     @field_validator("odoo_version")
     @classmethod
@@ -89,6 +92,8 @@ class OdooConfig(BaseModel):
 
     def get_rpc_endpoint(self) -> str:
         """Get the RPC endpoint based on protocol."""
+        if self.protocol == "json-2":
+            return f"{self.get_base_url()}/json/2"
         if self.protocol == "json-rpc-2.0":
             return f"{self.get_base_url()}/jsonrpc"
         return f"{self.get_base_url()}/xmlrpc/2/object"
@@ -113,12 +118,13 @@ def load_config(version: Optional[str] = None) -> OdooConfig:
         - ODOO_DB_NAME: Database name
         - ODOO_DB_USER: Username (default: admin)
         - ODOO_DB_PASSWORD: Password
+        - ODOO_API_KEY: API key (19+); selects the External JSON-2 API
 
     Version-specific overrides:
         - ODOO17_URL, ODOO17_DB_NAME, ODOO17_DB_USER, ODOO17_DB_PASSWORD
         - ODOO18_URL, ODOO18_DB_NAME, ODOO18_DB_USER, ODOO18_DB_PASSWORD
         - ODOO19_URL, ODOO19_DB_NAME, ODOO19_DB_USER, ODOO19_DB_PASSWORD
-        - ODOO20_URL, ODOO20_DB_NAME, ODOO20_DB_USER, ODOO20_DB_PASSWORD
+        - ODOO20_URL, ODOO20_DB_NAME, ODOO20_DB_USER, ODOO20_DB_PASSWORD, ODOO20_API_KEY
     """
     load_session_environment()
     # Determine version
@@ -172,20 +178,32 @@ def load_config(version: Optional[str] = None) -> OdooConfig:
     database = get_odoo_env("DB_NAME", "")
     username = get_odoo_env("DB_USER", "admin")   # Odoo login user (not postgres user)
     password = get_odoo_env("DB_PASSWORD", "")    # Odoo login password (not postgres password)
+    api_key = get_odoo_env("API_KEY", "")
 
     if not database:
         logger.warning("ODOO_DB_NAME not set, using empty database name")
-    if not password:
-        logger.warning("ODOO_DB_PASSWORD not set, using empty password")
 
-    # Determine protocol based on version
-    protocol: Optional[Literal["xml-rpc", "json-rpc-2.0"]] = None
+    # Determine protocol based on version.
+    # 19+: /json/2 with a bearer API key when one is configured (the only RPC path
+    # that survives Odoo 22); otherwise the legacy /jsonrpc endpoint, which Odoo 19
+    # and 20 still serve with a deprecation warning.
+    protocol: Optional[Literal["xml-rpc", "json-rpc-2.0", "json-2"]] = None
     major_version = int(version.split(".")[0]) if version else 19
 
-    if major_version >= 19:
+    if major_version >= 19 and api_key:
+        protocol = "json-2"
+    elif major_version >= 19:
         protocol = "json-rpc-2.0"
     else:
         protocol = "xml-rpc"
+
+    if protocol != "json-2" and not password:
+        logger.warning("ODOO_DB_PASSWORD not set, using empty password")
+    if protocol == "json-rpc-2.0" and major_version >= 20:
+        logger.warning(
+            "Odoo %s: /jsonrpc is deprecated (removal planned for Odoo 22); set ODOO%s_API_KEY "
+            "to use the External JSON-2 API", version, version_prefix,
+        )
 
     # Get MCP settings
     mcp_server_host = os.environ.get("MCP_SERVER_HOST", "localhost")
@@ -217,6 +235,7 @@ def load_config(version: Optional[str] = None) -> OdooConfig:
         database=database,
         username=username,
         password=password,
+        api_key=api_key,
         odoo_version=version,
         mcp_server_host=mcp_server_host,
         mcp_server_port=mcp_server_port,

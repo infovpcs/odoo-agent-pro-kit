@@ -7,6 +7,25 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
 
 ### Added
 
+- **MCP over Odoo's External JSON-2 API (Odoo 19/20 Community)** — `Json2Client` calls
+  `POST /json/2/<model>/<method>` with a bearer API key (scope `rpc`) and `X-Odoo-Database`, selected
+  automatically when `ODOO<v>_API_KEY` (`ODOO_API_KEY` for 19) is set; without a key 19/20 keep the
+  deprecated `/jsonrpc`. Odoo's `ai_mcp` is Enterprise-only, so this is the Community path.
+  `manage_modules.sh mcp-apikey` creates the key via `odoo-bin shell` and stores it in the workspace
+  `.env` (0600, never printed). Verified live on local Odoo 20.0 (all 7 MCP tools over `/json/2`).
+- `manage_modules.sh` runs the MCP launcher with the workspace `.env` (`MCP_ENV_FILE`) and finds it
+  through `ODOO_AGENT_PRO_KIT_HOME` from that `.env`; `setup_local_macos.sh` records that key.
+
+### Fixed
+
+- `start_mcp_server.sh --all` connected the Odoo 20 MCP server with the Odoo 17 URL and login; both
+  start paths now share `resolve_odoo_target`.
+- `start_mcp_server.sh` installed `plugin/requirements.txt` (absent) and hid the failure, so a fresh
+  checkout started an MCP server without `mcp`; it now installs `odoo_mcp/requirements.txt` and fails
+  loudly.
+- `start_mcp_server.sh` `load_env` sourced `.env` as shell and overrode variables the caller had
+  exported; it now parses `KEY=VALUE` lines and keeps caller values.
+
 - **Docker Cloud Sandbox runtime (Phase 9)** — the Odoo 17/18/19 inner runtime now runs in Docker
   Cloud Sandboxes (`sbx --cloud`). Cloud sandboxes cannot `docker exec` into running containers,
   so sessions created with `SANDBOX_EXEC_MODE=run` use one-shot `compose run --rm --no-deps`

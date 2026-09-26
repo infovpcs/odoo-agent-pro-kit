@@ -1,7 +1,9 @@
 #!/bin/bash
 #
 # MCP Server Startup Script
-# Starts the Odoo MCP Server for connecting to Odoo 17, 18, and 19 instances
+# Starts the Odoo MCP Server for connecting to Odoo 17, 18, 19 and 20 instances.
+# Odoo 19/20: set ODOO<major>_API_KEY (ODOO_API_KEY for 19) to use the External
+# JSON-2 API (/json/2, bearer key) instead of the deprecated /jsonrpc endpoint.
 #
 # Usage:
 #   ./start_mcp_server.sh           # Start with default settings
@@ -23,7 +25,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 VENV_DIR="$PROJECT_DIR/.venv"
 SERVER_SCRIPT="$SCRIPT_DIR/odoo_mcp_server.py"
-CONFIG_FILE="$PROJECT_DIR/.env"
+# A workspace's manage_modules.sh points MCP_ENV_FILE at its own .env.
+CONFIG_FILE="${MCP_ENV_FILE:-$PROJECT_DIR/.env}"
 LOG_DIR="$SCRIPT_DIR/logs"
 PID_FILE="$SCRIPT_DIR/mcp_server.pid"
 LOG_FILE="$LOG_DIR/mcp_server.log"
@@ -63,6 +66,26 @@ get_pid_file_for_version() {
 get_log_file_for_version() {
     local version="${1:-19.0}"
     echo "$LOG_DIR/mcp_server_${version/./_}.log"
+}
+
+# Resolve the Odoo instance an MCP server for <major> connects to, into
+# ODOO_T_URL / ODOO_T_DB / ODOO_T_USER / ODOO_T_PASS / ODOO_T_API_KEY.
+# 19 reads the unprefixed ODOO_* keys (the kit's canonical 19 names).
+resolve_odoo_target() {
+    local major="$1" prefix default_url default_db
+    case "$major" in
+        17) prefix="ODOO17_"; default_url="http://localhost:8017"; default_db="odoo17" ;;
+        18) prefix="ODOO18_"; default_url="http://localhost:8018"; default_db="odoo18" ;;
+        20) prefix="ODOO20_"; default_url="http://localhost:8110"; default_db="odoo20" ;;  # manage_modules.sh: 8090 + version
+        *)  prefix="ODOO_";   default_url="http://localhost:8069"; default_db="odoo" ;;
+    esac
+    local url_var="${prefix}URL" db_var="${prefix}DB_NAME" user_var="${prefix}DB_USER"
+    local pass_var="${prefix}DB_PASSWORD" key_var="${prefix}API_KEY"
+    ODOO_T_URL="${!url_var:-$default_url}"
+    ODOO_T_DB="${!db_var:-$default_db}"
+    ODOO_T_USER="${!user_var:-admin}"
+    ODOO_T_PASS="${!pass_var:-admin}"
+    ODOO_T_API_KEY="${!key_var:-}"
 }
 
 # Print colored message
@@ -174,8 +197,10 @@ setup_venv() {
 
     # Install requirements
     print_status "Installing/updating packages from requirements.txt..."
-    cd "$PROJECT_DIR"
-    uv pip install -r requirements.txt --python "$VENV_DIR/bin/python" 2>/dev/null || true
+    if ! uv pip install -q -r "$SCRIPT_DIR/requirements.txt" --python "$VENV_DIR/bin/python"; then
+        print_error "Failed to install $SCRIPT_DIR/requirements.txt into $VENV_DIR"
+        return 1
+    fi
     print_status "Packages installed"
 }
 
@@ -235,10 +260,22 @@ setup_logging() {
 # Load environment variables
 load_env() {
     if [ -f "$CONFIG_FILE" ]; then
-        # Use source to load .env properly
-        set -a
-        source "$CONFIG_FILE"
-        set +a
+        # KEY=VALUE lines only, never evaluated as shell, and never overriding a
+        # variable the caller already exported (same rule as load_dotenv(override=False)).
+        local line key value
+        while IFS= read -r line || [ -n "$line" ]; do
+            line="${line#"${line%%[![:space:]]*}"}"
+            line="${line#export }"
+            [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || continue
+            key="${line%%=*}"
+            value="${line#*=}"
+            value="$(printf '%s' "$value" | sed -E 's/[[:space:]]+#.*$//; s/[[:space:]]+$//')"
+            case "$value" in
+                \"*\") value="${value#\"}"; value="${value%\"}" ;;
+                \'*\') value="${value#\'}"; value="${value%\'}" ;;
+            esac
+            [ -n "${!key+x}" ] || export "$key=$value"
+        done < "$CONFIG_FILE"
         print_status "Loaded configuration from $CONFIG_FILE"
     else
         print_warning "No .env file found at $CONFIG_FILE"
@@ -331,29 +368,15 @@ start_server() {
     pid_file=$(get_pid_file_for_version "$version")
     log_file=$(get_log_file_for_version "$version")
 
-    if [ "$major_version" == "19" ] || [ -z "$major_version" ]; then
-        local odoo_url="${ODOO_URL:-http://localhost:8069}"
-        local odoo_db="${ODOO_DB_NAME:-odoo}"
-        local odoo_user="${ODOO_DB_USER:-admin}"
-        local odoo_pass="${ODOO_DB_PASSWORD:-admin}"
-    elif [ "$major_version" == "20" ]; then
-        local odoo_url="${ODOO20_URL:-http://localhost:8110}"  # manage_modules.sh: 8090 + version
-        local odoo_db="${ODOO20_DB_NAME:-odoo20}"
-        local odoo_user="${ODOO20_DB_USER:-admin}"
-        local odoo_pass="${ODOO20_DB_PASSWORD:-admin}"
-    elif [ "$major_version" == "18" ]; then
-        local odoo_url="${ODOO18_URL:-http://localhost:8018}"
-        local odoo_db="${ODOO18_DB_NAME:-odoo18}"
-        local odoo_user="${ODOO18_DB_USER:-admin}"
-        local odoo_pass="${ODOO18_DB_PASSWORD:-admin}"
-    else
-        local odoo_url="${ODOO17_URL:-http://localhost:8017}"
-        local odoo_db="${ODOO17_DB_NAME:-odoo17}"
-        local odoo_user="${ODOO17_DB_USER:-admin}"
-        local odoo_pass="${ODOO17_DB_PASSWORD:-admin}"
+    resolve_odoo_target "${major_version:-19}"
+    local odoo_url="$ODOO_T_URL" odoo_db="$ODOO_T_DB" odoo_user="$ODOO_T_USER"
+    local odoo_pass="$ODOO_T_PASS" odoo_api_key="$ODOO_T_API_KEY"
+    local odoo_auth="password (/jsonrpc or /xmlrpc)"
+    if [ -n "$odoo_api_key" ] && [ "${major_version:-19}" -ge 19 ]; then
+        odoo_auth="API key (/json/2)"
     fi
 
-    print_status "Starting MCP for Odoo ${version}: URL=$odoo_url DB=$odoo_db Port=$port"
+    print_status "Starting MCP for Odoo ${version}: URL=$odoo_url DB=$odoo_db Port=$port Auth=$odoo_auth"
 
     # Start server — pass version-specific Odoo credentials via env overrides
     # so the MCP server always connects to the RIGHT Odoo instance
@@ -363,6 +386,7 @@ start_server() {
         ODOO_DB_NAME="$odoo_db" \
         ODOO_DB_USER="$odoo_user" \
         ODOO_DB_PASSWORD="$odoo_pass" \
+        ODOO_API_KEY="$odoo_api_key" \
         DEFAULT_ODOO_VERSION="${version}" \
         "$python_bin" -m odoo_mcp.odoo_mcp_server \
             --version "${version}" \
@@ -466,22 +490,9 @@ start_all_servers() {
         local log_file="$LOG_DIR/mcp_server_${version/./_}.log"
 
         # Pick version-specific Odoo credentials from .env
-        if [ "$major" == "19" ]; then
-            local odoo_url="${ODOO_URL:-http://localhost:8069}"
-            local odoo_db="${ODOO_DB_NAME:-odoo}"
-            local odoo_user="${ODOO_DB_USER:-admin}"
-            local odoo_pass="${ODOO_DB_PASSWORD:-admin}"
-        elif [ "$major" == "18" ]; then
-            local odoo_url="${ODOO18_URL:-http://localhost:8018}"
-            local odoo_db="${ODOO18_DB_NAME:-odoo18}"
-            local odoo_user="${ODOO18_DB_USER:-admin}"
-            local odoo_pass="${ODOO18_DB_PASSWORD:-admin}"
-        else
-            local odoo_url="${ODOO17_URL:-http://localhost:8017}"
-            local odoo_db="${ODOO17_DB_NAME:-odoo17}"
-            local odoo_user="${ODOO17_DB_USER:-admin}"
-            local odoo_pass="${ODOO17_DB_PASSWORD:-admin}"
-        fi
+        resolve_odoo_target "$major"
+        local odoo_url="$ODOO_T_URL" odoo_db="$ODOO_T_DB" odoo_user="$ODOO_T_USER"
+        local odoo_pass="$ODOO_T_PASS" odoo_api_key="$ODOO_T_API_KEY"
 
         # Ensure matching Odoo instance is up before MCP start.
         ensure_odoo_running_for_version "$version" || true
@@ -495,6 +506,7 @@ start_all_servers() {
             ODOO_DB_NAME="$odoo_db" \
             ODOO_DB_USER="$odoo_user" \
             ODOO_DB_PASSWORD="$odoo_pass" \
+            ODOO_API_KEY="$odoo_api_key" \
             DEFAULT_ODOO_VERSION="$version" \
             "$python_bin" -m odoo_mcp.odoo_mcp_server \
                 --version "$version" \

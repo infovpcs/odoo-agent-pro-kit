@@ -226,6 +226,16 @@ setup_workspace() {
         print_error "manage_modules.sh not found at ${manage_script_src}! Copy failed."
     fi
 
+    # 7. Let manage_modules.sh find this kit's MCP launcher (plugin/odoo_mcp).
+    local env_file="${workspace_dir}/.env"
+    local kit_home
+    kit_home="$(cd "${SCRIPT_DIR}/.." && pwd)"
+    if ! grep -q -E "^[[:space:]]*ODOO_AGENT_PRO_KIT_HOME=" "${env_file}" 2>/dev/null; then
+        printf 'ODOO_AGENT_PRO_KIT_HOME=%s\n' "${kit_home}" >> "${env_file}"
+        chmod 600 "${env_file}"
+        print_success "Recorded ODOO_AGENT_PRO_KIT_HOME in ${env_file} (MCP launcher discovery)"
+    fi
+
     check_postgres_version "${repo_dir}"
 
     print_success "Odoo ${version} setup complete!"

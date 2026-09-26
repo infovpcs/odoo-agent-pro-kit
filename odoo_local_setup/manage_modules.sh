@@ -593,6 +593,8 @@ show_usage() {
     echo -e "  ${YELLOW}status                ${NC}Check system status"
     echo -e "  ${YELLOW}logs                  ${NC}Show recent logs"
     echo -e "  ${YELLOW}clean                 ${NC}Clean logs and cache"
+    echo -e "  ${YELLOW}mcp-start|mcp-stop|mcp-status ${NC}Manage this version's MCP server"
+    echo -e "  ${YELLOW}mcp-apikey            ${NC}19+: create an 'rpc' API key for MCP (/json/2) in .env"
     echo ""
     echo -e "${CYAN}Environment Variables:${NC}"
     echo -e "  ${YELLOW}ODOO_VERSION          ${NC}Version: 12-20 (default: auto-detect)"
@@ -802,7 +804,7 @@ start_server() {
     
     if [ -n "$mcp_script" ]; then
         echo -e "${YELLOW}📡 Starting MCP Server for Odoo $version...${NC}"
-        bash "$mcp_script" --start --version "$version" || echo -e "${RED}⚠️ Failed to start MCP Server${NC}"
+        run_mcp_script "$mcp_script" --start --version "$version" || echo -e "${RED}⚠️ Failed to start MCP Server${NC}"
     else
         echo -e "${YELLOW}⚠️ MCP Server script not found, skipping automation.${NC}"
     fi
@@ -829,7 +831,7 @@ stop_server() {
 
     if [ -n "$mcp_script" ]; then
         echo -e "${YELLOW}📡 Stopping MCP Server...${NC}"
-        bash "$mcp_script" --stop --version "${ODOO_VERSION}.0" || true
+        run_mcp_script "$mcp_script" --stop --version "${ODOO_VERSION}.0" || true
     fi
 
     echo -e "${GREEN}✅ Server stopped${NC}"
@@ -868,7 +870,7 @@ check_status() {
 
     if [ -n "$mcp_script" ]; then
         echo -e "${CYAN}📡 MCP Server status:${NC}"
-        bash "$mcp_script" --status || echo -e "${RED}❌ Failed to get MCP status${NC}"
+        run_mcp_script "$mcp_script" --status || echo -e "${RED}❌ Failed to get MCP status${NC}"
     fi
      echo ""
     
@@ -907,7 +909,7 @@ resolve_mcp_script() {
         "$PROJECT_DIR/.github/AgentSkills/odoo_mcp/start_mcp_server.sh"
         "$PROJECT_DIR/.cursor/AgentSkills/odoo_mcp/start_mcp_server.sh"
         "$WORKSPACE_PATH/AgentSkills/odoo_mcp/start_mcp_server.sh"
-        "${ODOO_AGENT_PRO_KIT_HOME:-}/plugin/odoo_mcp/start_mcp_server.sh"
+        "${ODOO_AGENT_PRO_KIT_HOME:-$(get_env_file_value ODOO_AGENT_PRO_KIT_HOME "$PROJECT_DIR/.env")}/plugin/odoo_mcp/start_mcp_server.sh"
     )
 
     local path
@@ -918,6 +920,68 @@ resolve_mcp_script() {
         fi
     done
     return 1
+}
+
+# Run the MCP launcher against this workspace's .env, so ODOO<v>_URL / _DB_NAME /
+# _DB_USER / _DB_PASSWORD / _API_KEY set here reach the MCP server.
+run_mcp_script() {
+    local mcp_script="$1"
+    shift
+    MCP_ENV_FILE="$PROJECT_DIR/.env" bash "$mcp_script" "$@"
+}
+
+# The .env key the MCP launcher reads the API key from (19 uses the unprefixed names).
+mcp_api_key_var() {
+    if [ "$ODOO_VERSION" = "19" ]; then echo "ODOO_API_KEY"; else echo "ODOO${ODOO_VERSION}_API_KEY"; fi
+}
+
+# Create an Odoo API key (scope 'rpc', the only scope /json/2 accepts) for the MCP
+# login and store it in the workspace .env. Community has no Odoo MCP server
+# (`ai_mcp` is Enterprise-only), so the kit's MCP server uses the External JSON-2
+# API with this key. The Odoo server may keep running; the key is never printed.
+generate_mcp_api_key() {
+    if [ "$ODOO_VERSION" -lt 19 ] 2>/dev/null; then
+        echo -e "${YELLOW}Odoo ${ODOO_VERSION} has no /json/2 API; MCP uses XML-RPC with the login password.${NC}"
+        return 0
+    fi
+    if [ "$ODOO_EXECUTOR" != "local" ]; then
+        echo -e "${RED}❌ mcp-apikey supports the local executor only${NC}"
+        return 1
+    fi
+    local env_file="$PROJECT_DIR/.env"
+    local key_var login key_line
+    key_var="$(mcp_api_key_var)"
+    if [ -n "$(get_env_file_value "$key_var" "$env_file")" ] && [ "${MCP_APIKEY_FORCE:-0}" != "1" ]; then
+        echo -e "${GREEN}✓ $key_var already set in $env_file${NC} (MCP_APIKEY_FORCE=1 to replace)"
+        return 0
+    fi
+    login="${MCP_API_KEY_LOGIN:-$(get_env_file_value "${key_var%API_KEY}DB_USER" "$env_file")}"
+    login="${login:-admin}"
+
+    validate_setup || return 1
+    setup_environment || return 1
+    echo -e "${YELLOW}🔑 Creating an 'rpc' API key for '$login' on $DATABASE...${NC}"
+    key_line="$(MCP_API_KEY_LOGIN="$login" ./odoo-bin shell -c "$CONFIG_FILE" -d "$DATABASE" \
+        --no-http --log-level=warn 2>/dev/null <<'PY' | grep '^ODOO_KIT_APIKEY=' | tail -1
+import os
+user = env['res.users'].search([('login', '=', os.environ['MCP_API_KEY_LOGIN'])], limit=1)
+if user:
+    key = env['res.users.apikeys'].with_user(user).sudo()._generate('rpc', 'odoo-agent-pro-kit MCP', None)
+    env.cr.commit()
+    print('ODOO_KIT_APIKEY=' + key)
+PY
+)"
+    if [ -z "$key_line" ]; then
+        echo -e "${RED}❌ API key not created (unknown login '$login' or database '$DATABASE' unreachable)${NC}"
+        return 1
+    fi
+    touch "$env_file" && chmod 600 "$env_file"
+    local tmp_env="${env_file}.tmp.$$"
+    grep -v -E "^[[:space:]]*(export[[:space:]]+)?${key_var}=" "$env_file" > "$tmp_env" || true
+    printf '%s=%s\n' "$key_var" "${key_line#ODOO_KIT_APIKEY=}" >> "$tmp_env"
+    mv "$tmp_env" "$env_file" && chmod 600 "$env_file"
+    echo -e "${GREEN}✅ Stored $key_var in $env_file (0600). Restart MCP: $0 mcp-stop && $0 mcp-start${NC}"
+    echo -e "${CYAN}   Revoke in Odoo: Preferences > Account Security > API Keys ('odoo-agent-pro-kit MCP').${NC}"
 }
 
 # ============================================================================
@@ -966,7 +1030,7 @@ main() {
             echo -e "${YELLOW}🚀 Starting MCP server for Odoo $ODOO_VERSION...${NC}"
             mcp_script="$(resolve_mcp_script || true)"
             if [ -n "$mcp_script" ]; then
-                bash "$mcp_script" --start --version "${ODOO_VERSION}.0"
+                run_mcp_script "$mcp_script" --start --version "${ODOO_VERSION}.0"
             else
                 echo -e "${RED}❌ MCP start script not found${NC}"
                 exit 1
@@ -976,16 +1040,19 @@ main() {
             echo -e "${YELLOW}🛑 Stopping MCP server for Odoo $ODOO_VERSION...${NC}"
             mcp_script="$(resolve_mcp_script || true)"
             if [ -n "$mcp_script" ]; then
-                bash "$mcp_script" --stop --version "${ODOO_VERSION}.0"
+                run_mcp_script "$mcp_script" --stop --version "${ODOO_VERSION}.0"
             else
                 echo -e "${RED}❌ MCP start script not found${NC}"
                 exit 1
             fi
             ;;
+        "mcp-apikey")
+            generate_mcp_api_key
+            ;;
         "mcp-status")
             mcp_script="$(resolve_mcp_script || true)"
             if [ -n "$mcp_script" ]; then
-                bash "$mcp_script" --status
+                run_mcp_script "$mcp_script" --status
             else
                 echo -e "${RED}❌ MCP start script not found${NC}"
                 exit 1

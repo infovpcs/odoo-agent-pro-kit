@@ -77,4 +77,7 @@ def test_setup_local_macos_rejects_unknown_version():
 
 def test_mcp_launcher_default_odoo20_url_matches_workspace_port():
     body = (REPO / "plugin" / "odoo_mcp" / "start_mcp_server.sh").read_text()
-    assert '${ODOO20_URL:-http://localhost:8110}' in body
+    fn = body[body.index("resolve_odoo_target() {"):body.index("# Print colored message")]
+    out = subprocess.run(["bash", "-c", fn + '\nresolve_odoo_target 20; echo "$ODOO_T_URL"'],
+                         capture_output=True, text=True, check=True, env={"PATH": "/usr/bin:/bin"})
+    assert out.stdout.strip() == "http://localhost:8110"

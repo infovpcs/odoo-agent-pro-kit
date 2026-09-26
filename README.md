@@ -20,7 +20,10 @@ for Odoo 17.0, 18.0, 19.0, and 20.0 — without building any of it from scratch.
 > Symbols, removed `toggle_active`/`get_param`/`_table_query`/`ir.attachment.datas`, `BinaryValue`)
 > cover 20.0. Local 20 workspaces need Python ≥ 3.12 and **PostgreSQL ≥ 16**
 > (`odoo_local_setup/setup_local_macos.sh --versions 20 --db-port <pg16-port>`). Odoo's own MCP
-> server (`ai_mcp`) is Enterprise-only, so Community projects use the kit's `odoo_mcp`.
+> server (`ai_mcp`) is Enterprise-only, so Community projects use the kit's `odoo_mcp`, which on
+> 19/20 talks to Odoo's External JSON-2 API (`/json/2`, bearer API key) once
+> `./manage_modules.sh mcp-apikey` has stored `ODOO20_API_KEY` in the workspace `.env`
+> (without a key it falls back to `/jsonrpc`, deprecated upstream and slated for removal in Odoo 22).
 > The **Docker Sandbox stays 17/18/19** until an official
 > `odoo:20.0` image is published and pinned in `sandbox/config/images.lock`. For Odoo 20
 > review/security guidelines the kit defers to Odoo's own `skills/` library in `odoo/odoo@20.0`.

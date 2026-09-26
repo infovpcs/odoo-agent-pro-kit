@@ -301,7 +301,13 @@ def test_mcp_launcher_ports_and_20_credentials():
     assert [_mcp_launcher_port(v) for v in ("17.0", "18.0", "19.0", "20.0")] == \
         ["8765", "8766", "8767", "8768"]
     body = (REPO / "plugin" / "odoo_mcp" / "start_mcp_server.sh").read_text()
-    assert '"20.0"' in body and "ODOO20_URL" in body and "ODOO20_DB_NAME" in body
+    assert '"20.0"' in body
+    fn = body[body.index("resolve_odoo_target() {"):body.index("# Print colored message")]
+    out = subprocess.run(["bash", "-c", fn + '\nresolve_odoo_target 20; echo "$ODOO_T_URL|$ODOO_T_DB|$ODOO_T_API_KEY"'],
+                         capture_output=True, text=True, check=True,
+                         env={"PATH": "/usr/bin:/bin", "ODOO20_DB_NAME": "db20", "ODOO20_API_KEY": "k20",
+                              "ODOO17_URL": "http://wrong:8017"})
+    assert out.stdout.strip() == "http://localhost:8110|db20|k20"
 
 
 # --- lint: 19.1-20.0 ORM changelog rules (evidence: odoo/odoo@20.0 87a1773b, ---------

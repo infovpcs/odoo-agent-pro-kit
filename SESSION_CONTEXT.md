@@ -29,7 +29,7 @@ Before changing files:
   planning
 - Active branch: `main`
 - Branch base: `main` at commit `12368b7` (post-Phase-7, additive 0.2.0/0.3.0 work)
-- Last context update: 2026-09-25 (Phase 9 in progress — run-mode executor, uncommitted; Phase A: Odoo 20 ORM-changelog lint L14–L17 + local 20 workspace, 0.8.0; 2026-09-24 Odoo 20.0 support added; earlier: 2026-08-20 Phase 8 exit gate MET — all
+- Last context update: 2026-09-26 (MCP over Odoo JSON-2 API keys for 19/20 Community, unreleased; 2026-09-25: Phase 9 in progress — run-mode executor, uncommitted; Phase A: Odoo 20 ORM-changelog lint L14–L17 + local 20 workspace, 0.8.0; 2026-09-24 Odoo 20.0 support added; earlier: 2026-08-20 Phase 8 exit gate MET — all
   Deliverables and all five platform/orchestration coverage checklist items
   verified with real evidence; Phase 8 is complete)
 
@@ -195,6 +195,35 @@ Phase 9 design consequence: a cloud executor mode that replaces health-check `--
 network-level readiness probes from one-shot containers and every `compose exec` (module ops,
 `exec`, backup/restore) with `compose run --rm`; mixin allowlist + `production.cloudfront.docker.com`
 (with the `artifacts.lock` bump); a cloud GitHub credential (owner) or `sbx cp` delivery.
+
+## Latest additive work — MCP over Odoo's JSON-2 API for 19/20 Community (unreleased, 2026-09-26)
+
+Not a Docker Sandbox phase. Problem: a local 20 workspace started with `./manage_modules.sh start`
+got no MCP server ("MCP Server script not found": the workspace has no deployed launcher copy and
+`ODOO_AGENT_PRO_KIT_HOME` was unset), and even when started the server used `/jsonrpc` with a
+password.
+- Source evidence: `odoo/odoo@20.0` `7434faa9` — `addons/rpc/controllers/json2.py` routes
+  `POST /json/2/<model>/<method>` `auth='bearer'`, `bearer_scope='rpc'`; `/jsonrpc`, `/xmlrpc`
+  still served with `RPC_DEPRECATION_NOTICE` (removal planned for Odoo 22). `odoo/enterprise@20.0`
+  `371814ea` — `ai_mcp` is OEEL-1, depends `ai`, adds API-key scope `mcp`: **Enterprise only**.
+  `knowledge-doc-20` `baf547b` `developer/reference/external_api.md` confirms bearer +
+  `X-Odoo-Database` + `ids` + scope `rpc`.
+- Change: `Json2Client` + `api_key` config (`ODOO<v>_API_KEY`; key on 19+ selects `json-2`);
+  launcher `resolve_odoo_target` (fixes `--all` giving 20 the Odoo 17 target), `MCP_ENV_FILE`,
+  non-overriding `load_env`, correct requirements path; `manage_modules.sh` `run_mcp_script`,
+  kit discovery from workspace `.env`, `mcp-apikey`; `setup_local_macos.sh` records
+  `ODOO_AGENT_PRO_KIT_HOME`.
+- Tests: `tests/test_mcp_json2.py` (RED on import first, then 21 pass); two string-literal launcher
+  tests rewritten as behaviour tests after the resolver refactor. `./scripts/validate.sh` green: 335 passed, skills + artifacts OK (sbx kit check skipped, no sbx on Intel Mac).
+- LIVE (macOS, local Odoo 20.0 on :8110, PG16 container, db `odoo20`, 2026-09-26): deployed the
+  new `manage_modules.sh` to `~/workspace/20_workspace` (old copy kept as `.bak`), added
+  `ODOO_AGENT_PRO_KIT_HOME` to its `.env`; `./manage_modules.sh mcp-apikey` created an `rpc` key
+  for `admin` (stored as `ODOO20_API_KEY`, 0600, not printed); direct `Json2Client`: uid 2,
+  `/json/version` → 20.0, 3 partners, `sale.order` 135 fields, missing model → clean error;
+  `./manage_modules.sh mcp-start` → port 8768 `Auth=API key (/json/2)`; MCP SSE client: all 7
+  tools listed, `get_version_info` `protocol: json-2`, `search_models`, `validate_field`,
+  `get_relationships` OK; Odoo log shows only `POST /json/2/...` 200, 0 deprecation warnings.
+- Not done: Docker Sandbox/sidecar still uses password auth (17/18/19 only); no release bump.
 
 ## Latest additive work — Phase A: Odoo 20 content + local 20 workspace (0.8.0, 2026-09-25)
 

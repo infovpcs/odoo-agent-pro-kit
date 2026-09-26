@@ -199,7 +199,36 @@ ODOO_URL=http://localhost:8090
 ODOO_DB_NAME=llmdb19
 ODOO_DB_USER=admin
 ODOO_DB_PASSWORD=admin
+# ODOO_API_KEY=...          # optional on 19: switches to /json/2
+
+# Odoo 20 Configuration
+ODOO20_URL=http://localhost:8110
+ODOO20_DB_NAME=odoo20
+ODOO20_DB_USER=admin
+ODOO20_API_KEY=...          # scope 'rpc'; created by ./manage_modules.sh mcp-apikey
 ```
+
+A workspace's `manage_modules.sh` runs the launcher with `MCP_ENV_FILE=<workspace>/.env`, and
+finds the launcher through `ODOO_AGENT_PRO_KIT_HOME` (written by `setup_local_macos.sh`). Values
+already exported by the caller win over the `.env` file; the file is read as `KEY=VALUE`, never
+executed.
+
+### Odoo 19/20: External JSON-2 API with an API key
+
+Odoo's own MCP server (`ai_mcp`, `/mcp`) is Enterprise-only (OEEL-1, depends `ai`). On Community
+the kit's server talks to Odoo directly:
+
+| Configured | Endpoint | Auth | Status upstream |
+|------------|----------|------|-----------------|
+| `ODOO<v>_API_KEY` set (19+) | `POST /json/2/<model>/<method>` | `Authorization: bearer <key>` + `X-Odoo-Database` | supported |
+| no key (19/20) | `POST /jsonrpc` | login + password | deprecated in 19, removal planned for 22 |
+| 17/18 | `/xmlrpc/2` | login + password | supported on those versions |
+
+Create the key with `./manage_modules.sh mcp-apikey` (local executor; `MCP_API_KEY_LOGIN` picks the
+user, default `ODOO<v>_DB_USER` or `admin`; `MCP_APIKEY_FORCE=1` replaces an existing key), or in
+Odoo: *Preferences → Account Security → New API Key* (scope **RPC**). Then
+`./manage_modules.sh mcp-stop && ./manage_modules.sh mcp-start`. `get_version_info` reports
+`"protocol": "json-2"` when the key is in use. Revoke it from the same Odoo screen.
 
 ### MCP Server Settings
 

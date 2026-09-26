@@ -4,7 +4,8 @@ Odoo Protocol Handlers Module
 Provides protocol abstraction layer for Odoo RPC communication:
 - BaseClient: Abstract base class for RPC clients
 - XmlRpcClient: XML-RPC client for Odoo 17-18
-- JsonRpc20Client: JSON-RPC 2.0 client for Odoo 19
+- JsonRpc20Client: legacy /jsonrpc client for Odoo 19/20 (deprecated upstream, removal in 22)
+- Json2Client: External JSON-2 API client (/json/2, bearer API key) for Odoo 19+
 
 Based on patterns from Gradio-Mcp-Odoo reference implementation.
 """
@@ -559,6 +560,177 @@ class JsonRpc20Client(BaseClient):
         return self.execute_kw(model, "fields_get", [], {"attributes": attributes})
 
 
+class Json2Client(BaseClient):
+    """External JSON-2 API client for Odoo 19+ (``POST /json/2/<model>/<method>``).
+
+    Authenticates with a bearer API key (scope ``rpc``) instead of a password, so it
+    works on Community without Odoo's Enterprise-only ``ai_mcp`` module. JSON-2 takes
+    named arguments only: ``ids`` for the recordset plus the method's own parameters.
+    """
+
+    # Positional-argument names for the ORM methods the kit calls through
+    # execute_kw(). Record methods take the ids as their first positional arg.
+    MODEL_METHOD_ARGS = {
+        "search": ("domain",),
+        "search_read": ("domain", "fields"),
+        "search_count": ("domain",),
+        "fields_get": ("allfields", "attributes"),
+        "create": ("vals_list",),
+        "name_search": ("name",),
+    }
+    RECORD_METHOD_ARGS = {
+        "read": ("fields",),
+        "write": ("vals",),
+        "unlink": (),
+        "copy": ("default",),
+    }
+
+    def __init__(self, config: OdooConfig):
+        """Initialize JSON-2 client."""
+        super().__init__(config)
+        self.session = requests.Session()
+        self.session.headers.update(self._headers())
+
+    def _headers(self) -> Dict[str, str]:
+        headers = {
+            "Authorization": f"bearer {self.config.api_key}",
+            "Content-Type": "application/json; charset=utf-8",
+            "User-Agent": "odoo-agent-pro-kit-mcp",
+        }
+        if self.config.database:
+            headers["X-Odoo-Database"] = self.config.database
+        return headers
+
+    def _call(self, model: str, method: str, params: Dict) -> Any:
+        """POST one JSON-2 call; return the result or ``{"error": message}``."""
+        try:
+            response = self.session.post(
+                f"{self.config.get_base_url()}/json/2/{model}/{method}",
+                json=params,
+                timeout=self.config.request_timeout,
+            )
+        except requests.RequestException as e:
+            logger.error(f"JSON-2 request error: {e}")
+            return {"error": str(e)}
+
+        try:
+            body = response.json()
+        except ValueError:
+            body = None
+        if response.status_code != 200:
+            message = body.get("message") if isinstance(body, dict) else None
+            message = message or f"HTTP {response.status_code}: {response.text[:200]}"
+            logger.error(f"JSON-2 {model}.{method} failed: {message}")
+            return {"error": message}
+        return body
+
+    def authenticate(self) -> Optional[int]:
+        """Validate the API key and resolve its user id via ``res.users.context_get``."""
+        if not self.config.api_key:
+            logger.error("JSON-2 needs an API key (ODOO<version>_API_KEY)")
+            return None
+        result = self._call("res.users", "context_get", {})
+        if isinstance(result, dict) and result.get("uid") and "error" not in result:
+            self.uid = int(result["uid"])
+            self._authenticated = True
+            logger.info(f"JSON-2 authenticated successfully (UID: {self.uid})")
+            return self.uid
+        logger.error(f"JSON-2 authentication failed: {result}")
+        return None
+
+    def _named_params(self, method: str, args: List, kwargs: Dict) -> Dict[str, Any]:
+        """Map execute_kw positional args to JSON-2 named args; ValueError if ambiguous."""
+        params: Dict[str, Any] = {}
+        if method in self.RECORD_METHOD_ARGS:
+            names = self.RECORD_METHOD_ARGS[method]
+            if args:
+                params["ids"], args = args[0], args[1:]
+        elif method in self.MODEL_METHOD_ARGS:
+            names = self.MODEL_METHOD_ARGS[method]
+        elif len(args) == 1 and isinstance(args[0], list) and all(isinstance(i, int) for i in args[0]):
+            # execute_kw(model, "action_x", [[ids]]): legacy record-method call shape.
+            names, params["ids"], args = (), args[0], []
+        elif args:
+            raise ValueError(f"JSON-2 needs keyword arguments for {method!r}; pass them in kwargs")
+        else:
+            names = ()
+        if len(args) > len(names):
+            raise ValueError(f"too many positional arguments for {method!r}; pass them in kwargs")
+        params.update(zip(names, args))
+        params.update(kwargs)
+        if method == "create" and isinstance(params.get("vals_list"), dict):
+            params["vals_list"] = [params["vals_list"]]
+        return params
+
+    def execute_kw(
+        self,
+        model: str,
+        method: str,
+        args: Optional[List] = None,
+        kwargs: Optional[Dict] = None
+    ) -> Any:
+        """Execute a model method, mapping execute_kw-style args to JSON-2 named args."""
+        if not self._authenticated:
+            if not self.authenticate():
+                return {"error": "Authentication failed"}
+        try:
+            params = self._named_params(method, list(args or []), dict(kwargs or {}))
+        except ValueError as e:
+            return {"error": str(e)}
+        return self._call(model, method, params)
+
+    def close(self) -> None:
+        """Close JSON-2 session."""
+        self._authenticated = False
+        self.uid = None
+        self.session.close()
+        logger.info("JSON-2 connection closed")
+
+    def search(self, model: str, domain: Optional[List] = None, limit: int = 0) -> Union[List[int], Dict]:
+        """Search for records."""
+        return self.execute_kw(model, "search", [domain or []], {"limit": limit} if limit else {})
+
+    def search_read(
+        self,
+        model: str,
+        domain: Optional[List] = None,
+        fields: Optional[List[str]] = None,
+        limit: int = 100
+    ) -> Union[List[Dict], Dict]:
+        """Search and read records."""
+        kwargs: Dict[str, Any] = {"domain": domain or []}
+        if fields:
+            kwargs["fields"] = fields
+        if limit:
+            kwargs["limit"] = limit
+        return self.execute_kw(model, "search_read", [], kwargs)
+
+    def read(self, model: str, ids: List[int], fields: Optional[List[str]] = None) -> Union[List[Dict], Dict]:
+        """Read records by IDs."""
+        return self.execute_kw(model, "read", [ids], {"fields": fields} if fields else {})
+
+    def create(self, model: str, values: Dict) -> Union[int, Dict]:
+        """Create a new record and return its id (JSON-2 returns the created ids)."""
+        result = self.execute_kw(model, "create", [[values]])
+        if isinstance(result, list) and len(result) == 1:
+            return result[0]
+        return result
+
+    def write(self, model: str, ids: List[int], values: Dict) -> Union[bool, Dict]:
+        """Update records."""
+        return self.execute_kw(model, "write", [ids, values])
+
+    def unlink(self, model: str, ids: List[int]) -> Union[bool, Dict]:
+        """Delete records."""
+        return self.execute_kw(model, "unlink", [ids])
+
+    def fields_get(self, model: str, attributes: Optional[List[str]] = None) -> Union[Dict, Dict]:
+        """Get field definitions for a model."""
+        if attributes is None:
+            attributes = ["string", "type", "help", "readonly", "required", "relation", "selection"]
+        return self.execute_kw(model, "fields_get", [], {"attributes": attributes})
+
+
 def create_client(config: OdooConfig) -> BaseClient:
     """
     Factory function to create the appropriate RPC client based on protocol.
@@ -567,8 +739,11 @@ def create_client(config: OdooConfig) -> BaseClient:
         config: Odoo configuration.
 
     Returns:
-        XmlRpcClient or JsonRpc20Client instance.
+        XmlRpcClient, JsonRpc20Client or Json2Client instance.
     """
+    if config.protocol == "json-2":
+        logger.info("Creating JSON-2 (API key) client")
+        return Json2Client(config)
     if config.protocol == "json-rpc-2.0":
         logger.info("Creating JSON-RPC 2.0 client")
         return JsonRpc20Client(config)

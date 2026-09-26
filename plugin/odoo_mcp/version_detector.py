@@ -17,7 +17,7 @@ from .config import OdooConfig
 
 logger = logging.getLogger(__name__)
 
-Protocol = Literal["xml-rpc", "json-rpc-2.0"]
+Protocol = Literal["xml-rpc", "json-rpc-2.0", "json-2"]
 
 
 class VersionDetector:
@@ -62,6 +62,18 @@ class VersionDetector:
 
     def _detect_from_database(self) -> Optional[str]:
         """Query database to detect Odoo version."""
+        if self.config.protocol == "json-2":
+            # 19+: unauthenticated GET /json/version, no deprecated RPC endpoint needed.
+            try:
+                response = requests.get(f"{self.config.get_base_url()}/json/version", timeout=5)
+                if response.status_code == 200:
+                    version = str(response.json().get("version", ""))
+                    if version:
+                        version = version.split("~")[-1]
+                        return version if "." in version else f"{version}.0"
+            except Exception as e:
+                logger.debug(f"/json/version detection failed: {e}")
+
         try:
             # Try XML-RPC first (works for 17, 18, and 19)
             common = xmlrpc.client.ServerProxy(f"{self.config.get_base_url()}/xmlrpc/2/common")
@@ -113,7 +125,7 @@ class VersionDetector:
 
     def _version_from_protocol(self, protocol: Protocol) -> str:
         """Get default version from protocol."""
-        if protocol == "json-rpc-2.0":
+        if protocol in ("json-rpc-2.0", "json-2"):
             return "19.0"
         # Default to 17 for XML-RPC
         return "17.0"
