@@ -23,6 +23,8 @@ services:
       ODOO_DB_NAME: ${ODOO_DB_NAME}
       ODOO_DB_USER: admin
       ODOO_DB_PASSWORD: ${ODOO_API_PASSWORD}
+      # json2 sessions (19, 20): sandboxctl create writes an rpc-scope key; the server then uses /json/2.
+      ODOO_API_KEY: ${ODOO_API_KEY:-}
       DEFAULT_ODOO_VERSION: ${MCP_ODOO_VERSION:-19.0}
     command: ["--version", "${MCP_ODOO_VERSION:-19.0}", "--port", "${MCP_PORT:-8767}"]
     ports:

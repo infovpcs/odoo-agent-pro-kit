@@ -1,9 +1,9 @@
 schemaVersion: "2"
 kind: mixin
 name: odoo-agent-pro-kit
-version: 0.5.2
+version: 0.7.0
 displayName: Odoo Agent Pro Kit
-description: Agent-neutral Odoo 17, 18, and 19 Docker Sandbox lifecycle contract
+description: Agent-neutral Odoo 17, 18, 19, and 20 Docker Sandbox lifecycle contract
 sourceURL: https://github.com/infovpcs/odoo-agent-pro-kit
 licenses:
   - Apache-2.0
@@ -17,6 +17,19 @@ permissions:
       - production.cloudfront.docker.com
       - github.com
       - raw.githubusercontent.com
+      # Odoo 20 image build (official odoo/docker 20.0 recipe; no odoo:20.0 on Docker Hub yet)
+      - archive.ubuntu.com
+      - security.ubuntu.com
+      - ports.ubuntu.com
+      - apt.postgresql.org
+      - keyserver.ubuntu.com
+      - nightly.odoo.com
+      - registry.npmjs.org
+      - release-assets.githubusercontent.com
+      - objects.githubusercontent.com
+      # Per-session module requirements (sandboxctl create --requirements)
+      - pypi.org
+      - files.pythonhosted.org
 
 environment:
   variables:

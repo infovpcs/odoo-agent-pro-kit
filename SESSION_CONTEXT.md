@@ -30,10 +30,11 @@ Before changing files:
   planning
 - Active branch: `main`
 - Branch base: `main` at commit `12368b7` (post-Phase-7, additive 0.2.0/0.3.0 work)
-- Last context update: 2026-09-26 — `main` = `dea48d9` on origin (CI + Docker Sandbox release
-  green). Today: Odoo 19/20 Community MCP over the JSON-2 API (`b57317c`), Linux Odoo 20
-  bootstrap + PDF report dependencies + MCP launcher fixes (`dea48d9`), InfoVPCS OKF vault
-  updated (`edcb4b5`). Phase 9 complete (`ba87f5c`). Next: Phase 10 (Odoo 20 sandbox runtime).
+- Last context update: 2026-09-27 — `main` = `a7418d6` (local; origin at `dea48d9` + the
+  context commit if published). **Phase 10 in progress, uncommitted working tree** (see "Phase 10
+  in progress"): Odoo 20 sandbox runtime implemented and tested locally + `ci-smoke 20` on the
+  Oracle KVM host; cloud lifecycle, migration/acceptance and carry-overs remain. Also planned the
+  Pro v2 video (files in `/Users/vinusoft85/Draft Videos/`).
 
 ## Phase 9 — complete (2026-09-25, commit `ba87f5c`, pushed to origin/main by the owner)
 
@@ -241,7 +242,7 @@ password.
   tools listed, `get_version_info` `protocol: json-2`, `search_models`, `validate_field`,
   `get_relationships` OK; Odoo log shows only `POST /json/2/...` 200, 0 deprecation warnings.
 - Not done: Docker Sandbox/sidecar still uses password auth (17/18/19 only); no release bump.
-- LIVE Linux (2026-09-26, owner-approved, host `156.67.105.242` Ubuntu 20.04 production box running
+- LIVE Linux (2026-09-26, owner-approved, the owner's Ubuntu 20.04 production host running
   Odoo 18/19 containers): all work inside disposable `ubuntu:24.04` containers capped at
   1.5 GiB / 2 CPUs (host had ~2 GiB available, no swap), no published ports.
   Run 1 (`bootstrap_odoo_env.sh`, commit `b57317c`): failed on PEP 668 (`pip install uv`); after
@@ -751,12 +752,17 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Current state
 
-- **2026-09-26 (latest):** `main` = `dea48d9` on origin, working tree clean, CI green. Phases
-  0–9 complete (Phase 9 = Docker Cloud Sandboxes for 17/18/19, `ba87f5c`). Odoo 20 is supported
-  everywhere except the Docker Sandbox: skills, commands, lint L1–L17, MCP over `/json/2` with a
-  scope-`rpc` API key (Community; `ai_mcp` is Enterprise-only), local macOS and Linux workspaces
-  (Linux verified end to end in `ubuntu:24.04`). **Next: Phase 10** — see "Next task". The
-  bullets below are the historical record, oldest material first.
+- **2026-09-27 (latest, end of session):** local `main` = `a7418d6` (origin unchanged — the
+  history rewrite below is prepared, not pushed). **Working tree holds all uncommitted Phase 10
+  work** (≈35 files: the original 29 + requirements/import support, fleet cloud mode, the public-IP
+  guard, kit 0.7.0); do not discard it. 393 tests pass, `./scripts/validate.sh` green. Phases 0–9
+  complete. Phase 10: cloud lifecycle + acceptance for 20 PASS, `/fleet --cloud` PASS
+  (internal-only); remaining = the 19→20 migration run (blocked on the owner's `anthropic` cloud
+  secret), docs, one commit. See "Next task". Video pipeline plan: "Video pipeline plan" (nothing
+  recorded yet). The bullets below are the historical record, oldest material first.
+- **2026-09-26:** `main` = `dea48d9` on origin, CI green, Phase 9 complete (`ba87f5c`); Odoo 20
+  supported everywhere except the Docker Sandbox (skills, commands, lint L1–L17, MCP `/json/2`,
+  local macOS/Linux workspaces).
 - **(Additive, 0.5.0) Deterministic pipeline hooks shipped and merged to
   local `main`** (merge `dc8b346`; not pushed to `origin`). Adds
   `plugin/hooks/checks/` (shared
@@ -1176,7 +1182,7 @@ that consumes stable Community releases instead of forking this repository.
 - Phase 7 is merged to `main` via PR #2; the repository is on `main` at
   `12368b7`, working tree clean, nothing outstanding to push locally.
 - (Additive, non-phase) Local repo, GitHub (`origin/main`), and the Oracle
-  VPS repo clone (`~/odoo-agent-pro-kit` on `92.4.86.131`) are byte-identical
+  VPS repo clone (`~/odoo-agent-pro-kit` on the KVM validation host) are byte-identical
   at `12368b7`. This was hand-verified each round (`diff`/`md5`/`git log`)
   before every push, not assumed.
 - (Additive) Oracle VPS: Hermes v0.20.3, 3 profiles (odoo17-dev/odoo18-dev/
@@ -1490,66 +1496,234 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Next task
 
-Start a fresh session, read this file and `docs/docker-sandbox/tasks.md`, then work on
-**Phase 10 — Odoo 20.0 sandbox runtime** only. CI item from 2026-09-25 is closed: the fix is on
-origin and every run since (`36150466199` … `36241039260`) is green.
+Start a fresh session, read this file and `docs/docker-sandbox/tasks.md`, then **finish Phase 10 —
+Odoo 20.0 sandbox runtime** only. The working tree already contains the implementation
+(uncommitted); first run `python3 -m pytest -q tests` (expect 393 passed) and `./scripts/validate.sh`.
+Cloud client: `docker run … sbx-cloud:0.45.1 --cloud …` (wrapper pattern in the cloud runbook; set
+`SANDBOX_SBX=<wrapper script>` for `sandbox-fleet --cloud`). Every cloud run needs owner spend
+approval; remove every sandbox and prove `sbx --cloud ls` → "No sandboxes found." afterwards.
 
-**New fact (checked 2026-09-26):** `odoo/docker` added an official `20.0/` directory today
-(commit `d543160420`, 2026-09-26 08:33 UTC): `FROM ubuntu:noble`, Odoo deb
-`nightly.odoo.com/20.0` `ODOO_RELEASE=20260926` with `ODOO_SHA=7cb4a582…` (sha1), wkhtmltopdf
-0.12.6.1-3 jammy (sha1 per arch), apt `python3-phonenumbers` / `python3-renderpm` /
-`python3-magic`, pgdg `postgresql-client`, `USER odoo`, ports 8069/8071/8072. Docker Hub has
-**no `odoo:20.0` tag yet** (only dated 17/18/19 tags). So build from the official Dockerfile
-instead of hand-writing a nightly image.
+**0. Decide first — history rewrite (owner):** the public-repo cleanup rewrote history to drop the
+host addresses (see "Public-repo host-detail cleanup"). Rewritten refs:
+`~/odoo-kit-backups/odoo-agent-pro-kit-rewritten-20260927.bundle` (`main` = `b97fd4c`, tag 0.7.0 =
+`9e76c33`); original: `~/odoo-kit-backups/odoo-agent-pro-kit-pre-rewrite-20260927.bundle`. The
+owner said the servers are not directly reachable and the working-tree redaction + guard test are
+enough for now, so publishing the rewrite is **optional and owner-run** (the contributor hook
+blocks agents): force-update `main` (lease on `a7418d6`) and tags 0.4.0/0.5.0/0.5.1/0.7.0 on origin
+from a clone of the rewritten bundle, then locally `git fetch origin && git reset --mixed
+origin/main` (keeps the uncommitted work; the only tree differences are the redactions already in
+the working tree) and re-point local tags. Do it **before** the Phase 10 commit so that commit lands
+on the new history; otherwise commit on `a7418d6` as usual.
 
-**Phase 10 order (test-first, one focused commit at the end):**
-1. **Image:** `sandbox/images/odoo-dev/20.Dockerfile` next to the 17/18/19 files. The 17/18/19
-   dev images layer on the pinned official `odoo:<v>` digests from `sandbox/config/images.lock`;
-   for 20 first build a base from `odoo/docker` `20.0/` pinned to `d543160420` (keep its sha1
-   checks), then layer the same dev additions; record the digest in `images.lock`. Replace with the official `odoo:20.0` digest once Hub publishes
-   it (re-check `hub.docker.com/v2/repositories/library/odoo/tags?name=20`).
-2. **Contracts:** `POSTGRES_16` lock (Odoo 20 `MIN_PG_VERSION = 16`; 17/18/19 stay on 15),
-   `versions.yaml` 20 entry, schema enums, `lifecycle.sh` / `ci-smoke.sh` / `multiarch-build.sh`,
-   `sandbox-fleet`, release workflow matrix (add 20), `/fleet` accepts 20, `sandboxctl` version
-   checks. Keep 17/18/19 byte-identical (release-acceptance compare).
-3. **MCP sidecar for 20:** `sandbox/mcp-sidecar` still authenticates with a password
-   (`ODOO_API_PASSWORD` in `runtime.env`); for 20 create an `rpc` API key in the session DB and
-   pass it as `ODOO_API_KEY` so the sidecar uses `/json/2` (same code path as `mcp-apikey`).
-4. **LIVE TEST (local exec mode):** `ci-smoke.sh 20` + `lifecycle.sh` on the Ubuntu 24.04 KVM
-   host (Oracle VPS: ~6.7 GB free — clear space before pulling/building images). Include one
-   real PDF render (report assets need HTTP; tests keep HTTP on).
-5. **LIVE TEST (cloud run mode):** `SANDBOX_LIFECYCLE_VERSIONS=20 lifecycle.sh`, then
-   `phase9-cloud-acceptance.sh` extended to 20 — owner approves the spend; remove every sandbox.
-6. **Migration + acceptance:** re-run the 19→20 migration of `vpcs_llm_provider` +
-   `vpcs_progressive_payment_terms` inside a sandbox; Phase-7 acceptance for 20.
-7. **Carried over from Phase 9** (owner decision 2026-09-25), with that migration:
-   a. Phase-7 step 7 in cloud: Codex + one more agent CLI via the stored cloud
-      `anthropic`/`openai` secrets (untested), SSH probe or the approved `sbx exec` fallback.
-   b. `/plan-analysis` → `/start-coding` → `/testing` with hooks inside a cloud sandbox.
-   c. `/fleet` cloud allocation (code by archive; `sbx --cloud ports` gives a **public** URL —
-      ask the owner "public URL vs internal-only" before building), three cloud sandboxes.
-   d. Git over HTTPS in cloud fails even with the valid `github` secret (`invalid
-      credentials`); find the supported clone path before replacing tar + `sbx --cloud cp`.
-8. Docs + evidence: `docs/docker-sandbox/phase-10/` live-test notes, runbook, README,
-   `tasks.md` checkboxes, this file; `./scripts/validate.sh`; one focused commit.
-
-**Cloud how-to:** `docs/docker-sandbox/phase-9/cloud-runbook.md` (client image `sbx-cloud:0.45.1`,
-auth volume `sbx_cloud_home`, detached `setsid nohup` launch, `rm --force` + `ls` cleanup).
-
-**Owner actions:** approve cloud spend per run; decide `/fleet` public-URL exposure; publish
-commits (`! git push origin main` — the contributor hook blocks agent pushes). Optional: a
-release tag for the Unreleased CHANGELOG entry; upstream reports for the two Odoo 20 bugs found
-in 0.8.0.
+**Remaining Phase 10 steps, in order:**
+1. ~~Cloud LIVE TEST (run mode)~~ — done 2026-09-27, PASS. ~~`/fleet` cloud~~ — done, PASS.
+2. **Owner action:** replace the cloud `anthropic` secret with a **workspace-scoped** key (the
+   current one returns `400 … not scoped to a workspace`). Then, with spend approval, re-run
+   "run 2": a large `claude`-template sandbox with the kit (working-tree tarball) and the 19 sources
+   (`~/workspace/vpcs_apps_cloud_19/{vpcs_llm_provider,vpcs_progressive_payment_terms}` copied into
+   a throwaway git repo); step 7 = `claude -p` there **and** Codex in a `codex`-template sandbox
+   (`api.openai.com` is blocked in the `claude` template); then headless
+   `claude -p --plugin-dir ~/kit/plugin --dangerously-skip-permissions` for `/plan-analysis 20` →
+   `/start-coding 20` → `/testing 20` driving the 19→20 migration with `migrate-local.py` +
+   `sandboxctl create --version 20 --import … --requirements vpcs_llm_provider/requirements.txt`.
+   Pass = both modules install on 20 and no test failure absent from the 19 baseline
+   (llm_provider 2F+2E of 8, payment_terms 1F+14E of 26). Save logs before removing the sandbox.
+   If the owner cannot fix the secret soon, ask whether to run the migration without the agent
+   loop (manual, same pass criteria) and move the loop item to Phase 11.
+3. Still-open Phase 9 carry-over: private-repo clone over HTTPS with the `github` secret (public
+   clone works).
+4. **Docs + evidence:** create `docs/docker-sandbox/phase-10/live-test.md` (image design, all
+   Odoo 20 findings, macOS/KVM/cloud evidence, requirements design incl. the two failed pip
+   approaches, fleet cloud); update `README.md`, `sandbox/README.md`, the cloud runbook
+   (`--import`/`--requirements`, `sandbox-fleet --cloud`, `SANDBOX_SBX`, codex vs claude template
+   egress); `CHANGELOG.md` Unreleased (kit 0.7.0); fix the contributor-hook hint
+   (`.sandbox/AUTHORIZED` is not honoured by `scripts/contributor_hook.py`).
+5. `./scripts/validate.sh`, then **one focused commit** for Phase 10. Do not publish; the owner
+   publishes to origin.
+6. After the commit: bring the Oracle VPS clone `~/odoo-agent-pro-kit` to the new commit via git
+   bundle (if history was rewritten, re-clone it from the bundle instead of fast-forwarding).
+7. Then the video pipeline (additive): recording starts only after the Phase 10 commit — see
+   "Video pipeline plan".
 
 **Constraints to remember:**
-- Oracle VPS (Ubuntu 24.04 KVM, the required runtime LIVE TEST host): ~6.7 GB free beside live
-  staging containers — free space before pulling or building Odoo images.
-- `156.67.105.242` is the **VPCSCloud production host** (Ubuntu 20.04, ~2 GiB free RAM, no
-  swap, `odoo19` ~8 GiB). Use it only for small, capped, disposable container tests with a
-  `docker ps -a` baseline diff — never for image builds or sandbox runs.
-- Local macOS Odoo 20 report printing uses the 2020 macOS wkhtmltopdf 0.12.6 build; Odoo's
-  `test_report_icon_is_a_glyph` fails there (Material Symbols not embedded) and passes with
-  Linux 0.12.6.1 — upstream/build issue, not a kit defect.
+- Oracle KVM validation host (`$VALIDATION_SSH_TARGET`) (Ubuntu 24.04 KVM, sbx 0.38.0, logged in as `vinusoft85`): 45 GB disk,
+  ~8.6 GB free after cleanup; one Odoo 20 microVM uses ~10 GB, so no more 20 microVM runs there.
+  Always create microVMs with `sandbox/bin/sandbox-agent create` (attaches the kit) — a plain
+  `sbx create` VM gets default-deny egress and cannot build the 20 image. The contributor hook
+  blocks agent `sbx rm`/cleanup; ask the owner to run removals.
+- The owner's **production host** (address kept out of the repo) — not for builds or sandbox runs.
+- Docker Hub still had no `odoo:20.0` on 2026-09-27; when it appears
+  (`hub.docker.com/v2/repositories/library/odoo/tags?name=20`), pin it as `ODOO_20_BASE` and cut
+  `20.Dockerfile` down to the dev layer (tests in `tests/test_phase10_odoo20_sandbox.py` pin the
+  current recipe and must be updated with it).
+- Local macOS Odoo 20 report printing uses the 2020 macOS wkhtmltopdf; `test_report_icon_is_a_glyph`
+  fails there only (upstream build issue).
+
+## Phase 10 in progress (2026-09-27, uncommitted)
+
+**Public-repo host-detail cleanup (2026-09-27, owner request).** The repo is public; the Oracle
+validation host and the production host addresses (and one `ubuntu@<host>` login) were in
+`SESSION_CONTEXT.md`, `docs/architecture.excalidraw`, `docs/docker-sandbox/phase-8/live-test.md`,
+one commit message, `origin/main` and tags 0.3.2–0.7.0 (PR refs 1/2 predate it and are clean).
+Working tree redacted (placeholders `$VALIDATION_SSH_TARGET`, `<validation-host>`,
+`<production-host>`); new guard `tests/test_no_public_host_details.py` fails on any public IPv4 or
+`user@<ip>` in tracked files. History rewritten with `git filter-repo --replace-text` +
+`--replace-message` in a mirror clone (154 commits, only those redactions differ; `main`
+`a7418d6` → `b97fd4c`, tag 0.7.0 → `9e76c33`); full pre-rewrite backup:
+`~/odoo-kit-backups/odoo-agent-pro-kit-pre-rewrite-20260927.bundle` (private, outside the repo).
+Force-push of `main` + tags 0.4.0/0.5.0/0.5.1/0.7.0 approved by the owner and run by the owner
+(the contributor hook only honours `AGENTS_PHASE_AUTHORIZED` in the Claude process env — its
+`.sandbox/AUTHORIZED` hint is wrong; fix the hint or honour the marker). Never write real host
+addresses or logins into tracked files; use `$VALIDATION_SSH_TARGET` / private memory instead.
+
+**Session 2026-09-27 (afternoon) — new code, fleet cloud PASS, agent CLIs blocked (all uncommitted).**
+New code, test-first (391 tests pass, `validate.sh` green):
+- `sandboxctl create --import DIR --requirements FILE`: `--import` copies every Odoo module of a
+  `migrate-local.py` staging tree (or one module dir) instead of a fixture, refusing symlinks that
+  leave the tree; `--requirements` accepts only `name[extras] specifiers` lines (no pip options,
+  URLs, paths, markers) and builds `sandbox/images/odoo-dev/requirements.Dockerfile` on the pinned
+  dev image, tagged `<dev image>-req<sha256[:12]>`, freeze in `results/requirements-freeze.txt`.
+  Design found live: `pip --break-system-packages` fails (Debian `typing_extensions` has no RECORD);
+  `--ignore-installed` replaced Debian `cryptography` and broke pyOpenSSL (`base` failed to load,
+  `GEN_EMAIL`). Final: a `--system-site-packages` venv (image's own pip, `--without-pip`) +
+  `PYTHONPATH`, so only missing/too-old packages are overlaid; the build imports
+  `odoo.addons.base.models` and fails fast. Works on 18/19/20; on 17 the LLM requirements still
+  upgrade `cryptography` (a real conflict with 17's Debian stack) → the build now fails fast there.
+  Kit **0.7.0** adds `pypi.org`, `files.pythonhosted.org` (`artifacts.lock` release/kit 0.7.0).
+  Tests: `tests/test_phase10_requirements.py`.
+- `sandbox-fleet create --cloud` (owner decision: **internal-only**): `concurrency.json` `cloud`
+  (medium 4/8, TTL 120 m, linux/amd64, exposure internal); only `codex`/`claude` (no cloud copilot
+  template); code shipped as a git bundle of a working-tree snapshot commit (throwaway index, temp
+  ref deleted; user index/refs untouched); inner commands run detached + polled via an exit-code
+  file; **no `sbx ports`**; `run/cancel/destroy/maintain` route through the cloud client;
+  `SANDBOX_SBX` overrides the client (Intel Mac wrapper). Tests: `tests/test_phase10_fleet_cloud.py`;
+  `plugin/commands/fleet.md` updated.
+Local LIVE (macOS Docker Desktop): 19 session with `--import` of the real `vpcs_llm_provider` +
+`vpcs_progressive_payment_terms` and `--requirements vpcs_llm_provider/requirements.txt` → create
+73 s, install succeeded; **19 baseline reproduced**: llm_provider 2 failed + 2 errors of 8,
+payment_terms 1 failed + 14 errors of 26 (= 3F/16E of 34, same as the 2026-09-24 VPS baseline).
+Cloud LIVE (owner approved spend, client `sbx-cloud:0.45.1`, `SANDBOX_SBX=<wrapper>`):
+- **`/fleet` cloud PASS**: `sandbox-fleet create --cloud` for 20/19/18 in parallel (`codex-docker`
+  template, medium): creates rc 0 at 15:47:00 / 15:47:01 / 15:51:27 (20 builds the image), `run …
+  test sandbox_fixture` rc 0 for all three at 15:52:00; `sbx --cloud ports` → "No exposed ports" for
+  each; `sandbox-fleet destroy --force` rc 0 ×3 (15:52:21–15:53:13). Snapshot `7fb49911`.
+- **Run 2** (`kit-p10-mig`, large, `claude-code-docker` template, 15:45:56–15:54:20 UTC; log in
+  `.sandbox/phase10-cloud/run2/r2.log`):
+  - Claude Code 2.1.280: **BLOCKED** — every call returns `400 This API key is not scoped to a
+    workspace … anthropic-workspace-id`. The `/plan-analysis`→`/start-coding`→`/testing` loop
+    therefore stopped at the first call (3 × `is_error`, 0 turns, $0). **Owner action: replace the
+    cloud `anthropic` secret with a workspace-scoped key.**
+  - Codex 0.157.1 (npm into `~/.local`): **BLOCKED** — `CONNECT api.openai.com 403`; the `claude`
+    template's policy allows `api.anthropic.com` but not `api.openai.com`. Codex must run in a
+    `codex`-template sandbox (the fleet sandboxes were codex-docker — use that next time).
+  - Git over HTTPS: `git ls-remote` and `git clone --depth 1` of the public kit repo now **work**
+    (rc 0, `a7418d6`); `gh` rejects the proxy placeholder token (`api.github.com/graphql` Forbidden);
+    `curl api.github.com` → CONNECT 403 (not in the kit allow-list). Private clone not proven (the
+    probe used a wrong repo name).
+  - The 19→20 migration itself was not run (it was to be driven by the blocked loop).
+
+**Cloud LIVE TEST — PASS (2026-09-27, owner approved spend).** Client `sbx-cloud:0.45.1` (Intel
+macOS), sandbox `sbx_001m3hn5crvyfab4rrjasx4kfpp`, large (`--cpus 8 --memory 16g`,
+`--platform linux/amd64 --ttl 90m --kit sandbox/kits/odoo-mixin shell`), created 14:44:09, removed
+15:16:40 UTC (`rm --force`, then `ls` → "No sandboxes found."). Code shipped as a working-tree
+tarball. Kernel `6.12.103`, 16.8 GB RAM. Detached `/tmp/run.sh` ran, in order:
+- `SANDBOX_EXEC_MODE=run SANDBOX_MATRIX_RUN_ID=cloud20 SANDBOX_LIFECYCLE_VERSIONS=20 bash
+  sandbox/tests/lifecycle.sh` → `OK: concurrent Odoo 20 install, update, protocol CRUD, PDF report,
+  restart, export, and cleanup passed.` EXIT=0, 278 s (includes the cold Odoo 20 image build; kit
+  0.6.0 allow-list covered it — no egress denials).
+- `bash sandbox/tests/phase9-cloud-acceptance.sh` (now covers 20: `warm_create 19` + `warm_create 20`,
+  concurrent step = 8 sessions, two per 17/18/19/20) → all 16 steps PASS, EXIT=0, 439 s. Benchmarks:
+  cold 17–20 lifecycle 145.6 s (20 image already cached by the run above, so "cold" is cold for
+  17/18/19 only), warm 65.0 s, warm create-to-ready 19 23.0 s / 20 22.6 s, 8 concurrent sessions
+  40.5 s (1.67 GB used of 16.8 GB), Phase 6 recovery 70.7 s. Denied network: `curl
+  https://example.com` → `http_code=000` (Phase 9 saw proxy `403`; both are non-2xx = blocked).
+- Evidence copied to `.sandbox/phase10-cloud/.sandbox/release/phase9/` (gitignored): `steps.txt`,
+  `benchmarks.jsonl`, `life.log`, `acc.log`, platform/resources/final-state files.
+- Pitfall: a poll using `pgrep -f run.sh` inside `sbx exec bash -c '…run.sh…'` matches itself;
+  check for the `EXIT=` line instead.
+
+**Design decision.** Docker Hub has no `odoo:20.0`, so `ODOO_20_BASE` pins
+`ubuntu:noble@sha256:008173c2…` and `sandbox/images/odoo-dev/20.Dockerfile` reproduces the official
+`odoo/docker` 20.0 recipe (commit `d54316042067`, 2026-09-26: Odoo nightly deb `20260926` sha1
+`7cb4a582…`, wkhtmltopdf 0.12.6.1-3 sha1 per arch) and fetches `entrypoint.sh`, `odoo.conf`,
+`wait-for-psql.py` from that commit with `ADD --checksum=sha256:…`, then adds the same dev layer as
+17/18/19. One deviation: the pgdg key is fetched with `curl` over HTTPS and must match fingerprint
+`B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8`. Image: Odoo `20.0-20260926`, Python 3.12.3,
+wkhtmltopdf `0.12.6.1 (with patched qt)`, psql 18.6 client, ~2.3 GB. `POSTGRES_16` =
+`postgres:16-bookworm@sha256:efedf359…` (Odoo 20 `MIN_PG_VERSION = 16`); 17/18/19 unchanged on 15.
+
+**Uncommitted files (29):** `.github/workflows/docker-sandbox-release.yml` (matrix + 20),
+`plugin/commands/fleet.md`, `README.md`, `sandbox/README.md`, `sandbox/bin/sandbox-fleet`,
+`sandbox/bin/sandboxctl` (`prepare_fixture` + overlays, `set_str`/`set_param` fallback, version
+message), `sandbox/config/{artifacts.lock,images.lock,odoo.conf.template,versions.yaml}`,
+`sandbox/fixtures/_overlays/20/sandbox_fixture/{__manifest__.py,.remove,security/ir.access.csv}`,
+`sandbox/images/odoo-dev/20.Dockerfile`, `sandbox/kits/odoo-mixin/spec.yaml` (0.6.0 + Odoo 20 build
+egress hosts), `sandbox/mcp-sidecar/{mcp_up.sh,mcp.override.yaml}` (`ODOO_API_KEY`, 20 → 8768),
+`sandbox/schemas/session.schema.json`, `sandbox/scripts/{fixture-lifecycle.py,migrate-local.py,
+report-pdf-smoke.py}`, `sandbox/tests/{ci-smoke.sh,lifecycle.sh,multiarch-build.sh}`, tests
+`test_phase10_odoo20_sandbox.py` (new, 14 tests), plus updated `test_sandbox_runtime.py`,
+`test_sandbox_schemas.py`, `test_phase7_release.py`, `test_phase9_cloud_exec.py`,
+`hooks/test_odoo20_support.py` (old tests pinned "fleet stays 17–19", "4 images", kit == 0.5.2),
+and this file.
+
+**Real Odoo 20 findings (each fixed test-first, RED → GREEN):**
+1. `ir.config_parameter.set_param` is gone (typed `set_str`/`get_str`…) → `create` crashed in the
+   credential shell script; now `set_str` if present else `set_param` (also in the PDF script).
+2. Odoo 20 defaults `http_interface` to `127.0.0.1` (`odoo/tools/config.py:289`) → the MCP sidecar
+   and run-mode probes could not reach `odoo:8069` while the in-container healthcheck passed;
+   `odoo.conf.template` now sets `http_interface = 0.0.0.0` (same as the 17–19 default).
+3. `ir.model.access` was replaced by `ir.access` → fixture overlay for 20.
+4. Inside sbx microVMs, build containers reach the net only via transparent 80/443 interception;
+   `gpg --recv-keys` (dirmngr, hkp 11371 and hkps) fails while `curl` over HTTPS works → pgdg key
+   over HTTPS + fingerprint check.
+5. A microVM created with plain `sbx create` (no kit) is default-deny for pgdg, keyserver and
+   nightly.odoo.com → Odoo 20 needs `sandbox/bin/sandbox-agent create` (kit attached).
+
+**LIVE evidence so far:**
+- macOS 15 (Intel) Docker Desktop 29.8.0, exec mode: `sandbox/tests/ci-smoke.sh 20` rc 0 in 83 s;
+  `SANDBOX_MATRIX_RUN_ID=p10all sandbox/tests/lifecycle.sh` (17 18 19 20 concurrent) rc 0 in 225 s —
+  CRUD `xmlrpc` 17.0-20260810 / 18.0-20260810, `json2` 19.0 / 20.0; PDF
+  `base.ir_module_reference_print` 266/262/287/298 KB; no leftover containers or volumes.
+  MCP sidecar on a 20 session: `protocol=json-2`, `search('sandbox.fixture')` → `[1]`, SSE 200 on 8768.
+- Oracle VPS Ubuntu 24.04 (Python `.venv`): 363→364 passed; `validate.sh` green incl. `sbx kit
+  validate` + `pack` for kit 0.6.0.
+- Oracle KVM, sbx 0.38.0, kit-backed microVM `odoo-phase10-kit` (2 vCPU / 8 GiB, Docker 29.7.2,
+  Compose 5.5.0): `ci-smoke.sh 20` rc 0 in 425 s (includes the first image build). Earlier attempts
+  failed (kit-less VM; then gpg) — logs kept on the VPS: `~/phase10-kvm-smoke20*.log`.
+- Not run on KVM: `lifecycle.sh` 20 (host disk). Cleanup done: both microVMs removed by the owner,
+  `~/phase10-src` and `/tmp/p10*` removed; host back to 8.6 GB free.
+
+## Video pipeline plan (additive, not a Docker Sandbox phase; planned 2026-09-27)
+
+Files (uncommitted, in the video workspace repo):
+- `/Users/vinusoft85/Draft Videos/odoo-agent-pro-kit-pro-v2-video-context.md` — full production
+  plan for the "Odoo Agent Pro Kit Pro v2" guided masterclass (~30 min EN, then HI; 3–5 Shorts):
+  chapters, live recording segments R1–R8, redaction gates, look & feel overlays, pipeline tasks
+  P1–P4 (P1 = hybrid recorded + generated timeline in `run_dev_cycle_pipeline.sh`), metadata with
+  previous videos (EN `XUovprFZKsA`, HI `4zHkZrf66z0`, dev cycle `DWQttT0wOxw`), playlists, owner
+  decisions, and the infovpcs KB update list for after publication.
+- `/Users/vinusoft85/Draft Videos/odoo20-typesafe-jev-multiapp-requirement.md` — the requirement
+  pasted into `/plan-analysis 20` on camera.
+
+Owner decisions (2026-09-27): the live chain is **migrate `vpcs_llm_provider`** (canonical 19.0
+source `~/workspace/vpcs_apps_cloud_19/vpcs_llm_provider`, 19.0.0.2; OpenAI, OpenRouter,
+Anthropic, Gemini, DeepSeek, Ollama) → **migrate `vpcs_typesafe_ai`**
+(`~/workspace/odoo_customers_prospect/odoo_modules/`, 19.0.1.3.0, `typesafe-sdk==0.7.0`; PyPI
+latest 0.7.2) → **build an Odoo 20 Community multi-app classifier** (CRM leads, Project tasks as
+tickets, Recruitment applicants) with a **decision router**: deterministic rule → Jev typed
+judgment → normal LLM (OpenRouter or OpenAI key in `vpcs_llm_provider`), Shadow by default. All of
+it is configured and tested live on the local Odoo 20 workspace (`~/workspace/20_workspace`, PG16
+`odoo20-pg16` on 5436, Odoo on 8110, `extra-20/` empty today) and in a sandbox.
+Kit lint preview at 20 (2026-09-27): `vpcs_typesafe_ai` L7 + L8, `vpcs_prospect_typesafe` L7 + L8,
+`vpcs_prospect_followup` L7 (also depends on WhatsApp modules → out of scope). Odoo 20 Community
+has `crm`, `project`, `hr_recruitment`; no `helpdesk`.
+Status 2026-09-27 (end of session): **nothing recorded yet** (by design). Both plan files were
+updated with this session's results (cloud PASS, `/fleet --cloud` internal-only, `--import` /
+`--requirements` needed for R4a/R4b, re-measured 19 baseline, host-address redaction rule); they
+are still **uncommitted** in the `Draft Videos` repo. Open owner decisions: §11 items 1–4, 6 and
+whether R9 `/fleet` is recorded live (spend) or shown as a slide.
+Order: recording starts only after Phase 10 is committed. After publication, update the infovpcs
+KB pages listed in the plan (§12) and commit + publish that repo (owner approves the publish).
 
 ## Following tasks
 

@@ -50,7 +50,7 @@ def json2_lifecycle():
     assert row["name"] == "rpc-created" and row["lifecycle_marker"] == "installed"
     assert json2("write", {"ids": [record_id], "vals": {"lifecycle_marker": "updated"}})
     assert json2("unlink", {"ids": [record_id]})
-    return "19.0"
+    return os.environ["ODOO_VERSION"]  # set by the Odoo image, e.g. "20.0"
 
 
 protocol = os.environ["ODOO_RPC_PROTOCOL"]

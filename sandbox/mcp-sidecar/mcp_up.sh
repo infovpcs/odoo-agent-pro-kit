@@ -39,11 +39,13 @@ fi
 VERSION_SERIES=$(python3 -c "import json; print(json.load(open('$SESSION_DIR/session.json'))['odoo_version'])")
 
 # Default MCP port follows the repo's fixed per-version convention:
-# 17.0 -> 8765, 18.0 -> 8766, 19.0 -> 8767 (see plugin/odoo_mcp/start_mcp_server.sh)
+# 17.0 -> 8765, 18.0 -> 8766, 19.0 -> 8767, 20.0 -> 8768 (see plugin/odoo_mcp/start_mcp_server.sh)
 if [ -z "$MCP_PORT" ]; then
   case "$VERSION_SERIES" in
     17.0) MCP_PORT=8765 ;;
     18.0) MCP_PORT=8766 ;;
+    19.0) MCP_PORT=8767 ;;
+    20.0) MCP_PORT=8768 ;;
     *)    MCP_PORT=8767 ;;
   esac
 fi

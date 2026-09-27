@@ -386,7 +386,7 @@ OK: all repository validation checks passed.
 ## Step 7 — Live UI evidence — COMPLETE (real evidence, 2026-08-19)
 
 Re-established connectivity from the local Mac to the sandboxed Odoo 18
-instance: `ssh -L 18069:127.0.0.1:8069 ubuntu@92.4.86.131` local port-forward
+instance: `ssh -L 18069:127.0.0.1:8069 $VALIDATION_SSH_TARGET` local port-forward
 plus a `sbx exec phase8-pilot -- socat TCP-LISTEN:8069,fork
 TCP:127.0.0.1:<inner-published-port>` keepalive relay inside the outer
 sandbox (the inner Compose Odoo container publishes an ephemeral port that

@@ -22,5 +22,13 @@
     "postgres_image_lock": "POSTGRES_15",
     "rpc_protocol": "json2",
     "addons_path": "/mnt/extra-addons,/usr/lib/python3/dist-packages/odoo/addons"
+  },
+  "20": {
+    "series": "20.0",
+    "base_image_lock": "ODOO_20_BASE",
+    "dockerfile": "sandbox/images/odoo-dev/20.Dockerfile",
+    "postgres_image_lock": "POSTGRES_16",
+    "rpc_protocol": "json2",
+    "addons_path": "/mnt/extra-addons,/usr/lib/python3/dist-packages/odoo/addons"
   }
 }

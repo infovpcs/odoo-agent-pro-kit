@@ -7,9 +7,11 @@ import fcntl
 import json
 import os
 import re
+import shlex
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -20,6 +22,11 @@ SESSIONS = STATE / "sessions"
 LOCK = STATE / "controller.lock"
 POLICY = ROOT / "sandbox/config/concurrency.json"
 AGENT = ROOT / "sandbox/bin/sandbox-agent"
+KIT = "sandbox/kits/odoo-mixin"
+BUNDLES = STATE / "bundles"
+# sbx --cloud billable shapes (vCPU, GiB) and the agents that have a cloud template.
+CLOUD_SHAPES = {(1, 2): "micro", (2, 4): "small", (4, 8): "medium", (8, 16): "large", (16, 32): "xl"}
+CLOUD_AGENTS = {"codex", "claude"}
 
 
 def now():
@@ -81,8 +88,8 @@ def write_session(data):
     temporary.replace(target)
 
 
-def run(command, *, check=True, capture=False):
-    return subprocess.run(command, check=check, text=True, capture_output=capture)
+def run(command, *, check=True, capture=False, cwd=None):
+    return subprocess.run(command, check=check, text=True, capture_output=capture, cwd=cwd)
 
 
 def active_count(sessions):
@@ -102,16 +109,91 @@ def require_capacity(sessions):
         raise RuntimeError(f"Community concurrency limit reached ({maximum})")
 
 
+def sbx(*args, cloud=False):
+    """The sbx client, overridable with SANDBOX_SBX (e.g. the linux/amd64 container on Intel macOS)."""
+    return [*shlex.split(os.environ.get("SANDBOX_SBX", "sbx")), *(["--cloud"] if cloud else []), *args]
+
+
+def cloud_shape(cpus, memory_gib):
+    shape = CLOUD_SHAPES.get((int(cpus), int(memory_gib)))
+    if not shape:
+        raise RuntimeError(f"cloud sandboxes need a billable shape, not {cpus} vCPU / {memory_gib} GiB: {sorted(CLOUD_SHAPES.values())}")
+    return shape
+
+
+def git(repo, *args, env=None):
+    return subprocess.run(["git", "-C", str(repo), *args], check=True, text=True, capture_output=True, env=env).stdout.strip()
+
+
+def worktree_snapshot(repo):
+    """Commit the working tree (tracked and untracked, not ignored) on top of HEAD.
+
+    A throwaway index keeps the user's index, branch, and refs untouched; the commit object is
+    only reachable through the bundle written next.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        env = {**os.environ, "GIT_INDEX_FILE": str(Path(tmp) / "index")}
+        git(repo, "read-tree", "HEAD", env=env)
+        git(repo, "add", "-A", env=env)
+        tree = git(repo, "write-tree", env=env)
+    return git(repo, "-c", "user.name=sandbox-fleet", "-c", "user.email=sandbox-fleet@localhost",
+               "commit-tree", tree, "-p", "HEAD", "-m", "sandbox-fleet worktree snapshot")
+
+
+def write_bundle(repo, commit, path):
+    ref = f"refs/sandbox-fleet/{commit[:12]}"
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    git(repo, "update-ref", ref, commit)
+    try:
+        git(repo, "bundle", "create", str(path), ref)
+    finally:
+        git(repo, "update-ref", "-d", ref)
+
+
+def cloud_exec(name, script, label, timeout):
+    """Run a script detached inside a cloud sandbox and poll for its exit code.
+
+    `sbx --cloud exec` streams drop on long commands and kill plain background jobs, so the
+    script runs under setsid nohup and writes its exit code to a file (cloud runbook).
+    """
+    BUNDLES.mkdir(parents=True, exist_ok=True)
+    local = BUNDLES / f"{name}-{label}.sh"
+    remote = f"/tmp/fleet-{label}"
+    local.write_text(f"{{\n{script}\n}} > {remote}.log 2>&1\necho $? > {remote}.rc\n")
+    run(sbx("cp", str(local.relative_to(ROOT)), f"{name}:{remote}.sh", cloud=True), cwd=ROOT)
+    run(sbx("exec", name, "bash", "-c", f"rm -f {remote}.rc; setsid nohup bash {remote}.sh </dev/null >/dev/null 2>&1 &", cloud=True), check=False, capture=True)
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        probe = run(sbx("exec", name, "bash", "-c", f"cat {remote}.rc 2>/dev/null", cloud=True), check=False, capture=True)
+        if probe.returncode == 0 and probe.stdout.strip().isdigit():
+            tail = run(sbx("exec", name, "bash", "-c", f"tail -40 {remote}.log", cloud=True), check=False, capture=True)
+            return int(probe.stdout.strip()), tail.stdout
+        time.sleep(10)
+    return 124, f"timed out after {timeout}s waiting for {remote}.rc"
+
+
+def inner_controller(data, *arguments, timeout=1800):
+    """Run sandboxctl inside the session's sandbox; returns the exit code."""
+    name = data["session_id"]
+    if data.get("runtime", {}).get("mode") == "cloud":
+        rc, output = cloud_exec(name, "cd ~/kit && sandbox/bin/sandboxctl " + shlex.join(arguments), arguments[0], timeout)
+        print(output, end="")
+        return rc
+    return run(["sbx", "exec", name, "--", "sandbox/bin/sandboxctl", *arguments], check=False).returncode
+
+
 def parse_port(output):
     matches = re.findall(r"127\.0\.0\.1:(\d+)", output)
     return int(matches[-1]) if matches else None
 
 
 def cmd_create(args):
-    if args.version.removesuffix(".0") not in {"17", "18", "19"}:
-        raise RuntimeError("version must be 17, 18, or 19")
+    if args.version.removesuffix(".0") not in {"17", "18", "19", "20"}:
+        raise RuntimeError("version must be 17, 18, 19, or 20")
     if not re.fullmatch(r"[a-z][a-z0-9_]*", args.module):
         raise RuntimeError("module must be a valid Odoo technical name")
+    if args.cloud:
+        return create_cloud(args)
     outer_creation_attempted = False
     data = None
     try:
@@ -172,6 +254,71 @@ def cmd_create(args):
         raise
 
 
+def create_cloud(args):
+    """Allocate one fleet session in a Docker Cloud Sandbox. Internal-only: no port is published."""
+    if args.agent not in CLOUD_AGENTS:
+        raise RuntimeError(f"agent {args.agent} has no cloud template; use one of {sorted(CLOUD_AGENTS)} with --cloud")
+    config = policy()
+    cloud = config["cloud"]
+    shape = cloud_shape(cloud["cpus"], cloud["memory_gib"])
+    data = None
+    outer_creation_attempted = False
+    try:
+        with controller_lock():
+            sessions = read_sessions()
+            require_capacity(sessions)
+            name = session_name(args.version, args.module)
+            data = {
+                "schema_version": "1.0.0", "session_id": name, "module": args.module,
+                "odoo_version": f"{args.version.removesuffix('.0')}.0", "agent": args.agent,
+                "status": "provisioning", "branch": branch_name(name), "created_at": now(),
+                "last_activity_at": now(), "ports": [],
+                "resources": {"cpus": cloud["cpus"], "memory_gib": cloud["memory_gib"], "disk_gib": None},
+                "runtime": {"mode": "cloud", "shape": shape, "exposure": cloud["exposure"], "snapshot": None, "ttl_minutes": cloud["ttl_minutes"]},
+                "result": None, "cleanup_guard": {"commit": False, "push": False, "patch_export": False},
+            }
+            write_session(data)
+        commit = worktree_snapshot(ROOT)
+        data["runtime"]["snapshot"] = commit
+        bundle = BUNDLES / f"{name}.bundle"
+        write_bundle(ROOT, commit, bundle)
+        outer_creation_attempted = True
+        run(sbx("create", "--name", name, "--cpus", str(cloud["cpus"]), "--memory", f"{cloud['memory_gib']}g",
+                "--platform", cloud["platform"], "--ttl", f"{cloud['ttl_minutes']}m", "--kit", KIT, args.agent, cloud=True), cwd=ROOT)
+        run(sbx("cp", str(bundle.relative_to(ROOT)), f"{name}:/tmp/kit.bundle", cloud=True), cwd=ROOT)
+        container_cpu = str(min(1.0, float(cloud["cpus"]) / 2))
+        script = (
+            f"set -e\ngit init -q ~/kit\ncd ~/kit\ngit fetch -q /tmp/kit.bundle 'refs/sandbox-fleet/*:refs/sandbox-fleet/*'\n"
+            f"git checkout -q -b {data['branch']} {commit}\n"
+            f"SANDBOX_EXEC_MODE=run ODOO_CPU_LIMIT={container_cpu} POSTGRES_CPU_LIMIT={container_cpu} "
+            f"sandbox/bin/sandboxctl create --version {args.version} --module {args.module} --session {name}"
+        )
+        rc, output = cloud_exec(name, script, "create", 1800)
+        if rc:
+            raise RuntimeError(f"inner create failed in cloud sandbox {name} (exit {rc}): {output.strip()[-400:]}")
+        # Internal-only by owner decision: `sbx --cloud ports` would give a public URL, so none is published.
+        data.update(status="ready", last_activity_at=now(), result={"status": "succeeded", "operation": "create"})
+        write_session(data)
+        print(name)
+    except (subprocess.CalledProcessError, RuntimeError, KeyboardInterrupt) as error:
+        if data is None:
+            raise
+        previous_sigint = signal.signal(signal.SIGINT, signal.SIG_IGN)
+        try:
+            cleanup_errors = []
+            if outer_creation_attempted and run(sbx("rm", "--force", name, cloud=True), check=False, capture=True).returncode:
+                cleanup_errors.append("outer Sandbox cleanup failed")
+            result_data = {"status": "failed", "operation": "create", "message": str(error)}
+            if cleanup_errors:
+                result_data["cleanup_errors"] = cleanup_errors
+            data.update(status="failed", result=result_data, cleanup={
+                "outer_creation_attempted": outer_creation_attempted, "outer_removed": not cleanup_errors})
+            write_session(data)
+        finally:
+            signal.signal(signal.SIGINT, previous_sigint)
+        raise
+
+
 def get_session(name):
     path = session_path(name)
     if not path.exists():
@@ -192,22 +339,21 @@ def cmd_cancel(args):
     data = get_session(args.session)
     if data["status"] in {"cancelled", "destroyed"}:
         return
-    proc = run(["sbx", "exec", args.session, "--", "sandbox/bin/sandboxctl", "stop", args.session], check=False)
-    status = "cancelled" if proc.returncode == 0 else "failed"
-    data.update(status=status, last_activity_at=now(), result={"status": status, "operation": "cancel", "exit_code": proc.returncode})
+    returncode = inner_controller(data, "stop", args.session)
+    status = "cancelled" if returncode == 0 else "failed"
+    data.update(status=status, last_activity_at=now(), result={"status": status, "operation": "cancel", "exit_code": returncode})
     write_session(data)
-    if proc.returncode:
+    if returncode:
         raise RuntimeError(f"cancellation failed in {args.session}; sibling sessions were not changed")
 
 
 def cmd_run(args):
     data = get_session(args.session)
-    command = ["sbx", "exec", args.session, "--", "sandbox/bin/sandboxctl", "module", args.session, args.operation, args.module]
-    proc = run(command, check=False)
-    status = "succeeded" if proc.returncode == 0 else "failed"
-    data.update(status="ready" if proc.returncode == 0 else "failed", last_activity_at=now(), result={"status": status, "operation": args.operation, "module": args.module, "exit_code": proc.returncode})
+    returncode = inner_controller(data, "module", args.session, args.operation, args.module)
+    status = "succeeded" if returncode == 0 else "failed"
+    data.update(status="ready" if returncode == 0 else "failed", last_activity_at=now(), result={"status": status, "operation": args.operation, "module": args.module, "exit_code": returncode})
     write_session(data)
-    if proc.returncode:
+    if returncode:
         raise RuntimeError(f"{args.operation} failed in {args.session}; sibling sessions were not changed")
 
 
@@ -223,14 +369,18 @@ def cmd_destroy(args):
         return
     if not args.force and not any(data["cleanup_guard"].values()):
         raise RuntimeError("destructive cleanup refused: record commit, push, or patch_export first (or use --force)")
-    inner = run(["sbx", "exec", args.session, "--", "sandbox/bin/sandboxctl", "destroy", args.session, "--allow-unexported"], check=False)
-    if inner.returncode:
-        data.update(status="failed", result={"status": "failed", "operation": "destroy", "exit_code": inner.returncode})
+    inner = inner_controller(data, "destroy", args.session, "--allow-unexported")
+    if inner:
+        data.update(status="failed", result={"status": "failed", "operation": "destroy", "exit_code": inner})
         write_session(data)
         raise RuntimeError(f"inner cleanup failed for {args.session}; outer Sandbox retained")
     # The coordinator's explicit cleanup guard replaces sbx's interactive
     # confirmation, so non-interactive fleet cleanup may safely use --force.
-    proc = run(["sbx", "rm", "--force", args.session], check=False)
+    cloud = data.get("runtime", {}).get("mode") == "cloud"
+    if cloud:
+        proc = run(sbx("rm", "--force", args.session, cloud=True), check=False)
+    else:
+        proc = run(["sbx", "rm", "--force", args.session], check=False)
     data.update(status="destroyed" if proc.returncode == 0 else "failed", result={"status": "succeeded" if proc.returncode == 0 else "failed", "operation": "destroy", "exit_code": proc.returncode})
     write_session(data)
     if proc.returncode:
@@ -244,11 +394,11 @@ def cmd_maintain(_args):
     for data in read_sessions():
         age = current - parse_time(data["last_activity_at"])
         if data["status"] in {"ready", "active"} and age >= dt.timedelta(minutes=config["idle_stop_minutes"]):
-            proc = run(["sbx", "exec", data["session_id"], "--", "sandbox/bin/sandboxctl", "stop", data["session_id"]], check=False)
-            if proc.returncode == 0:
+            returncode = inner_controller(data, "stop", data["session_id"])
+            if returncode == 0:
                 data["status"] = "stopped"
                 write_session(data)
-            outcomes.append({"session_id": data["session_id"], "action": "idle_stop", "exit_code": proc.returncode})
+            outcomes.append({"session_id": data["session_id"], "action": "idle_stop", "exit_code": returncode})
         elif data["status"] == "stopped" and age >= dt.timedelta(days=config["stopped_retention_days"]):
             outcomes.append({"session_id": data["session_id"], "action": "retention_due", "exit_code": None})
     print(json.dumps({"outcomes": outcomes}, indent=2))
@@ -257,7 +407,7 @@ def cmd_maintain(_args):
 def parser():
     value = argparse.ArgumentParser()
     commands = value.add_subparsers(dest="command", required=True)
-    create = commands.add_parser("create"); create.add_argument("--version", required=True); create.add_argument("--module", required=True); create.add_argument("--agent", choices=("codex", "claude", "copilot"), default="codex")
+    create = commands.add_parser("create"); create.add_argument("--version", required=True); create.add_argument("--module", required=True); create.add_argument("--agent", choices=("codex", "claude", "copilot"), default="codex"); create.add_argument("--cloud", action="store_true", help="allocate in a Docker Cloud Sandbox (internal-only, no published port)")
     status = commands.add_parser("status"); status.add_argument("session", nargs="?")
     cancel = commands.add_parser("cancel"); cancel.add_argument("session")
     execute = commands.add_parser("run"); execute.add_argument("session"); execute.add_argument("operation", choices=("install", "update", "test")); execute.add_argument("module")

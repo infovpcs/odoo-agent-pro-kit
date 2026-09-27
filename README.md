@@ -25,8 +25,9 @@ for Odoo 17.0, 18.0, 19.0, and 20.0 — without building any of it from scratch.
 > 19/20 talks to Odoo's External JSON-2 API (`/json/2`, bearer API key) once
 > `./manage_modules.sh mcp-apikey` has stored `ODOO20_API_KEY` in the workspace `.env`
 > (without a key it falls back to `/jsonrpc`, deprecated upstream and slated for removal in Odoo 22).
-> The **Docker Sandbox stays 17/18/19** until an official
-> `odoo:20.0` image is published and pinned in `sandbox/config/images.lock`. For Odoo 20
+> The **Docker Sandbox runs 20.0 too** (Phase 10): PostgreSQL 16 and an image built from the
+> official `odoo/docker` 20.0 recipe on a pinned `ubuntu:noble` digest, until Docker Hub
+> publishes `odoo:20.0` (see [`sandbox/README.md`](sandbox/README.md)). For Odoo 20
 > review/security guidelines the kit defers to Odoo's own `skills/` library in `odoo/odoo@20.0`.
 > See [docs/odoo-20-migration-roadmap.md](docs/odoo-20-migration-roadmap.md).
 
@@ -126,7 +127,7 @@ See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ## Docker Sandbox roadmap
 
-The implementation-ready plan for isolated, concurrent Odoo 17/18/19 agent
+The implementation-ready plan for isolated, concurrent Odoo 17/18/19/20 agent
 sessions is in [`docs/docker-sandbox/`](docs/docker-sandbox/README.md). It
 includes requirements, architecture, source-guide corrections, release gates,
 and the full cross-version test matrix.
@@ -187,16 +188,18 @@ exit gate in full** (see CHANGELOG 0.4.0 and
 See [`docs/docker-sandbox/tasks.md`](docs/docker-sandbox/tasks.md)
 "Phase 8" for the exact skill sequence and exit gate.
 
-Phase 9 (in progress) runs the same Odoo 17/18/19 runtime in **Docker Cloud
+Phase 9 (complete) runs the same Odoo 17/18/19 runtime in **Docker Cloud
 Sandboxes** (`sbx --cloud`, `sbx_cloud_version` 0.45.x in `artifacts.lock`), so no
 local KVM host is needed. Cloud sandboxes cannot `docker exec` into running
 containers, so sessions created with `SANDBOX_EXEC_MODE=run` use one-shot
 containers and network readiness probes instead; local sessions are unchanged.
-The concurrent 17/18/19 lifecycle has passed in one cloud sandbox; the rest of
-the release matrix is still open. See
+The Odoo 17/18/19 acceptance passed in cloud sandboxes in run mode. See
 [`docs/docker-sandbox/phase-9/cloud-runbook.md`](docs/docker-sandbox/phase-9/cloud-runbook.md).
 
-The Odoo 17/18/19 inner runtime controller is documented in
+Phase 10 adds Odoo 20.0 to the sandbox runtime; see
+[`docs/docker-sandbox/phase-10/live-test.md`](docs/docker-sandbox/phase-10/live-test.md).
+
+The Odoo 17/18/19/20 inner runtime controller is documented in
 [`sandbox/README.md`](sandbox/README.md). Phase gates remain authoritative in
 [`docs/docker-sandbox/tasks.md`](docs/docker-sandbox/tasks.md).
 

@@ -6,7 +6,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CTL="$REPO_ROOT/sandbox/bin/sandboxctl"
 RUN_ID="${SANDBOX_MATRIX_RUN_ID:-live}"
 # Space-separated override, e.g. "19" for a single-version Cloud Sandbox run.
-read -ra VERSIONS <<< "${SANDBOX_LIFECYCLE_VERSIONS:-17 18 19}"
+read -ra VERSIONS <<< "${SANDBOX_LIFECYCLE_VERSIONS:-17 18 19 20}"
 
 cd "$REPO_ROOT"
 
@@ -59,6 +59,8 @@ for version in "${VERSIONS[@]}"; do
       sleep 2
     done
     "$CTL" exec "$session" -- python3 /workspace/scripts/fixture-lifecycle.py
+    "$CTL" exec "$session" -- sh -c 'odoo shell --config /etc/odoo/odoo.conf --database sandbox_db --no-http < /workspace/scripts/report-pdf-smoke.py' \
+      | grep '"report": "base.ir_module_reference_print"'
     "$CTL" stop "$session"
     "$CTL" start "$session"
     export_path="$($CTL export "$session")"
@@ -77,4 +79,4 @@ for version in "${VERSIONS[@]}"; do
 done
 trap - EXIT
 
-echo "OK: concurrent Odoo ${VERSIONS[*]} install, update, protocol CRUD, restart, export, and cleanup passed."
+echo "OK: concurrent Odoo ${VERSIONS[*]} install, update, protocol CRUD, PDF report, restart, export, and cleanup passed."

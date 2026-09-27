@@ -19,7 +19,7 @@ lock_value() {
 
 cd "$REPO_ROOT"
 docker buildx create --driver docker-container --name "$BUILDER" --use >/dev/null
-for version in 17 18 19; do
+for version in 17 18 19 20; do
   key="ODOO_${version}_BASE"
   image="$(lock_value "$key")"
   manifest="$(docker buildx imagetools inspect "$image")"
@@ -33,4 +33,4 @@ for version in 17 18 19; do
   done
 done
 
-echo "OK: Odoo 17/18/19 dev images build for linux/amd64 and linux/arm64."
+echo "OK: Odoo 17/18/19/20 dev images build for linux/amd64 and linux/arm64."

@@ -34,7 +34,7 @@ def test_dependency_inventory_is_machine_readable():
         )
         report = json.loads((ROOT / relative).read_text())
         assert report["project_license"] == "Apache-2.0"
-        assert len(report["container_images"]) == 4
+        assert len(report["container_images"]) == 6  # Odoo 17/18/19/20 bases + PostgreSQL 15/16
         assert all("@sha256:" in value for value in report["container_images"].values())
 
 

@@ -275,7 +275,8 @@ def test_mixin_allows_docker_hub_cloudfront_blob_host():
                  "production.cloudfront.docker.com"):
         assert f"- {host}\n" in spec, host
     lock = json.loads((ROOT / "sandbox/config/artifacts.lock").read_text())
-    assert lock["kits"]["odoo-mixin"]["version"] == lock["release"] == "0.5.2"
+    assert lock["kits"]["odoo-mixin"]["version"] == lock["release"]
+    assert tuple(map(int, lock["release"].split("."))) >= (0, 5, 2)  # first release with cloudfront
 
 
 def test_upgrade_rollback_derives_the_kit_version_from_the_lock():
@@ -306,6 +307,8 @@ def _run_lifecycle(tmp_path, mode, versions=None):
         "    echo '<field>installed</field>' > \"$state/$session/addons/sandbox_fixture/data/fixture_data.xml\" ;;\n"
         "  export) out=\"$state/$2/export.tgz\"; echo data > \"$out\"; echo \"$out\" ;;\n"
         "  destroy) rm -rf \"$state/$2\" ;;\n"
+        # The Phase 10 PDF step greps the report script's JSON line.
+        "  exec) echo '{\"report\": \"base.ir_module_reference_print\"}' ;;\n"
         "esac\n"
     )
     ctl.chmod(0o755)
@@ -335,6 +338,8 @@ def test_lifecycle_run_mode_uses_no_deps_and_network_readiness(tmp_path):
     # The readiness probe runs in a one-shot container, so it must target ODOO_URL, not loopback.
     probe = [ln for ln in lines if ln.startswith("ctl exec") and "web/health" in ln]
     assert probe and all("ODOO_URL" in ln for ln in probe)
+    assert any(ln.startswith("ctl exec 19-fixture-live -- sh -c odoo shell") and "report-pdf-smoke.py" in ln
+               for ln in lines)
     assert any(ln.startswith("ctl exec 19-fixture-live -- python3 /workspace/scripts/fixture-lifecycle.py")
                for ln in lines)
     assert not any(ln.startswith("ctl create --version 17") for ln in lines)

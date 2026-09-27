@@ -1,6 +1,6 @@
 # Odoo Docker Sandbox runtime
 
-The inner Compose runtime supports Odoo 17, 18, and 19 through one controller.
+The inner Compose runtime supports Odoo 17, 18, 19, and 20 through one controller.
 Run it inside
 the designated Docker Sandbox microVM (or directly against a disposable Docker
 daemon for development):
@@ -18,7 +18,21 @@ sandbox/bin/sandboxctl destroy <session-id>
 
 Version-specific image locks, Dockerfiles, addons paths, PostgreSQL dependency,
 and RPC protocol live in `config/versions.yaml` and `config/images.lock`.
-Each Odoo 17/18/19 development image build verifies the official image's
+Odoo 17/18/19 run on PostgreSQL 15; Odoo 20 needs PostgreSQL 16 (`MIN_PG_VERSION`)
+and runs on `POSTGRES_16`. Docker Hub has no `odoo:20.0` image yet, so
+`images/odoo-dev/20.Dockerfile` reproduces the official `odoo/docker` 20.0
+recipe (commit `d5431604`, sha1-checked Odoo nightly deb and wkhtmltopdf, helper
+files sha256-checked) on the pinned `ubuntu:noble` digest (`ODOO_20_BASE`). One
+deviation: the pgdg key is fetched with `curl` over HTTPS and must match the pinned
+fingerprint, because `gpg --recv-keys` fails inside sbx microVMs. The
+first Odoo 20 session on a host builds it (a few minutes; it needs Ubuntu apt,
+`apt.postgresql.org`, `keyserver.ubuntu.com`, `nightly.odoo.com`, the npm registry,
+and GitHub release assets, all on the `odoo-mixin` kit allow-list, so create the
+microVM with `sandbox/bin/sandbox-agent create`, which attaches the kit). Once Hub
+publishes `odoo:20.0`, pin that digest and cut the Dockerfile down to the dev layer.
+Odoo 20 replaced `ir.model.access` with `ir.access`, so the fixture gets its
+Odoo 20 files from `fixtures/_overlays/20/` (a `.remove` file lists deletions).
+Each Odoo 17/18/19/20 development image build verifies the image's
 `wkhtmltopdf` and `wkhtmltoimage` 0.12.6 patched-Qt executables. This is the
 renderer version Odoo requires for styled PDFs with headers and footers; do not
 replace it with an arbitrary distribution package. Compose-backed module tests
@@ -27,7 +41,7 @@ The controller also sets `report.url=http://localhost:8069` in each sandbox
 database, avoiding an externally tunneled `web.base.url` that wkhtmltopdf
 cannot reach from inside the Odoo container.
 Odoo 17 and 18 lifecycle checks use the documented XML-RPC endpoints. Odoo 19
-uses its JSON-2 endpoint with a one-day, session-generated API key; the key and
+and 20 use the JSON-2 endpoint with a one-day, session-generated API key; the key and
 the distinct XML-RPC password remain only in the ignored mode-`0600`
 `runtime.env`.
 
@@ -49,7 +63,13 @@ session receives a private copy whose manifest series matches the selected
 Odoo version. Run the concurrent amd64 runtime matrix with
 `sandbox/tests/lifecycle.sh`, and validate both amd64 and arm64 image builds
 with `sandbox/tests/multiarch-build.sh`. `SANDBOX_LIFECYCLE_VERSIONS="19"`
-limits the matrix to the listed versions.
+limits the matrix to the listed versions. The lifecycle also renders one real PDF
+(`base.ir_module_reference_print`, `scripts/report-pdf-smoke.py`) inside each
+running session.
+
+The MCP sidecar (`mcp-sidecar/mcp_up.sh`) passes the session's `ODOO_API_KEY`, so on
+19 and 20 it uses `/json/2` with the `rpc`-scope key that `create` generates; the
+default ports are 8765/8766/8767/8768 for 17/18/19/20.
 
 In Docker Cloud Sandboxes, `docker exec` into running containers does not work,
 so health checks never pass. Export `SANDBOX_EXEC_MODE=run` before `create`: it

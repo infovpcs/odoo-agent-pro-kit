@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 parser = argparse.ArgumentParser()
 parser.add_argument("--source", required=True)
-parser.add_argument("--version", required=True, choices=["17", "18", "19"])
+parser.add_argument("--version", required=True, choices=["17", "18", "19", "20"])
 parser.add_argument("--name", required=True)
 parser.add_argument("--output-root", default=".sandbox/imports")
 args = parser.parse_args()

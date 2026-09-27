@@ -7,5 +7,12 @@
   "idle_stop_minutes": 60,
   "stopped_retention_days": 7,
   "artifact_retention_days": 14,
-  "max_artifact_mib": 250
+  "max_artifact_mib": 250,
+  "cloud": {
+    "cpus": 4,
+    "memory_gib": 8,
+    "ttl_minutes": 120,
+    "platform": "linux/amd64",
+    "exposure": "internal"
+  }
 }

@@ -264,7 +264,7 @@ def test_l13_registry_init_flag_blocks_on_20_only():
 _LIFECYCLE = ("plan-analysis", "start-coding", "testing")
 
 
-def test_lifecycle_commands_accept_20_but_fleet_stays_sandbox_bound():
+def test_lifecycle_and_fleet_commands_accept_20():
     for name in _LIFECYCLE:
         text = (REPO / "plugin" / "commands" / f"{name}.md").read_text()
         assert "<17|18|19|20>" in text and "17, 18, 19, or 20" in text, name
@@ -274,7 +274,7 @@ def test_lifecycle_commands_accept_20_but_fleet_stays_sandbox_bound():
         vs = (REPO / "integrations" / "vscode" / "prompts" / f"{name}.prompt.md").read_text()
         assert "17, 18, 19, or 20" in vs, name
     fleet = (REPO / "plugin" / "commands" / "fleet.md").read_text()
-    assert "<17|18|19>" in fleet and "Docker Sandbox" in fleet
+    assert "<17|18|19|20>" in fleet and "sandbox-fleet" in fleet  # Phase 10: Odoo 20 sandbox image
 
 
 def test_commanding_system_routes_20_to_the_20_skills():

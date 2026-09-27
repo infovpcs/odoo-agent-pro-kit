@@ -14,7 +14,7 @@ def test_session_schema_contract():
     schema = load_schema("session.schema.json")
     assert schema["$schema"].endswith("draft/2020-12/schema")
     assert schema["properties"]["schema_version"]["const"] == "1.0.0"
-    assert schema["properties"]["odoo_version"]["enum"] == ["17.0", "18.0", "19.0"]
+    assert schema["properties"]["odoo_version"]["enum"] == ["17.0", "18.0", "19.0", "20.0"]
     assert schema["additionalProperties"] is False
     assert set(schema["required"]) <= set(schema["properties"])
 

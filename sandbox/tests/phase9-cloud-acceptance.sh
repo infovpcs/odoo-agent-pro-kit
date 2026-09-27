@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Phase 9: Phase 7 clean-host acceptance steps 1, 2-3, 4, 5, 6 and 8 inside one Docker Cloud
-# Sandbox (see docs/docker-sandbox/phase-9/cloud-runbook.md). Step 7 (agent CLIs/SSH) needs
+# Sandbox (see docs/docker-sandbox/phase-9/cloud-runbook.md), for Odoo 17/18/19/20. Step 7 (agent CLIs/SSH) needs
 # agent credentials and runs separately. Every step records PASS/FAIL and the run continues,
 # so one billed run yields the whole matrix; the exit code is non-zero if any step failed.
 set -uo pipefail
@@ -42,13 +42,14 @@ preflight() {
   python3 sandbox/scripts/dependency-inventory.py --output "$OUT/dependencies.json"
 }
 
-warm_create_19() {
-  "${BENCH[@]}" --label warm -- "$CTL" create --version 19 --module sandbox_fixture --session warm19 &&
-  healthy warm19 &&
-  "$CTL" destroy warm19 --allow-unexported
+warm_create() {  # VERSION
+  "${BENCH[@]}" --label warm -- "$CTL" create --version "$1" --module sandbox_fixture --session "warm$1" &&
+  healthy "warm$1" &&
+  "$CTL" destroy "warm$1" --allow-unexported
 }
 
-SIX=(phase6-primary:19 s6-19b:19 s6-17a:17 s6-17b:17 s6-18a:18 s6-18b:18)
+# Two concurrent sessions per version (Phase 7 measured six for 17/18/19; Phase 10 adds 20).
+SIX=(phase6-primary:19 s6-19b:19 s6-17a:17 s6-17b:17 s6-18a:18 s6-18b:18 s6-20a:20 s6-20b:20)
 
 create_six() {
   local pids=() entry rc=0
@@ -125,7 +126,8 @@ destroy_all_and_prove_clean() {
 step 1-preflight preflight
 step 2-cold-lifecycle "${BENCH[@]}" --label cold -- bash sandbox/tests/lifecycle.sh
 step 3-warm-lifecycle "${BENCH[@]}" --label warm -- bash sandbox/tests/lifecycle.sh
-step 3-warm-create-19 warm_create_19
+step 3-warm-create-19 warm_create 19
+step 3-warm-create-20 warm_create 20
 step 4-six-sessions "${BENCH[@]}" --label six-session -- bash -c "$(declare -p SIX CTL OUT); $(declare -f create_six); create_six"
 step 4-phase6-live "${BENCH[@]}" --label recovery -- bash sandbox/tests/phase6-live.sh phase6-primary sandbox_fixture
 step 4-phase6-proof bash sandbox/tests/phase6-proof.sh phase6-primary

@@ -4,6 +4,7 @@
 import argparse
 import datetime as dt
 import fcntl
+import hashlib
 import json
 import os
 import re
@@ -188,8 +189,88 @@ def version_config(requested):
     major = requested.removesuffix(".0")
     versions = json.loads(VERSIONS.read_text())
     if major not in versions:
-        raise SystemExit(f"unsupported Odoo version: {requested}; choose 17, 18, or 19")
+        raise SystemExit(f"unsupported Odoo version: {requested}; choose 17, 18, 19, or 20")
     return major, versions[major]
+
+
+def prepare_fixture(source, target, series):
+    """Copy a fixture module and version it for the session's Odoo series.
+
+    sandbox/fixtures/_overlays/<major>/<module>/ holds files that replace or add to the
+    fixture for one series; a `.remove` file there lists relative paths to delete (Odoo 20
+    replaced ir.model.access with ir.access).
+    """
+    shutil.copytree(source, target)
+    overlay = source.parent / "_overlays" / series.split(".")[0] / source.name
+    if overlay.is_dir():
+        shutil.copytree(overlay, target, dirs_exist_ok=True, ignore=shutil.ignore_patterns(".remove"))
+        removals = overlay / ".remove"
+        for relative in removals.read_text().split() if removals.is_file() else []:
+            (target / relative).unlink()
+    manifest_file = target / "__manifest__.py"
+    manifest_file.write_text(manifest_file.read_text().replace('"version": "19.0.', f'"version": "{series}.'))
+
+
+REQUIREMENT_SPEC = r"\s*(?:===|==|!=|<=|>=|~=|<|>)\s*[A-Za-z0-9.*+!_-]+"
+REQUIREMENT_LINE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*(?:\[[A-Za-z0-9._,-]+\])?(?:" + REQUIREMENT_SPEC + r"(?:\s*," + REQUIREMENT_SPEC + r")*)?")
+REQUIREMENTS_DOCKERFILE = ROOT / "sandbox/images/odoo-dev/requirements.Dockerfile"
+
+
+def parse_requirements(text):
+    """Return PyPI requirement lines; reject pip options, URLs, paths, and markers.
+
+    Only `name[extras] <specifiers>` from the default index is allowed, so a session cannot
+    point pip at another index, a VCS URL, or a local path.
+    """
+    lines = []
+    for number, raw in enumerate(text.splitlines(), 1):
+        line = re.sub(r"(^|\s)#.*$", "", raw).strip()
+        if not line:
+            continue
+        if not REQUIREMENT_LINE.fullmatch(line):
+            raise SystemExit(f"unsupported requirement on line {number}: {line!r} (only 'name[extras] specifiers' from PyPI)")
+        lines.append(line)
+    return lines
+
+
+def requirements_image(base_image, lines):
+    digest = hashlib.sha256("\n".join(lines).encode() + b"\n").hexdigest()[:12]
+    return f"{base_image}-req{digest}"
+
+
+def build_requirements_image(session, lines):
+    """Layer the session's PyPI requirements on the pinned dev image and record pip freeze."""
+    directory = state_dir(session)
+    env = load_env(session)
+    base = env["ODOO_DEV_IMAGE"]
+    image = requirements_image(base, lines)
+    subprocess.run(["docker", "build", "-f", str(REQUIREMENTS_DOCKERFILE), "--build-arg", f"ODOO_DEV_IMAGE={base}",
+                    "-t", image, str(directory / "requirements")], check=True)
+    freeze = subprocess.run(["docker", "run", "--rm", "--entrypoint", "cat", image, "/opt/sandbox-requirements.freeze"],
+                            text=True, capture_output=True, check=True).stdout
+    (directory / "results" / "requirements-freeze.txt").write_text(freeze)
+    update_runtime_env(session, ODOO_DEV_IMAGE=image)
+    data = manifest(session)
+    data["runtime"]["odoo_image"] = image
+    write_manifest(data)
+
+
+def prepare_import(source, target, module):
+    """Copy the Odoo modules of an import staging tree (or one module directory) into a session."""
+    source = Path(source).resolve()
+    if not source.is_dir():
+        raise SystemExit(f"import source is not a directory: {source}")
+    for path in source.rglob("*"):
+        if path.is_symlink() and source not in path.resolve().parents:
+            raise SystemExit(f"import source has a symlink leaving the tree: {path}")
+    modules = [source] if (source / "__manifest__.py").is_file() else sorted(
+        child for child in source.iterdir() if child.is_dir() and (child / "__manifest__.py").is_file())
+    names = [path.name for path in modules]
+    if module not in names:
+        raise SystemExit(f"import source does not contain module {module}: found {names or 'no modules'}")
+    for path in modules:
+        shutil.copytree(path, Path(target) / path.name, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc", ".env"))
+    return names
 
 
 def lock_values():
@@ -209,7 +290,9 @@ def configure_api_credentials(session, protocol, dbname):
         "import datetime, os",
         "user = env.ref('base.user_admin')",
         "user.password = os.environ['ODOO_API_PASSWORD']",
-        "env['ir.config_parameter'].sudo().set_param('report.url', 'http://localhost:8069')",
+        "params = env['ir.config_parameter'].sudo()",
+        # Odoo 20 replaced set_param with typed setters (set_str, set_int, ...).
+        "(params.set_str if hasattr(params, 'set_str') else params.set_param)('report.url', 'http://localhost:8069')",
     ]
     if protocol == "json2":
         script += [
@@ -398,13 +481,17 @@ def cmd_create(args):
     # able to read this file; its containing state directory remains ignored
     # and private runtime.env (which carries the same secrets) stays 0600.
     os.chmod(config_file, 0o644)
-    fixture_target = directory / "addons" / args.module
-    fixture_source = ROOT / "sandbox/fixtures" / args.module
-    if not fixture_source.is_dir():
-        raise SystemExit(f"fixture module not found: {fixture_source}")
-    shutil.copytree(fixture_source, fixture_target)
-    fixture_manifest = fixture_target / "__manifest__.py"
-    fixture_manifest.write_text(fixture_manifest.read_text().replace('"version": "19.0.', f'"version": "{version["series"]}.'))
+    if args.import_source:
+        prepare_import(args.import_source, directory / "addons", args.module)
+    else:
+        fixture_source = ROOT / "sandbox/fixtures" / args.module
+        if not fixture_source.is_dir():
+            raise SystemExit(f"fixture module not found: {fixture_source}")
+        prepare_fixture(fixture_source, directory / "addons" / args.module, version["series"])
+    requirements = parse_requirements(Path(args.requirements).read_text()) if args.requirements else []
+    if requirements:
+        (directory / "requirements").mkdir()
+        (directory / "requirements" / "requirements.txt").write_text("\n".join(requirements) + "\n")
     base_image = locks[version["base_image_lock"]]
     env = {
         "COMPOSE_PROJECT_NAME": session, "REPOSITORY_ROOT": str(ROOT), "ODOO_BASE_IMAGE": base_image,
@@ -435,6 +522,8 @@ def cmd_create(args):
     try:
         transition(session, "provisioning")
         compose(session, "build", "--pull", "odoo")
+        if requirements:
+            build_requirements_image(session, requirements)
         transition(session, "starting")
         compose(session, "up", "-d", "--wait", "--wait-timeout", str(args.timeout), "db")
         compose(session, "run", "--rm", "odoo", "odoo", "--config", "/etc/odoo/odoo.conf", "--database", dbname, "--init", "base", "--stop-after-init", "--no-http")
@@ -663,6 +752,8 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
     create = sub.add_parser("create")
     create.add_argument("--version", required=True); create.add_argument("--module", required=True); create.add_argument("--session"); create.add_argument("--timeout", type=int, default=180)
+    create.add_argument("--import", dest="import_source", metavar="DIR", help="copy the Odoo modules of DIR (a migrate-local.py staging tree or one module) instead of a fixture")
+    create.add_argument("--requirements", metavar="FILE", help="PyPI requirements layered on the dev image for this session")
     for name in ("status", "logs", "stop", "start", "destroy", "export", "diagnose", "backup", "recover"):
         item = sub.add_parser(name); item.add_argument("session")
         if name == "logs": item.add_argument("--service", choices=("odoo", "db", "controller", "agent", "mcp")); item.add_argument("--follow", action="store_true"); item.add_argument("--since")

@@ -11,6 +11,8 @@ addons_path = __ADDONS_PATH__
 data_dir = /var/lib/odoo
 logfile = /var/log/odoo/odoo.log
 log_level = info
+# Odoo 20 defaults to 127.0.0.1; sidecars and run-mode probes use http://odoo:8069.
+http_interface = 0.0.0.0
 proxy_mode = False
 workers = 0
 max_cron_threads = 0

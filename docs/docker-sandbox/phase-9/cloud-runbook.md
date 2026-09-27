@@ -155,6 +155,8 @@ The default `exec` mode is unchanged for local KVM sessions.
 | `lifecycle.sh`, Odoo 19, run mode | medium | 13:51–13:55 UTC | PASS, 42 s (image cached) |
 | `lifecycle.sh`, Odoo 17/18/19 concurrent, run mode | large | 13:58–14:02 UTC | PASS, 117 s cold |
 | `phase9-cloud-acceptance.sh` (Phase 7 steps 1–6, 8) | large | 14:13–14:22 UTC | PASS (step 5 after a driver fix) |
+| 2026-09-27: `lifecycle.sh`, Odoo 20, run mode | large | 14:44–15:16 UTC (shared) | PASS, 278 s incl. cold 20 image build |
+| 2026-09-27: `phase9-cloud-acceptance.sh` with 20 (16 steps) | same sandbox | | PASS, 439 s |
 
 Acceptance timings: cold 17/18/19 lifecycle 115.6 s, warm 47.6 s, warm Odoo 19
 create-to-ready 22.6 s, six concurrent sessions 33.0 s (1.39 GB used of 16.8 GB),

@@ -23,8 +23,10 @@ def test_runtime_files_are_present_and_pinned():
     lock = (ROOT / "sandbox/config/images.lock").read_text()
     for version in ("17", "18", "19"):
         assert f"odoo:{version}.0@sha256:" in lock
+    assert "ubuntu:noble@sha256:" in lock  # Odoo 20 base until Hub publishes odoo:20.0
     assert "postgres:15-bookworm@sha256:" in lock
-    assert lock.count("@sha256:") == 4
+    assert "postgres:16-bookworm@sha256:" in lock
+    assert lock.count("@sha256:") == 6
     compose = (ROOT / "sandbox/compose/compose.yaml").read_text()
     assert "condition: service_healthy" in compose
     assert "db-data:" in compose
@@ -49,10 +51,11 @@ def test_create_initializes_the_odoo_schema_before_readiness():
 
 def test_version_matrix_is_data_driven_and_protocol_specific():
     versions = json.loads((ROOT / "sandbox/config/versions.yaml").read_text())
-    assert set(versions) == {"17", "18", "19"}
+    assert set(versions) == {"17", "18", "19", "20"}
     assert versions["17"]["rpc_protocol"] == "xmlrpc"
     assert versions["18"]["rpc_protocol"] == "xmlrpc"
     assert versions["19"]["rpc_protocol"] == "json2"
+    assert versions["20"]["rpc_protocol"] == "json2"
     for major, values in versions.items():
         assert values["series"] == f"{major}.0"
         assert (ROOT / values["dockerfile"]).is_file()
@@ -90,8 +93,8 @@ def test_fixture_manifest_is_valid_json_like_python():
 
 def test_fixture_is_copied_and_versioned_per_session():
     controller = (ROOT / "sandbox/bin/sandboxctl").read_text()
-    assert "shutil.copytree(fixture_source, fixture_target)" in controller
-    assert "version[\"series\"]" in controller
+    assert "shutil.copytree(source, target)" in controller
+    assert 'prepare_fixture(fixture_source, directory / "addons" / args.module, version["series"])' in controller
 
 
 def test_operation_schema_covers_controller_operations():

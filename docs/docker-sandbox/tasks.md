@@ -532,18 +532,39 @@ Exit gate: Odoo 17/18/19 acceptance passes in Docker Cloud Sandboxes through `sa
 run mode, local `exec` mode is unchanged (full suite green), costs are recorded. Items marked
 `[~]` were moved to Phase 10 by the owner and do not block this gate.
 
-## Phase 10: Odoo 20.0 sandbox runtime — not started
+## Phase 10: Odoo 20.0 sandbox runtime — in progress (2026-09-27, uncommitted)
 
-- [ ] Odoo 20 image: `odoo/docker` published `20.0/` on 2026-09-26 (`d543160420`: ubuntu:noble,
+- [x] Odoo 20 image: `odoo/docker` published `20.0/` on 2026-09-26 (`d543160420`: ubuntu:noble,
       nightly deb `20260926` sha1-pinned, wkhtmltopdf 0.12.6.1-3, pgdg `postgresql-client`), but
       Docker Hub has no `odoo:20.0` tag yet. Build the base from that commit, layer
       `sandbox/images/odoo-dev/20.Dockerfile`, record the digest in `images.lock`; switch to the
       official `odoo:20.0` digest once Hub publishes it.
-- [ ] `POSTGRES_16` lock (Odoo 20 `MIN_PG_VERSION = 16`), `versions.yaml` 20 entry,
+      Done: `20.Dockerfile` reproduces the recipe on `ODOO_20_BASE` = pinned `ubuntu:noble` digest
+      (helper files sha256-checked; pgdg key over HTTPS + fingerprint check because dirmngr fails
+      in sbx microVMs). Built on macOS and in a kit-backed KVM microVM. Hub re-checked 2026-09-27:
+      still no `odoo:20.0`.
+- [x] `POSTGRES_16` lock (Odoo 20 `MIN_PG_VERSION = 16`), `versions.yaml` 20 entry,
       `20.Dockerfile`, schema enum, `lifecycle.sh`/`ci-smoke.sh`/`multiarch-build.sh`,
       `sandbox-fleet`, release workflow matrix, `/fleet` accepts 20.
-- [ ] MCP sidecar for 20: create a scope-`rpc` API key in the session database and pass it as
+      Also: fixture overlay (`ir.access`), `set_str` fallback, `http_interface = 0.0.0.0`, PDF
+      render step in `lifecycle.sh`, kit 0.6.0 (Odoo 20 build egress). 364 tests pass.
+- [x] MCP sidecar for 20: create a scope-`rpc` API key in the session database and pass it as
       `ODOO_API_KEY` so `odoo_mcp` uses `/json/2` (the sidecar still sends a password today).
+      Done: `create` already generates the key for json2 series; the override passes it; port 8768.
+      Live on macOS: `protocol=json-2`, real query returned the fixture record, SSE 200.
+- [x] LIVE TEST (local exec mode): `ci-smoke.sh 20` + concurrent `lifecycle.sh` 17/18/19/20 on
+      macOS Docker Desktop 29.8.0 (rc 0, 225 s); `ci-smoke.sh 20` in a kit-backed microVM on the
+      Ubuntu 24.04 KVM host (rc 0, 425 s). `lifecycle.sh` 20 was not run on KVM (host disk);
+      the owner moved it to Docker Cloud Sandboxes (2026-09-27).
+- [x] LIVE TEST (cloud run mode, owner approved spend 2026-09-27): `SANDBOX_EXEC_MODE=run
+      SANDBOX_LIFECYCLE_VERSIONS=20 lifecycle.sh` (rc 0, 278 s incl. the cold 20 image build),
+      then `phase9-cloud-acceptance.sh` extended to 20 (warm create 20, two 20 sessions in the
+      concurrent step): all 16 steps PASS, rc 0, 439 s. One large sandbox, 14:44–15:16 UTC.
+- [x] Module Python requirements + real-module import: `sandboxctl create --import DIR
+      --requirements FILE` (validated PyPI lines, venv overlay layer, freeze recorded), kit 0.7.0
+      allows `pypi.org`/`files.pythonhosted.org`. LIVE: real `vpcs_llm_provider` installs on 19;
+      19 baseline 3F/16E of 34 reproduced.
+- [ ] `docs/docker-sandbox/phase-10/live-test.md`, CHANGELOG entry, one focused commit.
 - [ ] Re-run the 19→20 migration of `vpcs_llm_provider` + `vpcs_progressive_payment_terms`
       inside a sandbox; Phase-7 acceptance for 20.
 - [ ] Carried over from Phase 9 (owner decision 2026-09-25), run together with the 19→20
@@ -552,13 +573,18 @@ run mode, local `exec` mode is unchanged (full suite green), costs are recorded.
         `anthropic`/`openai` secrets (untested), SSH probe or the approved `sbx exec` fallback.
   - [ ] `/plan-analysis` → `/start-coding` → `/testing` with hooks inside a cloud sandbox,
         driving the migration task.
-  - [ ] `/fleet` cloud allocation in `sandbox-fleet` (code shipped by archive, `sbx --cloud ports`
+  - [x] `/fleet` cloud allocation in `sandbox-fleet` (code shipped by archive, `sbx --cloud ports`
         gives a public URL — owner to decide public exposure vs internal-only) with three
         cloud sandboxes.
   - [x] Owner: replace the invalid cloud `github` secret — done 2026-09-25; API calls
         authenticate (`infovpcs`).
   - [ ] Git over HTTPS in cloud still fails with the valid secret (`invalid credentials`);
-        find the supported clone path before replacing tar + `sbx cp`.
+        find the supported clone path before replacing tar + `sbx cp`. 2026-09-27: public
+        `git clone` over HTTPS works; private clone still unproven.
+  - Done 2026-09-27: `sandbox-fleet create --cloud` (internal-only by owner decision, no
+    `sbx ports`); 3 cloud sessions 20/19/18 created, fixture test rc 0, destroyed.
+  - Blocked 2026-09-27: step 7 + command loop — cloud `anthropic` secret is not workspace-scoped
+    (API 400); Codex needs a `codex`-template sandbox (`api.openai.com` CONNECT 403 in `claude`).
 
 ## Definition of done for every implementation task
 
