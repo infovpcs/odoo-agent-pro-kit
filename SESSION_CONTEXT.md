@@ -1562,7 +1562,7 @@ that consumes stable Community releases instead of forking this repository.
   at 10:53 UTC). Owner removed the sandboxes; `sbx --cloud ls` empty; fleet state marked
   destroyed. Pulled work repos, logs, parity JSON: `.sandbox/phase11/results/{a,b,c}/`; runner,
   launch, poll, pull, wait scripts: `.sandbox/phase11/`.
-- Next, in order: (1) fix the fail-open gates test-first (tasks.md item); (2) finish A and B in
+- Gate fix DONE 2026-09-28 (`tests/hooks/test_gates_fail_closed.py`, 443 tests pass). Next: finish A and B in
   fresh sandboxes after the owner agrees a model-quota plan. The owner's Kaggle Ollama endpoint
   (Qwen3.8 27B, notebooks in `.sandbox/local-models/`, token-protected variant written
   2026-09-28, not yet run) is a candidate second provider once its self-test cell passes.

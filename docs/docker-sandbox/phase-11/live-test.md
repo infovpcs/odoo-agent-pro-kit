@@ -60,6 +60,10 @@ repositories with full git history, logs and parity JSON were pulled first.
    `docs/tasks.md` as out of scope, so `/start-coding` (no plan yet) and `/testing` (group C kept
    its checklist in `odoo_whatsapp_mcp/docs/`) passed without checking anything. The gates must
    refuse when they cannot find the checklist for a slash command.
+   **Fixed 2026-09-28** (test-first, `tests/hooks/test_gates_fail_closed.py`). Re-checked on the
+   pulled repositories: group C's `/testing` is now blocked, because its outcome record sits in
+   the repository's `sessions/` while its checklist is in the module; the next run records it
+   next to the checklist.
 2. **Codex and a leading slash command.** For groups B and C, a prompt that starts with
    `/plan-analysis 20` ended with "goal budget exhausted" and no files written; group A's
    identical prompt worked. The runner should phrase the step in plain words and name the

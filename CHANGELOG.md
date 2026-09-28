@@ -72,6 +72,11 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
 
 ### Fixed
 
+- **Command gates no longer pass when the plan is missing (Phase 11).** A module, or a
+  repository of modules without a root `docs/tasks.md`, was treated as out of scope, so
+  `/start-coding` ran with no plan and `/testing` ran without checking the checklist or the
+  backend-test outcome (seen in the cloud fleet run). Such targets are now gated; when only one
+  module holds a checklist, that module is the target.
 - **`/start-coding` → `/testing` chain (found live in the Phase 10 cloud migration).** A
   `docs/tasks.md` without `- [ ]` checkboxes made the "all tasks done" gate pass vacuously. Both
   gates now block it, and the PRD-Writing skill and `/plan-analysis` workflow require checkbox

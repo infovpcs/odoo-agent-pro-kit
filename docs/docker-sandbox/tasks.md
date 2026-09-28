@@ -674,9 +674,15 @@ is recorded as not exercised). Known risk: `odoo_whatsapp_mcp` pins `Pillow==10.
       19 and 20). Groups A and B partial: Codex hit the ChatGPT usage limit at 10:53 UTC in all
       three sandboxes; A has 2 of 4 modules migrated, and B is blocked by the removed
       `website_sale_comparison.product_attributes_body` template. Sandboxes removed by the owner.
-- [ ] Fix the fail-open gates found in run 1, test-first: `/start-coding` and `/testing` must
+- [x] Fix the fail-open gates found in run 1, test-first: `/start-coding` and `/testing` must
       refuse when no `docs/tasks.md` checklist is found for the target (repository root or the
       named module), not treat the target as out of scope.
+      Done 2026-09-28: `common.find_module_dir` also recognises a module, or a directory of
+      modules, up to the repository root; a single module holding the only checklist is the
+      gated target. Tests: `tests/hooks/test_gates_fail_closed.py` (11). On the pulled run 1
+      repositories: A and B `/testing` still blocked (open tasks); C now blocked for `/testing`
+      and at Stop (its outcome was written to the repository's `sessions/`, not next to its
+      module checklist).
 - [ ] Finish groups A and B from the pulled work repositories (`.sandbox/phase11/results/`) in
       fresh sandboxes; model quota plan agreed with the owner first (serial groups, or a second
       OpenAI-compatible provider such as the owner's Kaggle Ollama endpoint once its self-test

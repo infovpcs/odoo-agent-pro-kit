@@ -377,7 +377,8 @@ print(f"✅ Context saved to {progress_file}")
 **Before ending the loop, record the backend-test outcome** in
 `sessions/{module_name}_progress.json` (relative to the directory that holds `docs/tasks.md`; for a
 repository with several modules, that is the repository root, so the file name uses the repository
-name). `/testing` is gated on it, and the plugin's Stop hook blocks the session from ending while
+name). Never write it anywhere else: a checklist inside one module (`mod/docs/tasks.md`) takes
+its outcome in `mod/sessions/mod_progress.json`. `/testing` is gated on it, and the plugin's Stop hook blocks the session from ending while
 every task is `[x]` and no outcome is recorded. Write only what the last sandbox test run showed:
 
 ```json

@@ -68,7 +68,32 @@ def find_module_dir(start: Optional[Path] = None) -> Optional[Path]:
     for candidate in (current, *current.parents):
         if any((candidate / v).is_dir() for v in ("17.0", "18.0", "19.0", "20.0")):
             return candidate
+    # No plan found: an Odoo module, or a repository of modules, is still a gated target, so the
+    # gates block (run /plan-analysis) rather than pass because nothing was in scope (Phase 11).
+    # Only up to the repository root, so a stray module above the project never matches.
+    root = repo_root(current)
+    chain = [current, *current.parents] if root else [current]
+    for candidate in chain:
+        if _is_module(candidate):
+            return candidate
+        children = _child_modules(candidate)
+        if children:
+            planned = [child for child in children if (child / "docs" / "tasks.md").is_file()]
+            return planned[0] if len(planned) == 1 else candidate
+        if candidate == root:
+            break
     return None
+
+
+def _is_module(directory: Path) -> bool:
+    return (directory / "__manifest__.py").is_file() or (directory / "__openerp__.py").is_file()
+
+
+def _child_modules(directory: Path) -> list:
+    try:
+        return sorted(child for child in directory.iterdir() if child.is_dir() and _is_module(child))
+    except OSError:
+        return []
 
 
 def resolve_module_dir(cwd: Optional[Path], prompt_or_args: str) -> Optional[Path]:
