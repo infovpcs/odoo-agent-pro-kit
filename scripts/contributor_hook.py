@@ -84,8 +84,9 @@ def _handle_pre_tool(payload: dict) -> int:
 
     for v in guard.classify_bash(cmd, vcs_allowed=_phase_authorized()):
         if v.kind in ("vcs_write", "destructive_cleanup"):
-            print(f"[BLOCKED] {v.message}\n  -> {v.lift_hint}\n  (set AGENTS_PHASE_AUTHORIZED=1 "
-                  "after the user approves)", file=sys.stderr)
+            # v.lift_hint names the plugin's switches, which this hook does not honour.
+            print(f"[BLOCKED] {v.message}\n  -> Start Claude Code with AGENTS_PHASE_AUTHORIZED=1 "
+                  "in its environment after the user approves.", file=sys.stderr)
             return 2
 
     if _GIT_COMMIT_RE.search(cmd) and not _AMEND_RE.search(cmd):

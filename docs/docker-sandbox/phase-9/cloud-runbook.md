@@ -2,7 +2,7 @@
 
 Docker Cloud Sandboxes run the same microVM isolation on Docker-managed compute
 (`sbx --cloud`). They need no local KVM, so any workstation with Docker can drive
-them. This runbook covers the Odoo 17/18/19 runtime in cloud; the local KVM
+them. This runbook covers the Odoo 17/18/19/20 runtime in cloud (20 since Phase 10); the local KVM
 runbook in `../phase-7/operator-runbooks.md` is unchanged.
 
 Cloud runs are billed per sandbox lifetime. Every run needs owner approval of
@@ -137,14 +137,61 @@ with `run`:
 
 The default `exec` mode is unchanged for local KVM sessions.
 
+## Real modules and requirements (Phase 10)
+
+`sandboxctl create --import DIR --requirements FILE` works the same in cloud
+(with `SANDBOX_EXEC_MODE=run`). Ship the `migrate-local.py` staging tree with the
+kit archive, or copy it in separately with `SBX cp`. The requirements build needs
+`pypi.org` and `files.pythonhosted.org`, which kit 0.7.0 allows. See
+`sandbox/README.md`.
+
+## `/fleet` in cloud (`sandbox-fleet create --cloud`)
+
+`sandbox-fleet create --cloud --version V --module M --agent codex|claude`
+creates one Docker Cloud Sandbox per session. The shape and TTL come from the
+`cloud` entry of `sandbox/config/concurrency.json` (medium 4 vCPU / 8 GiB,
+120 min, linux/amd64). Cloud sessions are **internal-only**: the fleet never
+calls `sbx --cloud ports`, because that gives a public URL. The code goes in as a
+git bundle of a working-tree snapshot commit. The snapshot is built in a
+throwaway index, and its temporary ref is deleted afterwards, so your index and
+refs are untouched. Inner commands run detached and are polled through an
+exit-code file. `run`, `cancel`, `destroy` and `maintain` go through the same
+client.
+
+`SANDBOX_SBX` replaces the `sbx` client and is split like a shell command. On
+Intel macOS, point it at a wrapper script around the container client:
+
+```bash
+printf '%s\n' '#!/bin/bash' \
+  'exec docker run --rm --platform linux/amd64 -v sbx_cloud_home:/home/sbx -v "$PWD":/work -w /work sbx-cloud:0.45.1 "$@"' \
+  > ~/bin/sbx-cloud
+chmod +x ~/bin/sbx-cloud
+SANDBOX_SBX=~/bin/sbx-cloud sandbox/bin/sandbox-fleet create --cloud --version 20 --module sandbox_fixture
+```
+
+Only the `codex` and `claude` agents have cloud templates (`copilot` is refused
+with `--cloud`).
+
+## Agent templates and egress
+
+The agent template sets the sandbox's model egress. A `claude` template allows
+`api.anthropic.com` but blocks `api.openai.com` (`CONNECT … 403`). Run Codex in
+a `codex`-template sandbox, and Claude Code in a `claude`-template one. The
+agent CLIs authenticate through the stored cloud secrets (`sbx --cloud secret`).
+The `anthropic` secret must be a **workspace-scoped** API key. An unscoped key
+fails every call with `400 This API key is not scoped to a workspace`
+(2026-09-27).
+
 ## Known limits
 
 - The mixin allowlist must include `production.cloudfront.docker.com` (Docker
   Hub blob host); kit 0.5.2 has it.
 - GitHub: with a valid cloud `github` secret the proxy authenticates `api.github.com`
   calls, but git over HTTPS still fails (`could not read Username`, or `invalid credentials`
-  with a `$GH_TOKEN` credential helper; 2026-09-25). Ship code with tar + `sbx --cloud cp`
-  until a supported git path is confirmed.
+  with a `$GH_TOKEN` credential helper; 2026-09-25). A public `git clone` over HTTPS works
+  (2026-09-27). A private clone is still unproven, `gh` rejects the proxy placeholder token,
+  and `curl api.github.com` is outside the kit allow-list. Ship code with tar, or with the
+  fleet's git bundle, and `sbx --cloud cp`.
 - `sbx --cloud exec` rejects `-d`, `--user`, and `--privileged`.
 
 ## Evidence (2026-09-25, client `sbx-cloud:0.45.1` on Intel macOS)
@@ -157,6 +204,8 @@ The default `exec` mode is unchanged for local KVM sessions.
 | `phase9-cloud-acceptance.sh` (Phase 7 steps 1–6, 8) | large | 14:13–14:22 UTC | PASS (step 5 after a driver fix) |
 | 2026-09-27: `lifecycle.sh`, Odoo 20, run mode | large | 14:44–15:16 UTC (shared) | PASS, 278 s incl. cold 20 image build |
 | 2026-09-27: `phase9-cloud-acceptance.sh` with 20 (16 steps) | same sandbox | | PASS, 439 s |
+| 2026-09-27: `sandbox-fleet create --cloud` 20/19/18 + fixture test + destroy | 3 × medium | 15:47–15:53 UTC | PASS, no exposed ports |
+| 2026-09-27: agent CLIs in a `claude` template (`kit-p10-mig`) | large | 15:45–15:54 UTC | BLOCKED: `anthropic` secret not workspace-scoped; Codex egress 403 |
 
 Acceptance timings: cold 17/18/19 lifecycle 115.6 s, warm 47.6 s, warm Odoo 19
 create-to-ready 22.6 s, six concurrent sessions 33.0 s (1.39 GB used of 16.8 GB),

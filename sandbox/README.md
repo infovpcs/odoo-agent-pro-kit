@@ -67,6 +67,27 @@ limits the matrix to the listed versions. The lifecycle also renders one real PD
 (`base.ir_module_reference_print`, `scripts/report-pdf-smoke.py`) inside each
 running session.
 
+To run real modules instead of the fixture, pass `create --import DIR`: it copies
+every Odoo module of a `scripts/migrate-local.py` staging tree (or one module
+directory) into the session and refuses symlinks that leave the tree. `--module`
+must name one of the imported modules.
+`--requirements FILE` adds the modules' PyPI dependencies. Only
+`name[extras] specifiers` lines are accepted (no pip options, URLs, paths or
+markers). They are built by `images/odoo-dev/requirements.Dockerfile` on the pinned
+dev image as a `--system-site-packages` venv overlay, so only missing or too-old
+packages are installed. The image is tagged `<dev image>-req<sha256[:12]>` and
+reused across sessions with the same file; `pip freeze` of the overlay goes to
+`results/requirements-freeze.txt`. The build fails fast when the overlay breaks
+Odoo's own imports. Example: requirements that upgrade `cryptography` break Odoo
+17's Debian pyOpenSSL. Kit 0.7.0 allows `pypi.org` and `files.pythonhosted.org`
+for this build.
+
+```bash
+sandbox/bin/sandboxctl create --version 20 --session mig20 --module vpcs_llm_provider \
+    --import .sandbox/imports/20-vpcs-apps \
+    --requirements .sandbox/imports/20-vpcs-apps/vpcs_llm_provider/requirements.txt
+```
+
 The MCP sidecar (`mcp-sidecar/mcp_up.sh`) passes the session's `ODOO_API_KEY`, so on
 19 and 20 it uses `/json/2` with the `rpc`-scope key that `create` generates; the
 default ports are 8765/8766/8767/8768 for 17/18/19/20.

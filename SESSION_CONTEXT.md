@@ -30,11 +30,10 @@ Before changing files:
   planning
 - Active branch: `main`
 - Branch base: `main` at commit `12368b7` (post-Phase-7, additive 0.2.0/0.3.0 work)
-- Last context update: 2026-09-27 — `main` = `a7418d6` (local; origin at `dea48d9` + the
-  context commit if published). **Phase 10 in progress, uncommitted working tree** (see "Phase 10
-  in progress"): Odoo 20 sandbox runtime implemented and tested locally + `ci-smoke 20` on the
-  Oracle KVM host; cloud lifecycle, migration/acceptance and carry-overs remain. Also planned the
-  Pro v2 video (files in `/Users/vinusoft85/Draft Videos/`).
+- Last context update: 2026-09-28 — the Phase 10 implementation is committed as `595c2ca`
+  (on `origin/main`), and the Phase 10 docs commit follows it locally (not pushed). Phase 10 stays
+  open. The only remaining gate item is the 19→20 migration run plus the agent-CLI carry-overs,
+  which are blocked on the owner's cloud `anthropic` secret (see "Next task").
 
 ## Phase 9 — complete (2026-09-25, commit `ba87f5c`, pushed to origin/main by the owner)
 
@@ -752,7 +751,16 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Current state
 
-- **2026-09-27 (latest, end of session):** local `main` = `a7418d6` (origin unchanged — the
+- **2026-09-28 (latest):** the 2026-09-27 working tree was committed as `595c2ca` ("Phase 10,
+  in progress") and is on `origin/main` (original history — the prepared host-detail rewrite
+  was **not** published). This session: `docs/docker-sandbox/phase-10/live-test.md`, CHANGELOG
+  Unreleased (Phase 10 + kit 0.6.0/0.7.0), cloud runbook sections (`--import`/`--requirements`,
+  `sandbox-fleet --cloud`, `SANDBOX_SBX` wrapper, codex vs claude template egress, workspace-scoped
+  `anthropic` key), `sandbox/README.md` import/requirements section, README status, and the
+  contributor-hook fix (the block message now names only `AGENTS_PHASE_AUTHORIZED=1`; new test
+  `test_block_hint_names_only_the_honoured_switch`, RED → GREEN). `python3 -m pytest -q tests`
+  394 passed; `./scripts/validate.sh` green. No cloud or KVM run this session (no spend).
+- **2026-09-27 (end of session):** local `main` = `a7418d6` (origin unchanged — the
   history rewrite below is prepared, not pushed). **Working tree holds all uncommitted Phase 10
   work** (≈35 files: the original 29 + requirements/import support, fleet cloud mode, the public-IP
   guard, kit 0.7.0); do not discard it. 393 tests pass, `./scripts/validate.sh` green. Phases 0–9
@@ -1497,53 +1505,40 @@ that consumes stable Community releases instead of forking this repository.
 ## Next task
 
 Start a fresh session, read this file and `docs/docker-sandbox/tasks.md`, then **finish Phase 10 —
-Odoo 20.0 sandbox runtime** only. The working tree already contains the implementation
-(uncommitted); first run `python3 -m pytest -q tests` (expect 393 passed) and `./scripts/validate.sh`.
-Cloud client: `docker run … sbx-cloud:0.45.1 --cloud …` (wrapper pattern in the cloud runbook; set
-`SANDBOX_SBX=<wrapper script>` for `sandbox-fleet --cloud`). Every cloud run needs owner spend
-approval; remove every sandbox and prove `sbx --cloud ls` → "No sandboxes found." afterwards.
+the 19→20 migration run** only. Code and docs are committed (`595c2ca` + the 2026-09-28 docs
+commit). First run `python3 -m pytest -q tests` (expect 394 passed) and `./scripts/validate.sh`.
+Cloud client: `sbx-cloud:0.45.1` via the wrapper in the cloud runbook (`SANDBOX_SBX=<wrapper>` for
+`sandbox-fleet --cloud`). Every cloud run needs owner spend approval; remove every sandbox and prove
+`sbx --cloud ls` → "No sandboxes found." afterwards.
 
-**0. Decide first — history rewrite (owner):** the public-repo cleanup rewrote history to drop the
-host addresses (see "Public-repo host-detail cleanup"). Rewritten refs:
-`~/odoo-kit-backups/odoo-agent-pro-kit-rewritten-20260927.bundle` (`main` = `b97fd4c`, tag 0.7.0 =
-`9e76c33`); original: `~/odoo-kit-backups/odoo-agent-pro-kit-pre-rewrite-20260927.bundle`. The
-owner said the servers are not directly reachable and the working-tree redaction + guard test are
-enough for now, so publishing the rewrite is **optional and owner-run** (the contributor hook
-blocks agents): force-update `main` (lease on `a7418d6`) and tags 0.4.0/0.5.0/0.5.1/0.7.0 on origin
-from a clone of the rewritten bundle, then locally `git fetch origin && git reset --mixed
-origin/main` (keeps the uncommitted work; the only tree differences are the redactions already in
-the working tree) and re-point local tags. Do it **before** the Phase 10 commit so that commit lands
-on the new history; otherwise commit on `a7418d6` as usual.
+**History rewrite:** `595c2ca` was pushed on the original history, so the prepared rewritten bundle
+(`~/odoo-kit-backups/odoo-agent-pro-kit-rewritten-20260927.bundle`, based on `a7418d6`) is stale.
+If the owner still wants the rewrite, it must be redone with `git filter-repo` on a fresh mirror
+(same `--replace-text` / `--replace-message` rules). This is optional and run by the owner; the
+working tree is already clean of host details and guarded by `tests/test_no_public_host_details.py`.
 
 **Remaining Phase 10 steps, in order:**
-1. ~~Cloud LIVE TEST (run mode)~~ — done 2026-09-27, PASS. ~~`/fleet` cloud~~ — done, PASS.
-2. **Owner action:** replace the cloud `anthropic` secret with a **workspace-scoped** key (the
-   current one returns `400 … not scoped to a workspace`). Then, with spend approval, re-run
-   "run 2": a large `claude`-template sandbox with the kit (working-tree tarball) and the 19 sources
-   (`~/workspace/vpcs_apps_cloud_19/{vpcs_llm_provider,vpcs_progressive_payment_terms}` copied into
-   a throwaway git repo); step 7 = `claude -p` there **and** Codex in a `codex`-template sandbox
-   (`api.openai.com` is blocked in the `claude` template); then headless
+1. **Owner action (blocker):** replace the cloud `anthropic` secret with a **workspace-scoped** key
+   (the current one returns `400 … not scoped to a workspace`). If the owner cannot do this soon,
+   ask whether to run the migration without the agent loop (manual, same pass criteria) and move
+   the loop items to Phase 11.
+2. With spend approval, run the migration. Use a large `claude`-template sandbox with the kit (a
+   working-tree tarball) and the 19 sources
+   (`~/workspace/vpcs_apps_cloud_19/{vpcs_llm_provider,vpcs_progressive_payment_terms}`, copied
+   into a throwaway git repo for `migrate-local.py`). Step 7 = `claude -p` there, **and** Codex
+   in a `codex`-template sandbox. Then run headless
    `claude -p --plugin-dir ~/kit/plugin --dangerously-skip-permissions` for `/plan-analysis 20` →
-   `/start-coding 20` → `/testing 20` driving the 19→20 migration with `migrate-local.py` +
-   `sandboxctl create --version 20 --import … --requirements vpcs_llm_provider/requirements.txt`.
+   `/start-coding 20` → `/testing 20`, driving the migration with `migrate-local.py` +
+   `sandboxctl create --version 20 --module vpcs_llm_provider --import … --requirements …`.
    Pass = both modules install on 20 and no test failure absent from the 19 baseline
-   (llm_provider 2F+2E of 8, payment_terms 1F+14E of 26). Save logs before removing the sandbox.
-   If the owner cannot fix the secret soon, ask whether to run the migration without the agent
-   loop (manual, same pass criteria) and move the loop item to Phase 11.
-3. Still-open Phase 9 carry-over: private-repo clone over HTTPS with the `github` secret (public
-   clone works).
-4. **Docs + evidence:** create `docs/docker-sandbox/phase-10/live-test.md` (image design, all
-   Odoo 20 findings, macOS/KVM/cloud evidence, requirements design incl. the two failed pip
-   approaches, fleet cloud); update `README.md`, `sandbox/README.md`, the cloud runbook
-   (`--import`/`--requirements`, `sandbox-fleet --cloud`, `SANDBOX_SBX`, codex vs claude template
-   egress); `CHANGELOG.md` Unreleased (kit 0.7.0); fix the contributor-hook hint
-   (`.sandbox/AUTHORIZED` is not honoured by `scripts/contributor_hook.py`).
-5. `./scripts/validate.sh`, then **one focused commit** for Phase 10. Do not publish; the owner
-   publishes to origin.
-6. After the commit: bring the Oracle VPS clone `~/odoo-agent-pro-kit` to the new commit via git
-   bundle (if history was rewritten, re-clone it from the bundle instead of fast-forwarding).
-7. Then the video pipeline (additive): recording starts only after the Phase 10 commit — see
-   "Video pipeline plan".
+   (llm_provider 2F+2E of 8, payment_terms 1F+14E of 26). Save the logs before removing the sandbox.
+3. Phase 9 carry-over: private-repo clone over HTTPS with the `github` secret.
+4. Record the results in `docs/docker-sandbox/phase-10/live-test.md` ("Open items"), `tasks.md`,
+   and this file. Run `./scripts/validate.sh`, then make one focused commit that closes Phase 10.
+   Do not publish.
+5. After that commit: bring the Oracle VPS clone `~/odoo-agent-pro-kit` to it via git bundle.
+6. Then the video pipeline (additive), which starts only after Phase 10 is closed — see "Video
+   pipeline plan".
 
 **Constraints to remember:**
 - Oracle KVM validation host (`$VALIDATION_SSH_TARGET`) (Ubuntu 24.04 KVM, sbx 0.38.0, logged in as `vinusoft85`): 45 GB disk,
@@ -1559,7 +1554,7 @@ on the new history; otherwise commit on `a7418d6` as usual.
 - Local macOS Odoo 20 report printing uses the 2020 macOS wkhtmltopdf; `test_report_icon_is_a_glyph`
   fails there only (upstream build issue).
 
-## Phase 10 in progress (2026-09-27, uncommitted)
+## Phase 10 in progress (2026-09-27; committed as `595c2ca` on 2026-09-27)
 
 **Public-repo host-detail cleanup (2026-09-27, owner request).** The repo is public; the Oracle
 validation host and the production host addresses (and one `ubuntu@<host>` login) were in

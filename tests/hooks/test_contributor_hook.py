@@ -35,6 +35,20 @@ def test_git_push_blocked_without_authz(tmp_path, monkeypatch):
                                "tool_input": {"command": "git push origin main"}}) == 2
 
 
+def test_block_hint_names_only_the_honoured_switch(tmp_path, monkeypatch, capsys):
+    # The contributor hook honours only AGENTS_PHASE_AUTHORIZED; the plugin's
+    # ODOO_KIT_ALLOW_VCS_WRITE / .sandbox/AUTHORIZED hints do not lift it.
+    repo = _git_repo(tmp_path)
+    monkeypatch.delenv("AGENTS_PHASE_AUTHORIZED", raising=False)
+    for cmd in ("git push origin main", "sbx rm odoo-dev"):
+        assert _run("PreToolUse", {"cwd": str(repo), "tool_name": "Bash",
+                                   "tool_input": {"command": cmd}}) == 2
+        err = capsys.readouterr().err
+        assert "AGENTS_PHASE_AUTHORIZED=1" in err
+        assert ".sandbox/AUTHORIZED" not in err
+        assert "ODOO_KIT_ALLOW_VCS_WRITE" not in err
+
+
 def test_git_push_allowed_with_authz(tmp_path, monkeypatch):
     repo = _git_repo(tmp_path)
     monkeypatch.setenv("AGENTS_PHASE_AUTHORIZED", "1")

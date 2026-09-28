@@ -7,6 +7,23 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
 
 ### Added
 
+- **Odoo 20.0 in the Docker Sandbox (Phase 10, in progress)**. Docker Hub has no `odoo:20.0`,
+  so `sandbox/images/odoo-dev/20.Dockerfile` reproduces the official `odoo/docker` 20.0 recipe
+  on a pinned `ubuntu:noble` digest (nightly deb and wkhtmltopdf checksum-pinned). Sessions run
+  on PostgreSQL 16 (`POSTGRES_16`). `ir.access` fixture overlay, `set_str` fallback for the
+  removed `set_param`, `http_interface = 0.0.0.0`, a PDF render step in `lifecycle.sh`, and an MCP
+  sidecar on `/json/2` with a session `rpc` API key (port 8768). LIVE: macOS exec mode,
+  KVM `ci-smoke.sh 20`, cloud run-mode lifecycle, and acceptance with 20 (16/16 steps).
+  Evidence: `docs/docker-sandbox/phase-10/live-test.md`.
+- `sandboxctl create --import DIR --requirements FILE` runs real modules from a
+  `migrate-local.py` staging tree. It layers validated PyPI requirements as a
+  `--system-site-packages` venv overlay, records `pip freeze`, and fails the build fast if
+  Odoo's own imports break.
+- `sandbox-fleet create --cloud` allocates `/fleet` sessions in Docker Cloud Sandboxes. They are
+  internal-only (no published port), code is shipped as a git bundle of a working-tree snapshot,
+  and `SANDBOX_SBX` sets the client.
+- `tests/test_no_public_host_details.py` fails on a public IPv4 address or `user@<ip>` login in
+  any tracked file.
 - **MCP over Odoo's External JSON-2 API (Odoo 19/20 Community)** — `Json2Client` calls
   `POST /json/2/<model>/<method>` with a bearer API key (scope `rpc`) and `X-Odoo-Database`, selected
   automatically when `ODOO<v>_API_KEY` (`ODOO_API_KEY` for 19) is set; without a key 19/20 keep the
@@ -37,12 +54,17 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
 
 ### Changed
 
+- `odoo-mixin` kit 0.6.0 allows the Odoo 20 image build hosts; 0.7.0 adds `pypi.org` and
+  `files.pythonhosted.org` for `--requirements`.
 - `odoo-mixin` kit 0.5.2 allows `production.cloudfront.docker.com` (Docker Hub blob host).
 - `artifacts.lock` adds `sbx_cloud_version` 0.45.x next to the unchanged local `sbx_version` 0.38.x;
   `release-acceptance.py compare` reports both.
 
 ### Fixed
 
+- The contributor hook (`scripts/contributor_hook.py`) told blocked agents to set
+  `ODOO_KIT_ALLOW_VCS_WRITE=1` or create `.sandbox/AUTHORIZED`, but it honours neither of them.
+  It now names only `AGENTS_PHASE_AUTHORIZED=1`.
 - Linux bootstrap failed on Ubuntu 23.04+: `pip install uv` into the system Python is refused
   (PEP 668). `uv` is now the standalone binary; PostgreSQL is started when not running; the
   workspace `.env` records `ODOO_AGENT_PRO_KIT_HOME` once (`bootstrap.sh` no longer duplicates it).

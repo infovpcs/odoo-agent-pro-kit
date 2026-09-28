@@ -532,7 +532,7 @@ Exit gate: Odoo 17/18/19 acceptance passes in Docker Cloud Sandboxes through `sa
 run mode, local `exec` mode is unchanged (full suite green), costs are recorded. Items marked
 `[~]` were moved to Phase 10 by the owner and do not block this gate.
 
-## Phase 10: Odoo 20.0 sandbox runtime — in progress (2026-09-27, uncommitted)
+## Phase 10: Odoo 20.0 sandbox runtime — in progress (implementation `595c2ca`, 2026-09-27)
 
 - [x] Odoo 20 image: `odoo/docker` published `20.0/` on 2026-09-26 (`d543160420`: ubuntu:noble,
       nightly deb `20260926` sha1-pinned, wkhtmltopdf 0.12.6.1-3, pgdg `postgresql-client`), but
@@ -564,7 +564,9 @@ run mode, local `exec` mode is unchanged (full suite green), costs are recorded.
       --requirements FILE` (validated PyPI lines, venv overlay layer, freeze recorded), kit 0.7.0
       allows `pypi.org`/`files.pythonhosted.org`. LIVE: real `vpcs_llm_provider` installs on 19;
       19 baseline 3F/16E of 34 reproduced.
-- [ ] `docs/docker-sandbox/phase-10/live-test.md`, CHANGELOG entry, one focused commit.
+- [x] `docs/docker-sandbox/phase-10/live-test.md`, CHANGELOG entry, runbook/README updates,
+      contributor-hook hint fix (2026-09-28). The implementation landed as `595c2ca`; the
+      migration item below stays open, so the phase gate is not passed yet.
 - [ ] Re-run the 19→20 migration of `vpcs_llm_provider` + `vpcs_progressive_payment_terms`
       inside a sandbox; Phase-7 acceptance for 20.
 - [ ] Carried over from Phase 9 (owner decision 2026-09-25), run together with the 19→20
