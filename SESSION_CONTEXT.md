@@ -29,9 +29,7 @@ Before changing files:
   planning
 - Active branch: `main`
 - Branch base: `main` at commit `12368b7` (post-Phase-7, additive 0.2.0/0.3.0 work)
-- Last context update: 2026-09-28 — **Phase 10 complete** (Odoo 20.0 sandbox runtime) and
-  **pushed** (`origin/main` = `29f6c2d` + this context commit). The knowledge base
-  (`~/infovpcs`) is synced and pushed. No Phase 11 is defined yet (see "Next task").
+- Last context update: 2026-09-28 (end of session) — **Phase 11 done in substance** (8 VPCS-Cloud modules on Odoo 20, live-tested and documented); owner push + LIVE TEST decision + exit gate remain (see "Next task").
 
 ## Phase 9 — complete (2026-09-25, commit `ba87f5c`, pushed to origin/main by the owner)
 
@@ -749,23 +747,28 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Current state
 
-- **START HERE (2026-09-28, Phase 11 defined).** Phases 0–10 are complete and pushed. The owner
-  chose **Phase 11: batch 19→20 custom-module migration on a cloud fleet**: new kit features
-  (multi `--requirements`, `sandbox-fleet --import`, deterministic parity check, private-code
-  guard), then a cloud LIVE TEST with Codex on the ChatGPT
-  subscription, on eight modules from the private `VPCS-Cloud` repo (groups in `tasks.md`).
-  **Privacy rule (owner, 2026-09-28): module/repo names may be public; module source, migrated
-  code and patches never enter tracked files or commits** (keep them in gitignored `.sandbox/`).
-  Checklist, LIVE TEST and exit gate: `docs/docker-sandbox/tasks.md` § Phase 11.
-  **Build items done 2026-09-28** (test-first, 432 tests pass, `validate.sh` green): repeatable
-  `--requirements` merge, `sandbox-fleet --cloud --import/--requirements`,
-  `sandbox/scripts/test-parity.py` (reproduces the Phase 10 result on its real logs), and
-  `scripts/private_code_guard.py`. Open: the `vpcs_ai_livechat` spec runs inside the LIVE TEST;
-  staging; the cloud LIVE TEST (needs owner spend approval). Checked 2026-09-28: `sbx --cloud ls` → "No sandboxes found";
-  Docker Hub still has no `odoo:20.0` (tag API 404). Versions: plugin `0.8.0`, `odoo-mixin` kit
-  `0.7.0`, CHANGELOG *Unreleased* holds Phase 10. Cloud secrets (`anthropic` workspace-scoped,
-  `openai` ChatGPT OAuth, `github` with repo access) are set; about $2.38 of the $5 Anthropic
-  credit remains.
+- **START HERE (2026-09-28, end of session).** Phases 0–10 complete and pushed. **Phase 11
+  (batch 19→20 custom-module migration on a cloud fleet) is done in substance; only the owner's
+  LIVE TEST decision and the exit gate remain.** Read "Next task" below first.
+  - **Result:** all eight `VPCS-Cloud` modules migrated to Odoo 20.0 and verified: parity PASS for
+    every group (no 19-passing test regresses), all eight install together in one database, live
+    UI test of every app, `index.html` + screenshots for every module. The live UI test found 7
+    Odoo 20 bugs that backend tests and parity had missed (all fixed with regression tests).
+  - **Not yet pushed (owner runs these; the contributor hook blocks the agent):**
+    `VPCS-Cloud` branch `20.0` (11 commits on `3530251`, tip `9f4e1d4`):
+    `cd ~/workspace/VPCS-Cloud && git push -u origin 20.0`; kit `main` (7 commits `fff69ec`…
+    this context commit, on `c39e43b`): `cd ~/workspace/odoo-agent-pro-kit && git push origin main`.
+  - **Privacy rule (owner, 2026-09-28):** module/repo names may be public; module source, migrated
+    code and patches never enter this repository (`scripts/private_code_guard.py` enforces the
+    code part). Private notes, including a credential to rotate: `.sandbox/phase11/plan.md`.
+  - **State:** no local kit sessions, cloud `sbx --cloud ls` empty, fleet state marked destroyed;
+    the video's `odoo20-pg16` untouched. 443 tests pass, `validate.sh` green. Versions: plugin
+    `0.8.0`, `odoo-mixin` kit `0.7.0`; CHANGELOG *Unreleased* holds Phase 10 + Phase 11. Docker
+    Desktop auto-updated to 29.8.1 mid-run (turn auto-update off for long runs/recordings).
+  - **Evidence:** `docs/docker-sandbox/phase-11/live-test.md` (cloud run 1, local completion,
+    branch + live UI test); gitignored work: `.sandbox/phase11/` (`results/` cloud pulls,
+    `local/` work repos, `export/` patches + bundles, helper scripts `runner.sh`, `verify-local.sh`,
+    `iter.sh`, `ab.sh`, `shot.sh`, `rpc.py`, `gen_index.py`).
 - **2026-09-28 (latest, Phase 10 closed):** private-repo clone carry-over. The cloud `github`
   fine-grained token saw 0 private repos; the owner widened it (All repositories + Contents), and
   it then saw 62. Plain private `git clone` over HTTPS **passes** in the `claude` (`kit-p10-tar`)
@@ -1549,38 +1552,55 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Next task
 
-**Sole next task: Phase 11 — batch 19→20 custom-module migration on a cloud fleet**
-(`docs/docker-sandbox/tasks.md` § Phase 11, agreed with the owner 2026-09-28).
+**Sole next task: close Phase 11** (`docs/docker-sandbox/tasks.md` § Phase 11; open items:
+the LIVE TEST item, the docs item and the exit gate).
 
-- Groups: A `vpcs_llm_provider` → `vpcs_typesafe_ai`, `vpcs_ai_livechat` (20.0 drops
-  `sentence-transformers`; pure-Python BM25+vector hybrid reranker + optional `llm` mode, new
-  tests), `website_blog_ai_generator`; B `currency_rate_of_rbi` → `vpcs_gitlab` →
-  `vpcs_cloud_website_customization`; C `odoo_whatsapp_mcp` (Pillow/requests pin risk).
-- Module code stays private: source, migrated code and patches only in gitignored `.sandbox/`.
-- Build items DONE; staging DONE; **cloud LIVE TEST run 1 done 2026-09-28** (see
-  `docs/docker-sandbox/phase-11/live-test.md`): group C PASS; A and B partial (ChatGPT usage limit
-  at 10:53 UTC). Owner removed the sandboxes; `sbx --cloud ls` empty; fleet state marked
-  destroyed. Pulled work repos, logs, parity JSON: `.sandbox/phase11/results/{a,b,c}/`; runner,
-  launch, poll, pull, wait scripts: `.sandbox/phase11/`.
-- Gate fix DONE 2026-09-28 (`tests/hooks/test_gates_fail_closed.py`, 443 tests pass).
-- **A, B, C finished locally 2026-09-28** (owner decision: this Claude Code session + Docker
-  Desktop, no cloud spend): all 8 modules install on 20, parity PASS for every group in fresh
-  sessions, gates pass. Work repos `.sandbox/phase11/local/group-{a,b,c}`; private exports
-  (patches + bundles) `.sandbox/phase11/export/`; helper scripts `verify-local.sh`, `iter.sh`.
-  Odoo 20 change list + kit findings 7 (pip drift) and 8 (Docker Desktop auto-update):
-  `phase-11/live-test.md` "Completion run". Private follow-ups: `.sandbox/phase11/plan.md`.
-- **2026-09-28 afternoon:** `VPCS-Cloud` branch `20.0` built (11 commits, not published — owner
-  runs `git push -u origin 20.0`); live UI test + documentation of all 8 apps in session `docs20`
-  found and fixed 7 Odoo 20 bugs; every module has an Odoo 20 section in `index.html`. Record:
-  `phase-11/live-test.md` "Branch, live UI test and documentation". Helpers: `.sandbox/phase11/`
-  (`ab.sh`, `shot.sh`, `rpc.py`, `gen_index.py`).
-- **Next:** owner publishes `20.0`, then decides whether the local completion closes the LIVE TEST or one no-LLM cloud
-  re-verification runs; then close Phase 11 (exit gate, one commit). Earlier plan text: finish A and B in
-  fresh sandboxes after the owner agrees a model-quota plan. The owner's Kaggle Ollama endpoint
-  (Qwen3.8 27B, notebooks in `.sandbox/local-models/`, token-protected variant written
-  2026-09-28, not yet run) is a candidate second provider once its self-test cell passes.
-- Then the cloud LIVE TEST: codex template, Codex on ChatGPT OAuth, 3 parallel sandboxes. Get the
-  owner's approval of the cloud spend before creating any sandbox. The owner runs `sbx --cloud rm`.
+1. **Owner pushes** (hook-blocked for the agent): `VPCS-Cloud` `20.0` and kit `main` (commands in
+   "START HERE"). Check with `git ls-remote --heads origin 20.0` in `~/workspace/VPCS-Cloud`.
+2. **Owner decision on the LIVE TEST item** (written for the cloud fleet): (a) accept the evidence
+   as is — cloud run 1 (fleet allocation, baselines, Codex, group C PASS) + local completion and
+   live UI test (all groups PASS); or (b) first run one **no-LLM cloud verification** of branch
+   `20.0` (one medium sandbox, ~30 min, owner-approved spend; `sandbox-fleet create --cloud
+   --import` of the 8 modules, install + tests, `test-parity.py` against the cloud 19 logs in
+   `.sandbox/phase11/results/*/p11/base19-odoo.log`; the owner runs `sbx --cloud rm`).
+3. **Close Phase 11:** tick the LIVE TEST, docs and exit-gate items with the evidence; CHANGELOG
+   *Unreleased* entries for the documentation-skill acceptance rule; `./scripts/validate.sh`
+   (+ `scripts/private_code_guard.py`); one focused commit; set Phase 12 as the next task after
+   agreeing it with the owner.
+
+**Phase 12 candidates (owner picks; most concrete first):**
+- **Kit fixes from Phase 11 findings** (`phase-11/live-test.md`): replay a session's
+  `results/requirements-freeze.txt` as a pinned input (finding 7, pip drift); runner prompts
+  without a leading slash command (finding 2); pass/fail = install exit codes + parity, with the
+  expected module list given to `test-parity.py` (finding 3); serial-or-second-provider quota plan
+  for fleet agents (finding 4); make the `/testing` live UI step a required migration gate and
+  ship the proven browser helpers (console/server-log/error-dialog checks) as kit scripts
+  (finding 9).
+- **Next VPCS-Cloud batch to 20.0** (12 modules still 19.0): the WhatsApp chatbot chain is now
+  unblocked (`vpcs_whatsapp_ai_chatbot` depends on `odoo_whatsapp_mcp` + `vpcs_ai_livechat`, both
+  on 20), then `vpcs_whatsapp_ai_chatbot_image_audio_support`, `vpcs_prospect_followup`,
+  `vpcs_prospect_typesafe`; modules without tests (`vpcs_multi_agent`, `vpcs_docker`,
+  `vpcs_saas_service`, `hsn_code_automation_management`, `vpcs_data_sync_import`,
+  `vpcs_delete_unwanted_users`) need tests first. Same flow: work on branch `20.0`, backend parity,
+  then the live UI test + `index.html`.
+- **Second model provider:** the owner's Kaggle Ollama endpoint (Qwen3.8 27B;
+  `.sandbox/local-models/qwen38_27b_kaggle_ollama_codex_endpoint.ipynb`, token-protected, not yet
+  run). Needs its cell 4 self-test (tool calls, `/v1/responses`, speed) before any use; a cloud use
+  needs `*.trycloudflare.com` in the kit allowlist (new kit version).
+- **`odoo:20.0` on Docker Hub** (still 404 on 2026-09-28): pin it as `ODOO_20_BASE` when it appears.
+
+**Owner follow-ups outside the kit:**
+- Rotate the build-server credential that was hard-coded in the 19.0 `vpcs_gitlab` source and
+  purge it from `VPCS-Cloud` history (details only in `.sandbox/phase11/plan.md`).
+- Video (`Draft Videos`, uncommitted plan updates): Docker Desktop auto-update off before
+  recording; open decisions §11 items 7 (which `vpcs_llm_provider` source) and 8 (R9 as slide or
+  live); `extra-20/` still empty by design.
+
+**Constraints to remember:** the contributor hook blocks any Bash command whose *text* contains
+`git push`/merge/tag or destructive cleanup (even inside heredocs) — put such text in a file written
+with the Write tool, or let the owner run it; start Claude Code with `AGENTS_PHASE_AUTHORIZED=1`
+only after owner approval. zsh does not word-split `$var` in `for` loops (use `${=var}` or
+explicit lists). `migrate-local.py` refuses sources inside the kit repository (use `git archive`).
 
 Previous session's candidate list (kept for reference; the owner picked the batch migration):
 
