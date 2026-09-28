@@ -532,7 +532,7 @@ Exit gate: Odoo 17/18/19 acceptance passes in Docker Cloud Sandboxes through `sa
 run mode, local `exec` mode is unchanged (full suite green), costs are recorded. Items marked
 `[~]` were moved to Phase 10 by the owner and do not block this gate.
 
-## Phase 10: Odoo 20.0 sandbox runtime — in progress (implementation `595c2ca`, 2026-09-27)
+## Phase 10: Odoo 20.0 sandbox runtime — complete (2026-09-28)
 
 - [x] Odoo 20 image: `odoo/docker` published `20.0/` on 2026-09-26 (`d543160420`: ubuntu:noble,
       nightly deb `20260926` sha1-pinned, wkhtmltopdf 0.12.6.1-3, pgdg `postgresql-client`), but
@@ -570,7 +570,7 @@ run mode, local `exec` mode is unchanged (full suite green), costs are recorded.
       inside a sandbox; Phase-7 acceptance for 20. 2026-09-28, cloud: both install on 20;
       2F+2E of 8 and 0F+14E of 26 = the same named tests as the 19 baseline re-run in the same
       sandbox (one 19 failure now passes). Evidence: `phase-10/live-test.md`.
-- [ ] Carried over from Phase 9 (owner decision 2026-09-25), run together with the 19→20
+- [x] Carried over from Phase 9 (owner decision 2026-09-25), run together with the 19→20
       custom-app migration once the Odoo 20 image is ready:
   - [x] Phase-7 acceptance step 7 in cloud: Codex + one more agent CLI via the stored cloud
         `anthropic`/`openai` secrets (untested), SSH probe or the approved `sbx exec` fallback.
@@ -586,15 +586,16 @@ run mode, local `exec` mode is unchanged (full suite green), costs are recorded.
         cloud sandboxes.
   - [x] Owner: replace the invalid cloud `github` secret — done 2026-09-25; API calls
         authenticate (`infovpcs`).
-  - [ ] Git over HTTPS in cloud still fails with the valid secret (`invalid credentials`);
-        find the supported clone path before replacing tar + `sbx cp`. 2026-09-27: public
-        `git clone` over HTTPS works; private clone still unproven.
+  - [x] Git over HTTPS in cloud still fails with the valid secret (`invalid credentials`);
+        find the supported clone path before replacing tar + `sbx cp`. 2026-09-28: once the
+        owner gave the fine-grained token private-repo access, plain private `git clone` passed
+        in the `claude` and `codex` templates. The `shell` template still gets 401, a
+        recorded limit.
   - Done 2026-09-27: `sandbox-fleet create --cloud` (internal-only by owner decision, no
     `sbx ports`); 3 cloud sessions 20/19/18 created, fixture test rc 0, destroyed.
   - Blocked 2026-09-27, resolved 2026-09-28: step 7 + command loop — cloud `anthropic` secret
     was not workspace-scoped (API 400); Codex needs a `codex`-template sandbox.
-  - **Remaining for the phase gate:** the private clone item above (or an owner decision to
-    defer it to Phase 11).
+  - Exit gate passed 2026-09-28; evidence in `phase-10/live-test.md`.
 
 ## Definition of done for every implementation task
 

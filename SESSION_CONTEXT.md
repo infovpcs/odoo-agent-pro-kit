@@ -30,10 +30,9 @@ Before changing files:
   planning
 - Active branch: `main`
 - Branch base: `main` at commit `12368b7` (post-Phase-7, additive 0.2.0/0.3.0 work)
-- Last context update: 2026-09-28 (afternoon IST) — the 19→20 migration PASSED in cloud, and
-  step 7 passed for both agent CLIs. A kit fix for the `/start-coding` → `/testing` chain was
-  proven live. Commits `fc55a4d` (docs) + the migration/fix commit (local, not pushed). Phase 10
-  has **one** open item: the private-repo clone (see "Next task").
+- Last context update: 2026-09-28 — **Phase 10 complete** (Odoo 20.0 sandbox runtime). Commits
+  `fc55a4d`, `d645166` and the Phase 10 closing commit are local on `main` (not pushed; `origin/main`
+  = `595c2ca`). No Phase 11 is defined yet (see "Next task").
 
 ## Phase 9 — complete (2026-09-25, commit `ba87f5c`, pushed to origin/main by the owner)
 
@@ -751,7 +750,16 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Current state
 
-- **2026-09-28 (latest, second half):** owner replaced the cloud `anthropic` secret with a
+- **2026-09-28 (latest, Phase 10 closed):** private-repo clone carry-over. The cloud `github`
+  fine-grained token saw 0 private repos; the owner widened it (All repositories + Contents), and
+  it then saw 62. Plain private `git clone` over HTTPS **passes** in the `claude` (`kit-p10-tar`)
+  and `codex` (`kit-p10-cgit`) templates: rc 0, 50 files. The `shell` template (`kit-p10-git`)
+  gets 401 even for public repos (recorded limit). A trial kit 0.8.0 adding
+  `codeload.github.com` was reverted before commit (not needed; kit stays 0.7.0). Advised the
+  owner to set Contents to Read-only. Owner removal requested for `kit-p10-git`, `kit-p10-tar`,
+  `kit-p10-cgit`, `kit-p10-mig3` (all TTL-bounded; `mig3` was `stopped`, and its first `rm`
+  was refused while hibernating).
+- **2026-09-28 (second half):** owner replaced the cloud `anthropic` secret with a
   workspace-scoped key ($5 credit) and switched `openai` to ChatGPT OAuth (`oauth_refresh`; the
   callback was delivered with `docker run --network container:sbx-oauth curlimages/curl`).
   With owner-approved spend, sandbox `kit-p10-mig3` (large, claude template, 07:37:56 UTC) ran:
@@ -1525,25 +1533,19 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Next task
 
-Start a fresh session, read this file and `docs/docker-sandbox/tasks.md`, then **close Phase 10**.
-Only one gate item is open: the Phase 9 carry-over **private-repo clone over HTTPS** with the cloud
-`github` secret. A public `git clone` works; `gh` rejects the proxy placeholder token, and
-`api.github.com` is outside the kit allow-list.
-1. Ask the owner: prove it now (one small cloud sandbox, spend approval, a private test repo
-   name), or defer it to Phase 11 as a documented limit (code keeps shipping by tar / git bundle).
-2. If proving it: try plain `git clone https://github.com/<owner>/<private-repo>` in a kit-backed
-   cloud sandbox (the proxy injects the `github` secret for git as it did for `ls-remote`).
-   Record the exact result. If it fails, note whether the kit allow-list would need
-   `api.github.com` (a spec change + kit version bump), and ask before changing it.
-3. Update `phase-10/live-test.md` "Open items", `tasks.md` (mark Phase 10 complete), README
-   status lines ("in progress" → complete), this file; `./scripts/validate.sh`; one focused commit.
-   Do not publish.
-4. After the commit: bring the Oracle VPS clone `~/odoo-agent-pro-kit` to it via git bundle.
-5. Then the video pipeline (additive; see "Video pipeline plan"). R4a is recorded live on the
-   Mac; `.sandbox/phase10-cloud/run3/` has the reference migration and the fix list.
-
-History rewrite: `595c2ca` and later were pushed on the original history, so the prepared
-rewritten bundle is stale; redo it only if the owner asks (see the 2026-09-28 notes above).
+Phase 10 is complete and no Phase 11 exists in `docs/docker-sandbox/tasks.md`. Start a fresh
+session, read this file, then:
+1. Confirm with `sbx --cloud ls` that no cloud sandbox is left (the owner removes them; the agent
+   hook blocks `sbx rm`).
+2. **Owner decisions:** publish `fc55a4d..HEAD` to origin (owner-run); define Phase 11 or not.
+   Candidates: switch `ODOO_20_BASE` to Docker Hub `odoo:20.0` when published; batch
+   19→20 migrations of more VPCS modules through the proven cloud chain; exercise the Stop-hook
+   enforcement live; Hermes parity for the Stop enforcement (Claude Code only today).
+3. Additive (not a phase): bring the Oracle VPS clone `~/odoo-agent-pro-kit` to the new `main` via
+   git bundle, then run the full suite there.
+4. Additive: the video pipeline (see "Video pipeline plan"). The preconditions for recording are
+   met; open owner decisions are in §11 of the plan. R4a is recorded live on the Mac, and
+   `.sandbox/phase10-cloud/run3/` has the reference migration and fix list.
 
 **Constraints to remember:**
 - Oracle KVM validation host (`$VALIDATION_SSH_TARGET`) (Ubuntu 24.04 KVM, sbx 0.38.0, logged in as `vinusoft85`): 45 GB disk,

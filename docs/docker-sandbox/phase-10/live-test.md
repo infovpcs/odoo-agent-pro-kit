@@ -1,9 +1,9 @@
 # Phase 10 LIVE TEST — Odoo 20.0 sandbox runtime
 
-Status: **in progress; one item left.** The runtime, the requirements/import support,
-`/fleet --cloud` (commit `595c2ca`), the 19→20 custom-app migration, and acceptance step 7 with
-both agent CLIs all pass their LIVE TESTs (2026-09-28). The only open item is the private-repo
-clone over HTTPS (see [Open items](#open-items)). Nothing below is claimed beyond what was run.
+Status: **complete (2026-09-28).** The runtime, the requirements/import support,
+`/fleet --cloud` (commit `595c2ca`), the 19→20 custom-app migration, acceptance step 7 with both
+agent CLIs, and the private-repo clone over HTTPS all pass their LIVE TESTs. Nothing below is
+claimed beyond what was run.
 
 ## Image design
 
@@ -192,14 +192,35 @@ deployment") is its own claim and is not evidence.
 
 Total Anthropic spend: $2.62 (smoke $0.01, run 3 $2.14, run 3b $0.47). OpenAI: $0 (subscription).
 
-## Open items
+## Private-repo clone over HTTPS (2026-09-28, owner-approved spend)
 
-| Item | State | Needed |
-|------|-------|--------|
-| Private-repo clone over HTTPS with the cloud `github` secret | unproven | a public `git clone` works (2026-09-27); `gh` rejects the proxy placeholder token and `api.github.com` is outside the kit allow-list |
+Before this run, the cloud `github` secret (a fine-grained token) could see **0** private
+repos (`/user/repos?visibility=private`). The owner changed it to *All repositories* +
+Contents; it then saw 62. Test repo: a small private `infovpcs` repo (162 KB). No LLM involved.
+
+| Template (sandbox, UTC) | `git ls-remote` / `git clone` private | public `ls-remote` | `api.github.com` |
+|-------------------------|---------------------------------------|--------------------|------------------|
+| `shell` (`kit-p10-git`, 09:16) | fail: `could not read Username` / `invalid credentials` (`info/refs` 401) | fail (401) | 200 (secret injected; private repo 200 after the token change; the tarball redirect to `codeload.github.com` is blocked by the kit) |
+| `claude` (`kit-p10-tar`, 09:31) | **pass**: rc 0, 50 files, HEAD `d6c3fd3` | pass | 403 (not in the kit allow-list) |
+| `codex` (`kit-p10-cgit`, 09:32) | **pass**: rc 0, 50 files | — | 200 |
+
+Result: **PASS** for the agent templates the kit uses (`claude`, `codex`). Plain
+`git clone https://github.com/<owner>/<repo>` works, and the proxy supplies the credential. The
+`shell` template's proxy does not pass it to git (even public repos get 401). The kit does not use
+that template, so this is recorded as a limit. A trial kit 0.8.0 that allowed
+`codeload.github.com` (for the API-tarball route) was reverted before commit, because the agent
+templates do not need it. Kit stays 0.7.0.
+
+## Known limits carried forward
+
+- Docker Hub still has no `odoo:20.0`; switch `ODOO_20_BASE` when it appears.
+- `lifecycle.sh` 20 was not run on the KVM host (disk); cloud evidence covers it.
+- The `shell` cloud template cannot use git over HTTPS to GitHub (see above).
+- A cloud sandbox whose TTL expires is `stopping`/`hibernating` for several minutes; `rm`
+  is refused (`failed_precondition`) until it settles.
 
 Evidence files (gitignored, local): `.sandbox/phase10-cloud/.sandbox/release/phase9/` (cloud
 acceptance) and `.sandbox/phase10-cloud/run2/r2.log` (the 2026-09-27 blocked run). Run 3/3b are
 in `.sandbox/phase10-cloud/run3/`: `smoke.log`, `codex.log`, `loop.log`, `loop-*.json`,
-`verify.log`, `verify-odoo.log`, `base19.log`, `base19-odoo.log`, `rerun.log`, `re-*.json`, and
-the migrated repos `vpcs_apps_20.tgz` / `vpcs_apps_20b.tgz`.
+`verify.log`, `verify-odoo.log`, `base19.log`, `base19-odoo.log`, `rerun.log`, `re-*.json`,
+`private_*.log`, and the migrated repos `vpcs_apps_20.tgz` / `vpcs_apps_20b.tgz`.

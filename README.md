@@ -196,10 +196,11 @@ containers and network readiness probes instead; local sessions are unchanged.
 The Odoo 17/18/19 acceptance passed in cloud sandboxes in run mode. See
 [`docs/docker-sandbox/phase-9/cloud-runbook.md`](docs/docker-sandbox/phase-9/cloud-runbook.md).
 
-Phase 10 (in progress) adds Odoo 20.0 to the sandbox runtime (local, KVM and cloud
+Phase 10 (complete) adds Odoo 20.0 to the sandbox runtime (local, KVM and cloud
 LIVE TESTs pass). It also adds real-module sessions with PyPI requirements
 (`sandboxctl create --import … --requirements …`) and internal-only `/fleet` in cloud
-(`sandbox-fleet create --cloud`). The 19→20 custom-app migration run is still open. See
+(`sandbox-fleet create --cloud`). A real 19→20 custom-app migration ran headless in a cloud
+sandbox through `/plan-analysis` → `/start-coding` → `/testing`. See
 [`docs/docker-sandbox/phase-10/live-test.md`](docs/docker-sandbox/phase-10/live-test.md).
 
 The Odoo 17/18/19/20 inner runtime controller is documented in

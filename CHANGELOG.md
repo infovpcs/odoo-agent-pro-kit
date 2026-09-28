@@ -7,7 +7,7 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
 
 ### Added
 
-- **Odoo 20.0 in the Docker Sandbox (Phase 10, in progress)**. Docker Hub has no `odoo:20.0`,
+- **Odoo 20.0 in the Docker Sandbox (Phase 10)**. Docker Hub has no `odoo:20.0`,
   so `sandbox/images/odoo-dev/20.Dockerfile` reproduces the official `odoo/docker` 20.0 recipe
   on a pinned `ubuntu:noble` digest (nightly deb and wkhtmltopdf checksum-pinned). Sessions run
   on PostgreSQL 16 (`POSTGRES_16`). `ir.access` fixture overlay, `set_str` fallback for the

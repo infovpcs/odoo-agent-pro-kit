@@ -205,8 +205,14 @@ which keeps a fixed API credit to a hard cap.
   calls, but git over HTTPS still fails (`could not read Username`, or `invalid credentials`
   with a `$GH_TOKEN` credential helper; 2026-09-25). A public `git clone` over HTTPS works
   (2026-09-27). A private clone is still unproven, `gh` rejects the proxy placeholder token,
-  and `curl api.github.com` is outside the kit allow-list. Ship code with tar, or with the
-  fleet's git bundle, and `sbx --cloud cp`.
+  and `curl api.github.com` is outside the kit allow-list. 2026-09-28: once the fine-grained
+  token was granted private repos (it had none), plain `git clone https://github.com/<owner>/<repo>`
+  of a private repo passed in the `claude` and `codex` templates. The proxy supplies the
+  credential, so no helper or `$GH_TOKEN` is needed; the in-sandbox `$GH_TOKEN` is a placeholder.
+  The `shell` template still gets 401 for git over HTTPS, even for public repos. Grant the
+  token only the repos and permissions the sandboxes need (Contents: Read-only for cloning).
+- A sandbox whose TTL expired shows `stopping`/`hibernating` for several minutes, and `rm`
+  fails with `failed_precondition` until it settles. Retry after `ls` shows it `stopped`.
 - `sbx --cloud exec` rejects `-d`, `--user`, and `--privileged`.
 
 ## Evidence (2026-09-25, client `sbx-cloud:0.45.1` on Intel macOS)
