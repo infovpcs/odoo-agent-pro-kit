@@ -23,16 +23,15 @@ Before changing files:
 - Repository: `infovpcs/odoo-agent-pro-kit`
 - Organization: VPerfectCS
 - Public license: Apache-2.0
-- Supported Odoo versions: 17.0, 18.0, 19.0, and 20.0 (20.0: skills, detection, commands,
-  MCP over `/json/2`, lint, local macOS + Linux workspaces; Docker Sandbox remains 17/18/19
-  until Phase 10 adds a pinned Odoo 20 image)
+- Supported Odoo versions: 17.0, 18.0, 19.0, and 20.0 everywhere, including the Docker Sandbox
+  (Phase 10: Odoo 20 image built from the official `odoo/docker` 20.0 recipe on PostgreSQL 16)
 - Active workstream: public Docker Sandbox foundation and open-core commercial
   planning
 - Active branch: `main`
 - Branch base: `main` at commit `12368b7` (post-Phase-7, additive 0.2.0/0.3.0 work)
-- Last context update: 2026-09-28 — **Phase 10 complete** (Odoo 20.0 sandbox runtime). Commits
-  `fc55a4d`, `d645166` and the Phase 10 closing commit are local on `main` (not pushed; `origin/main`
-  = `595c2ca`). No Phase 11 is defined yet (see "Next task").
+- Last context update: 2026-09-28 — **Phase 10 complete** (Odoo 20.0 sandbox runtime) and
+  **pushed** (`origin/main` = `29f6c2d` + this context commit). The knowledge base
+  (`~/infovpcs`) is synced and pushed. No Phase 11 is defined yet (see "Next task").
 
 ## Phase 9 — complete (2026-09-25, commit `ba87f5c`, pushed to origin/main by the owner)
 
@@ -750,6 +749,17 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Current state
 
+- **START HERE (2026-09-28, end of session).** Phases 0–10 are complete; everything is pushed
+  (kit `origin/main`, knowledge base `infovpcs` `09d09df`). The working tree is clean; 402 tests
+  pass; `./scripts/validate.sh` is green. **No Phase 11 exists in `docs/docker-sandbox/tasks.md`**,
+  so the hook prints no "[next phase task]". Read **"Next task"** (near the end of this file): the
+  first job of the new session is to agree Phase 11 with the owner, then write it into
+  `tasks.md` with a LIVE TEST and an exit gate before any code. Versions: plugin `0.8.0`,
+  `odoo-mixin` kit `0.7.0`, CHANGELOG *Unreleased* holds Phase 10. Cloud state: the cloud
+  secrets (`anthropic` workspace-scoped key, `openai` ChatGPT OAuth, `github` token with repo
+  access) are set. Four TTL-ended sandboxes (`kit-p10-mig3`, `-git`, `-tar`, `-cgit`) await
+  owner `sbx --cloud rm`; check `sbx --cloud ls` first. About $2.38 of the $5 Anthropic credit
+  remains.
 - **2026-09-28 (latest, Phase 10 closed):** private-repo clone carry-over. The cloud `github`
   fine-grained token saw 0 private repos; the owner widened it (All repositories + Contents), and
   it then saw 62. Plain private `git clone` over HTTPS **passes** in the `claude` (`kit-p10-tar`)
@@ -1533,19 +1543,30 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Next task
 
-Phase 10 is complete and no Phase 11 exists in `docs/docker-sandbox/tasks.md`. Start a fresh
-session, read this file, then:
-1. Confirm with `sbx --cloud ls` that no cloud sandbox is left (the owner removes them; the agent
-   hook blocks `sbx rm`).
-2. **Owner decisions:** publish `fc55a4d..HEAD` to origin (owner-run); define Phase 11 or not.
-   Candidates: switch `ODOO_20_BASE` to Docker Hub `odoo:20.0` when published; batch
-   19→20 migrations of more VPCS modules through the proven cloud chain; exercise the Stop-hook
-   enforcement live; Hermes parity for the Stop enforcement (Claude Code only today).
-3. Additive (not a phase): bring the Oracle VPS clone `~/odoo-agent-pro-kit` to the new `main` via
-   git bundle, then run the full suite there.
-4. Additive: the video pipeline (see "Video pipeline plan"). The preconditions for recording are
-   met; open owner decisions are in §11 of the plan. R4a is recorded live on the Mac, and
-   `.sandbox/phase10-cloud/run3/` has the reference migration and fix list.
+Phase 10 is complete and pushed. **No Phase 11 exists in `docs/docker-sandbox/tasks.md` yet.**
+Start a fresh session, read this file, then:
+
+1. **Cloud cleanup check:** `sbx --cloud ls` (Intel Mac: the `sbx-cloud:0.45.1` container, see the
+   cloud runbook). If `kit-p10-*` sandboxes remain, ask the owner to remove them (the hook blocks
+   agent `sbx rm`).
+2. **Agree Phase 11 with the owner** (it decides the next priority), then add it to `tasks.md`
+   with checklist items, a LIVE TEST and an exit gate, and set it here as the sole next task.
+   Candidates, most concrete first:
+   - **Batch 19→20 migrations** of more VPCS modules through the proven cloud chain
+     (`migrate-local.py` → `sandboxctl create --import/--requirements` → headless
+     `/plan-analysis` → `/start-coding` → `/testing`, with per-step `--model`/`--max-budget-usd`
+     and a by-name baseline check). Scope and budget are owner decisions.
+   - **Live proof of the Stop-hook enforcement** (`gates.needs_backend_test_record`); so far it is
+     covered by unit tests only. Also **Hermes parity** for it (Claude Code only today).
+   - **`odoo:20.0` from Docker Hub** once published: pin it as `ODOO_20_BASE`, cut `20.Dockerfile`
+     to the dev layer, update `tests/test_phase10_odoo20_sandbox.py`.
+   - **Release:** tag the CHANGELOG *Unreleased* content (owner decides the version; publishing is
+     owner-run).
+3. Additive (not a phase): bring the Oracle VPS clone `~/odoo-agent-pro-kit` to `origin/main` via
+   git bundle, then run the suite there.
+4. Additive: the Pro v2 video (see "Video pipeline plan"). Recording preconditions are met; open
+   owner decisions are in §11 of the plan. R4a is recorded live on the Mac;
+   `.sandbox/phase10-cloud/run3/` (gitignored, local) has the reference migration and fix list.
 
 **Constraints to remember:**
 - Oracle KVM validation host (`$VALIDATION_SSH_TARGET`) (Ubuntu 24.04 KVM, sbx 0.38.0, logged in as `vinusoft85`): 45 GB disk,
