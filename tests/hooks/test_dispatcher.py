@@ -183,3 +183,27 @@ def test_multiedit_body_is_scanned(tmp_path):
                              "tool_input": {"file_path": str(mod / "models" / "m.py"),
                                             "edits": [{"old_string": "x", "new_string": key}]}})
     assert rc == 2
+
+
+def _done_module(tmp_path):
+    mod = tmp_path / "mymod"
+    (mod / "docs").mkdir(parents=True)
+    (mod / "docs" / "tasks.md").write_text("- [x] t1\n- [x] t2\n")
+    return mod
+
+
+def test_stop_blocks_until_backend_result_recorded(tmp_path, capsys):
+    """All tasks done but no backend-test record: /testing would be gated, so Stop asks for it."""
+    mod = _done_module(tmp_path)
+    assert _run("Stop", {"cwd": str(mod)}) == 2
+    err = capsys.readouterr().err
+    assert "sessions/mymod_progress.json" in err and "backend_tests_passed" in err
+    assert "backend_tests_baseline_parity" in err
+    assert _run("Stop", {"cwd": str(mod), "stop_hook_active": True}) == 0
+
+
+def test_stop_allows_once_backend_result_recorded(tmp_path):
+    mod = _done_module(tmp_path)
+    (mod / "sessions").mkdir()
+    (mod / "sessions" / "mymod_progress.json").write_text(json.dumps({"backend_tests_passed": False}))
+    assert _run("Stop", {"cwd": str(mod)}) == 0

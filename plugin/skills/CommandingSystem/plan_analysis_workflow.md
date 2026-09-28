@@ -211,7 +211,9 @@ Using `PRD-Writing/SKILL.md` templates and all gathered context, generate:
 [Based on MCP model analysis + coding standards]
 
 ## Implementation Tasks
-[Task checklist from PRD-Writing skill template]
+[Task checklist from PRD-Writing skill template: one `- [ ] Task N: <title>` line per task,
+ details indented under it. The /start-coding and /testing gates read these checkboxes and
+ block a tasks.md that has none.]
 
 ## Architecture & Flow Diagram
 [Overview of the flow diagram embedded from Architecture.md generated using the excalidraw-diagram skill]

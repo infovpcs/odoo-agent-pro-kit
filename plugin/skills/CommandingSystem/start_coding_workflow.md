@@ -374,6 +374,29 @@ print(f"✅ Context saved to {progress_file}")
 
 ## STEP 5: Task Loop Completion
 
+**Before ending the loop, record the backend-test outcome** in
+`sessions/{module_name}_progress.json` (relative to the directory that holds `docs/tasks.md`; for a
+repository with several modules, that is the repository root, so the file name uses the repository
+name). `/testing` is gated on it, and the plugin's Stop hook blocks the session from ending while
+every task is `[x]` and no outcome is recorded. Write only what the last sandbox test run showed:
+
+```json
+{"backend_tests_passed": true}
+```
+
+A migration may keep test failures that already existed on the source version. When no failure
+is new, record parity with the baseline it was compared against, not a pass:
+
+```json
+{
+  "backend_tests_passed": false,
+  "backend_tests_baseline_parity": true,
+  "backend_tests_baseline": "19.0: vpcs_llm_provider 2 failed + 2 errors of 8 (same tests on 20.0)"
+}
+```
+
+If new failures remain, record `"backend_tests_passed": false` without parity and fix them first.
+
 After all tasks in `docs/tasks.md` are `[x]`:
 
 ```

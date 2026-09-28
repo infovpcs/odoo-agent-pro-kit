@@ -1,9 +1,9 @@
 # Phase 10 LIVE TEST — Odoo 20.0 sandbox runtime
 
-Status: **in progress.** The runtime, the requirements/import support, and `/fleet --cloud` are
-implemented and pass their LIVE TESTs (commit `595c2ca`). The 19→20 custom-app migration run and
-the Phase 9 carry-over agent items are **open**. They are blocked on an owner action (see
-[Open items](#open-items)). Nothing below is claimed beyond what was run.
+Status: **in progress; one item left.** The runtime, the requirements/import support,
+`/fleet --cloud` (commit `595c2ca`), the 19→20 custom-app migration, and acceptance step 7 with
+both agent CLIs all pass their LIVE TESTs (2026-09-28). The only open item is the private-repo
+clone over HTTPS (see [Open items](#open-items)). Nothing below is claimed beyond what was run.
 
 ## Image design
 
@@ -117,14 +117,89 @@ wrapper:
 - `sbx --cloud ports`: "No exposed ports" for each.
 - `sandbox-fleet destroy --force`: rc 0 × 3 (15:52:21–15:53:13).
 
+## 19→20 migration and agent CLIs in cloud (2026-09-28, owner-approved spend)
+
+The owner replaced the cloud `anthropic` secret with a workspace-scoped key and added $5 API
+credit. They then switched the cloud `openai` secret to their ChatGPT subscription
+(`sbx --cloud secret set openai --oauth`, TYPE `oauth_refresh`). The OAuth callback targets
+`localhost:1455` inside the client container, so it was delivered from inside that container's
+network with `docker run --network container:<name> curlimages/curl "<callback URL>"`.
+`secret ls` keeps the original CREATED date on an overwrite.
+
+Sandbox `kit-p10-mig3`: large, `claude-code-docker` template, TTL 90 min, created 07:37:56 UTC.
+It held the committed kit, and the 19.0 sources of `vpcs_llm_provider` +
+`vpcs_progressive_payment_terms` as a throwaway git repo (baseline commit `e2e53a8`).
+
+### Acceptance step 7 — both agent CLIs PASS
+
+| Agent | Sandbox | Credential | Result |
+|-------|---------|------------|--------|
+| Claude Code 2.1.280 | `kit-p10-mig3` (`claude` template) | workspace-scoped API key | `CLAUDE-OK` on `claude-haiku-4-5`, `--max-budget-usd 0.10`, cost $0.0105 |
+| codex-cli 0.149.1 | `kit-p10-codex` (`codex` template, medium, 07:46–removed by owner) | ChatGPT OAuth (`provider: sandboxd`) | `CODEX-OK`, rc 0, model `gpt-5.6-sol`, no API credit used |
+
+`sbx exec` is the approved fallback for the SSH probe.
+
+### Run 3 — `/plan-analysis` → `/start-coding` → `/testing`, headless with the plugin hooks
+
+`claude -p --plugin-dir ~/kit/plugin --dangerously-skip-permissions --model M --max-budget-usd B`:
+
+| Step | Model | Cap | Result |
+|------|-------|-----|--------|
+| `/plan-analysis 20` | Haiku 4.5 | $0.75 | success, 18 turns, 152 s, $0.154 |
+| `/start-coding 20` | Sonnet 5 | $3.00 | success, 87 turns, 975 s, $1.986 — 5 commits (manifest bump, `ir.access`, `toggle_active`/`t-esc`/`Registry._init`, `project.view_task_card` re-target, findings) |
+| `/testing 20` | Haiku 4.5 | $0.75 | **blocked by the kit's `/testing` gate**, $0 |
+
+Independent no-LLM check (the same sandbox, `sandboxctl` only):
+
+| Module | 19 baseline (re-run by name, 08:04) | 20 after migration (08:00) |
+|--------|-------------------------------------|----------------------------|
+| `vpcs_llm_provider` | 2F + 2E of 8 | 2F + 2E of 8 — the same 4 Cerebras tests |
+| `vpcs_progressive_payment_terms` | 1F + 14E of 26 | 0F + 14E of 26 — the same 14 errors; `test_milestone_percentage_validation` now passes |
+
+Both modules install on 20, and no test fails on 20 that did not fail on 19: **PASS**. The
+agent's summary said all 14 errors come from the missing `construction.project.template`
+model. In fact 10 do; one comes from a missing `is_boq_item` field (from the same absent
+module), and three are analytic tests (`analytic_account_id` invalid on `project.project`, two
+`IndexError`s). All 14 also error on 19.
+
+### Kit finding and fix (test-first)
+
+The `/testing` block had a deeper cause. The Haiku-written `docs/tasks.md` had **no checkboxes**,
+so the gate's "no open tasks" check passed vacuously. Also, no step recorded a backend-test
+outcome, and the flag could only express a plain pass. Fixes in `plugin/hooks/checks/gates.py`
+and `plugin/hooks/odoo_hook.py`, each written RED → GREEN in `tests/hooks/`:
+
+- `/start-coding` and `/testing` block a `tasks.md` without `- [ ]` / `- [x]` lines.
+- `/testing` also accepts `backend_tests_baseline_parity: true`, but only with a recorded
+  `backend_tests_baseline`.
+- The Stop hook blocks once when every task is `[x]` and no outcome is recorded (an honest
+  `false` counts as recorded).
+- PRD-Writing, `plan_analysis_workflow.md`, `start_coding_workflow.md` (STEP 5) and
+  `testing_workflow.md` say the same.
+
+### Run 3b — the chain again with the fixed kit (same sandbox)
+
+| Step | Model | Cap | Result |
+|------|-------|-----|--------|
+| `/start-coding 20` on the prose `tasks.md` | Haiku | $0.05 | **blocked by the new checklist gate**, $0 |
+| Convert `tasks.md` to a checklist | Haiku | $0.30 | 7 turns, 53 s, $0.063: 10 × `- [x] Task N` (commit `30526f0`). Went beyond the brief: it also wrote a parity record from the earlier findings. |
+| `/start-coding 20` | Haiku | $0.75 | 43 turns, 732 s, $0.284: re-ran both suites in new sessions `llm-final` (08:23, 2F+2E of 8) and `ppt-final` (08:26, 0F+14E of 26), verified in their logs; parity record with the 19 baseline |
+| `/testing 20` | Haiku | $0.75 | **allowed by the gate**, 23 turns, 309 s, $0.121: backend counts vs. baseline, `TESTING_RESULTS.md`, no frontend screenshots |
+
+The Stop-hook enforcement was **not** exercised live: the convert step had already written a
+record. It is covered by unit tests only. The agent's closing line ("ready for production
+deployment") is its own claim and is not evidence.
+
+Total Anthropic spend: $2.62 (smoke $0.01, run 3 $2.14, run 3b $0.47). OpenAI: $0 (subscription).
+
 ## Open items
 
 | Item | State | Needed |
 |------|-------|--------|
-| 19→20 migration of `vpcs_llm_provider` + `vpcs_progressive_payment_terms` in a sandbox; Phase-7 acceptance for 20 | not run | Pass = both install on 20 and no test failure absent from the 19 baseline above |
-| Acceptance step 7: agent CLIs in cloud | **blocked** 2026-09-27 | Claude Code 2.1.280: every call `400 … not scoped to a workspace` — **owner** replaces the cloud `anthropic` secret with a workspace-scoped key. Codex 0.157.1: `CONNECT api.openai.com 403` in a `claude` template — rerun in a `codex` template |
-| `/plan-analysis` → `/start-coding` → `/testing` with hooks in a cloud sandbox, driving the migration | blocked by the step above | same |
-| Private-repo clone over HTTPS with the cloud `github` secret | unproven | public `git clone` works (2026-09-27) |
+| Private-repo clone over HTTPS with the cloud `github` secret | unproven | a public `git clone` works (2026-09-27); `gh` rejects the proxy placeholder token and `api.github.com` is outside the kit allow-list |
 
-Evidence files (gitignored): `.sandbox/phase10-cloud/.sandbox/release/phase9/` (cloud acceptance)
-and `.sandbox/phase10-cloud/run2/r2.log` (agent CLI run).
+Evidence files (gitignored, local): `.sandbox/phase10-cloud/.sandbox/release/phase9/` (cloud
+acceptance) and `.sandbox/phase10-cloud/run2/r2.log` (the 2026-09-27 blocked run). Run 3/3b are
+in `.sandbox/phase10-cloud/run3/`: `smoke.log`, `codex.log`, `loop.log`, `loop-*.json`,
+`verify.log`, `verify-odoo.log`, `base19.log`, `base19-odoo.log`, `rerun.log`, `re-*.json`, and
+the migrated repos `vpcs_apps_20.tgz` / `vpcs_apps_20b.tgz`.

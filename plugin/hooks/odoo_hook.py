@@ -118,6 +118,18 @@ def _handle_post_tool(payload: dict) -> int:
 def _handle_stop(payload: dict) -> int:
     if payload.get("stop_hook_active"):
         return 0
+    # Blocking once: a /start-coding loop that finished every task must record the backend-test
+    # outcome, or /testing is gated with nothing to fix (seen headless in Phase 10).
+    mod = common.find_module_dir(_cwd(payload))
+    if mod is not None and gates.needs_backend_test_record(mod):
+        progress = f"sessions/{mod.name}_progress.json"
+        print(f"[odoo-agent-pro-kit] Every task in docs/tasks.md is done, but {progress} records no "
+              "backend-test outcome, so /testing will be gated. Write it now: "
+              '"backend_tests_passed": true|false from the last sandbox test run, or for a '
+              'migration "backend_tests_baseline_parity": true plus "backend_tests_baseline" '
+              "(the pre-existing results compared against). Record only what the tests showed.",
+              file=sys.stderr)
+        return 2
     # Advisory only: mirror contributor_hook.py — remind about validate.sh only
     # when a stamp EXISTS and is stale (older than the newest tracked file). An
     # absent stamp means the mechanism is not in use here; do not nag.

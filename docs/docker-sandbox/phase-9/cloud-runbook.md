@@ -180,7 +180,22 @@ a `codex`-template sandbox, and Claude Code in a `claude`-template one. The
 agent CLIs authenticate through the stored cloud secrets (`sbx --cloud secret`).
 The `anthropic` secret must be a **workspace-scoped** API key. An unscoped key
 fails every call with `400 This API key is not scoped to a workspace`
-(2026-09-27).
+(2026-09-27). Set it with `SBX secret set anthropic` and paste at the prompt;
+`--token` leaves it in shell history. `secret ls` keeps the original CREATED
+date on an overwrite, so prove a new key with one capped call:
+`claude -p 'Reply with exactly: CLAUDE-OK' --model claude-haiku-4-5-20251001 --max-budget-usd 0.10`.
+
+Codex can use a ChatGPT subscription instead of API credit:
+`sbx --cloud secret set openai --oauth` (TYPE becomes `oauth_refresh`). With the
+Intel container client, the OAuth redirect to `localhost:1455` cannot reach the
+container. Name the container (`docker run -it --rm --name sbx-oauth …`). After
+signing in, copy the failed `localhost:1455/auth/callback?...` URL and deliver
+it inside that container's network:
+`docker run --rm --network container:sbx-oauth curlimages/curl -s "<URL>"`. The
+URL holds a one-time code, so do not share it.
+
+Headless agent runs take `--model` and `--max-budget-usd` per `claude -p` call,
+which keeps a fixed API credit to a hard cap.
 
 ## Known limits
 

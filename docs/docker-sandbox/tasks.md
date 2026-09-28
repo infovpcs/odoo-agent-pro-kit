@@ -565,16 +565,22 @@ run mode, local `exec` mode is unchanged (full suite green), costs are recorded.
       allows `pypi.org`/`files.pythonhosted.org`. LIVE: real `vpcs_llm_provider` installs on 19;
       19 baseline 3F/16E of 34 reproduced.
 - [x] `docs/docker-sandbox/phase-10/live-test.md`, CHANGELOG entry, runbook/README updates,
-      contributor-hook hint fix (2026-09-28). The implementation landed as `595c2ca`; the
-      migration item below stays open, so the phase gate is not passed yet.
-- [ ] Re-run the 19→20 migration of `vpcs_llm_provider` + `vpcs_progressive_payment_terms`
-      inside a sandbox; Phase-7 acceptance for 20.
+      contributor-hook hint fix (2026-09-28). The implementation landed as `595c2ca`.
+- [x] Re-run the 19→20 migration of `vpcs_llm_provider` + `vpcs_progressive_payment_terms`
+      inside a sandbox; Phase-7 acceptance for 20. 2026-09-28, cloud: both install on 20;
+      2F+2E of 8 and 0F+14E of 26 = the same named tests as the 19 baseline re-run in the same
+      sandbox (one 19 failure now passes). Evidence: `phase-10/live-test.md`.
 - [ ] Carried over from Phase 9 (owner decision 2026-09-25), run together with the 19→20
       custom-app migration once the Odoo 20 image is ready:
-  - [ ] Phase-7 acceptance step 7 in cloud: Codex + one more agent CLI via the stored cloud
+  - [x] Phase-7 acceptance step 7 in cloud: Codex + one more agent CLI via the stored cloud
         `anthropic`/`openai` secrets (untested), SSH probe or the approved `sbx exec` fallback.
-  - [ ] `/plan-analysis` → `/start-coding` → `/testing` with hooks inside a cloud sandbox,
-        driving the migration task.
+        2026-09-28: Claude Code (workspace-scoped key) `CLAUDE-OK`; Codex on the owner's ChatGPT
+        OAuth secret in a `codex` template `CODEX-OK`; `sbx exec` fallback.
+  - [x] `/plan-analysis` → `/start-coding` → `/testing` with hooks inside a cloud sandbox,
+        driving the migration task. 2026-09-28: the first run's `/testing` was blocked by the
+        gate; the root cause was a prose `tasks.md` plus no recorded outcome. The kit was fixed
+        (checklist gate, baseline-parity record, Stop enforcement), and the re-run passed every
+        gate.
   - [x] `/fleet` cloud allocation in `sandbox-fleet` (code shipped by archive, `sbx --cloud ports`
         gives a public URL — owner to decide public exposure vs internal-only) with three
         cloud sandboxes.
@@ -585,8 +591,10 @@ run mode, local `exec` mode is unchanged (full suite green), costs are recorded.
         `git clone` over HTTPS works; private clone still unproven.
   - Done 2026-09-27: `sandbox-fleet create --cloud` (internal-only by owner decision, no
     `sbx ports`); 3 cloud sessions 20/19/18 created, fixture test rc 0, destroyed.
-  - Blocked 2026-09-27: step 7 + command loop — cloud `anthropic` secret is not workspace-scoped
-    (API 400); Codex needs a `codex`-template sandbox (`api.openai.com` CONNECT 403 in `claude`).
+  - Blocked 2026-09-27, resolved 2026-09-28: step 7 + command loop — cloud `anthropic` secret
+    was not workspace-scoped (API 400); Codex needs a `codex`-template sandbox.
+  - **Remaining for the phase gate:** the private clone item above (or an owner decision to
+    defer it to Phase 11).
 
 ## Definition of done for every implementation task
 

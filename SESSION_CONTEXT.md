@@ -30,10 +30,10 @@ Before changing files:
   planning
 - Active branch: `main`
 - Branch base: `main` at commit `12368b7` (post-Phase-7, additive 0.2.0/0.3.0 work)
-- Last context update: 2026-09-28 — the Phase 10 implementation is committed as `595c2ca`
-  (on `origin/main`), and the Phase 10 docs commit follows it locally (not pushed). Phase 10 stays
-  open. The only remaining gate item is the 19→20 migration run plus the agent-CLI carry-overs,
-  which are blocked on the owner's cloud `anthropic` secret (see "Next task").
+- Last context update: 2026-09-28 (afternoon IST) — the 19→20 migration PASSED in cloud, and
+  step 7 passed for both agent CLIs. A kit fix for the `/start-coding` → `/testing` chain was
+  proven live. Commits `fc55a4d` (docs) + the migration/fix commit (local, not pushed). Phase 10
+  has **one** open item: the private-repo clone (see "Next task").
 
 ## Phase 9 — complete (2026-09-25, commit `ba87f5c`, pushed to origin/main by the owner)
 
@@ -751,7 +751,28 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Current state
 
-- **2026-09-28 (latest):** the 2026-09-27 working tree was committed as `595c2ca` ("Phase 10,
+- **2026-09-28 (latest, second half):** owner replaced the cloud `anthropic` secret with a
+  workspace-scoped key ($5 credit) and switched `openai` to ChatGPT OAuth (`oauth_refresh`; the
+  callback was delivered with `docker run --network container:sbx-oauth curlimages/curl`).
+  With owner-approved spend, sandbox `kit-p10-mig3` (large, claude template, 07:37:56 UTC) ran:
+  - Claude smoke `CLAUDE-OK` ($0.0105).
+  - Codex smoke in `kit-p10-codex` (medium, codex template) `CODEX-OK` on the subscription.
+  - Run 3: `/plan-analysis` (Haiku, $0.154), `/start-coding` (Sonnet 5, 87 turns, $1.986, 5
+    migration commits), `/testing` blocked by the gate.
+  - An independent no-LLM check + the 19 baseline re-run by name in the same sandbox: **PASS**
+    (2F+2E/8 and 0F+14E/26 on 20 = the same tests as 19; one 19 failure now passes).
+  - Root cause of the block: the Haiku `tasks.md` had no checkboxes (the gate passed vacuously)
+    and no outcome was recorded. Kit fix, test-first: checklist gate on `/start-coding` +
+    `/testing`, `backend_tests_baseline_parity` + `backend_tests_baseline`, a Stop hook that
+    blocks until the outcome is recorded; skills/workflows updated. 402 tests pass.
+  - Run 3b with the fixed kit: the prose `tasks.md` was blocked ($0); convert to a checklist
+    ($0.063); `/start-coding` re-ran both suites (`llm-final`, `ppt-final` logs verified;
+    $0.284); `/testing` allowed ($0.121). The Stop enforcement was not exercised live (the
+    record already existed).
+  - Anthropic total $2.62 of $5; OpenAI $0. Evidence: `.sandbox/phase10-cloud/run3/`
+    (gitignored). The owner removed `kit-p10-codex`; `kit-p10-mig3` removal was requested from
+    the owner (TTL ends it by 09:07 UTC regardless).
+- **2026-09-28 (first half):** the 2026-09-27 working tree was committed as `595c2ca` ("Phase 10,
   in progress") and is on `origin/main` (original history — the prepared host-detail rewrite
   was **not** published). This session: `docs/docker-sandbox/phase-10/live-test.md`, CHANGELOG
   Unreleased (Phase 10 + kit 0.6.0/0.7.0), cloud runbook sections (`--import`/`--requirements`,
@@ -1504,41 +1525,25 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Next task
 
-Start a fresh session, read this file and `docs/docker-sandbox/tasks.md`, then **finish Phase 10 —
-the 19→20 migration run** only. Code and docs are committed (`595c2ca` + the 2026-09-28 docs
-commit). First run `python3 -m pytest -q tests` (expect 394 passed) and `./scripts/validate.sh`.
-Cloud client: `sbx-cloud:0.45.1` via the wrapper in the cloud runbook (`SANDBOX_SBX=<wrapper>` for
-`sandbox-fleet --cloud`). Every cloud run needs owner spend approval; remove every sandbox and prove
-`sbx --cloud ls` → "No sandboxes found." afterwards.
-
-**History rewrite:** `595c2ca` was pushed on the original history, so the prepared rewritten bundle
-(`~/odoo-kit-backups/odoo-agent-pro-kit-rewritten-20260927.bundle`, based on `a7418d6`) is stale.
-If the owner still wants the rewrite, it must be redone with `git filter-repo` on a fresh mirror
-(same `--replace-text` / `--replace-message` rules). This is optional and run by the owner; the
-working tree is already clean of host details and guarded by `tests/test_no_public_host_details.py`.
-
-**Remaining Phase 10 steps, in order:**
-1. **Owner action (blocker):** replace the cloud `anthropic` secret with a **workspace-scoped** key
-   (the current one returns `400 … not scoped to a workspace`). If the owner cannot do this soon,
-   ask whether to run the migration without the agent loop (manual, same pass criteria) and move
-   the loop items to Phase 11.
-2. With spend approval, run the migration. Use a large `claude`-template sandbox with the kit (a
-   working-tree tarball) and the 19 sources
-   (`~/workspace/vpcs_apps_cloud_19/{vpcs_llm_provider,vpcs_progressive_payment_terms}`, copied
-   into a throwaway git repo for `migrate-local.py`). Step 7 = `claude -p` there, **and** Codex
-   in a `codex`-template sandbox. Then run headless
-   `claude -p --plugin-dir ~/kit/plugin --dangerously-skip-permissions` for `/plan-analysis 20` →
-   `/start-coding 20` → `/testing 20`, driving the migration with `migrate-local.py` +
-   `sandboxctl create --version 20 --module vpcs_llm_provider --import … --requirements …`.
-   Pass = both modules install on 20 and no test failure absent from the 19 baseline
-   (llm_provider 2F+2E of 8, payment_terms 1F+14E of 26). Save the logs before removing the sandbox.
-3. Phase 9 carry-over: private-repo clone over HTTPS with the `github` secret.
-4. Record the results in `docs/docker-sandbox/phase-10/live-test.md` ("Open items"), `tasks.md`,
-   and this file. Run `./scripts/validate.sh`, then make one focused commit that closes Phase 10.
+Start a fresh session, read this file and `docs/docker-sandbox/tasks.md`, then **close Phase 10**.
+Only one gate item is open: the Phase 9 carry-over **private-repo clone over HTTPS** with the cloud
+`github` secret. A public `git clone` works; `gh` rejects the proxy placeholder token, and
+`api.github.com` is outside the kit allow-list.
+1. Ask the owner: prove it now (one small cloud sandbox, spend approval, a private test repo
+   name), or defer it to Phase 11 as a documented limit (code keeps shipping by tar / git bundle).
+2. If proving it: try plain `git clone https://github.com/<owner>/<private-repo>` in a kit-backed
+   cloud sandbox (the proxy injects the `github` secret for git as it did for `ls-remote`).
+   Record the exact result. If it fails, note whether the kit allow-list would need
+   `api.github.com` (a spec change + kit version bump), and ask before changing it.
+3. Update `phase-10/live-test.md` "Open items", `tasks.md` (mark Phase 10 complete), README
+   status lines ("in progress" → complete), this file; `./scripts/validate.sh`; one focused commit.
    Do not publish.
-5. After that commit: bring the Oracle VPS clone `~/odoo-agent-pro-kit` to it via git bundle.
-6. Then the video pipeline (additive), which starts only after Phase 10 is closed — see "Video
-   pipeline plan".
+4. After the commit: bring the Oracle VPS clone `~/odoo-agent-pro-kit` to it via git bundle.
+5. Then the video pipeline (additive; see "Video pipeline plan"). R4a is recorded live on the
+   Mac; `.sandbox/phase10-cloud/run3/` has the reference migration and the fix list.
+
+History rewrite: `595c2ca` and later were pushed on the original history, so the prepared
+rewritten bundle is stale; redo it only if the owner asks (see the 2026-09-28 notes above).
 
 **Constraints to remember:**
 - Oracle KVM validation host (`$VALIDATION_SSH_TARGET`) (Ubuntu 24.04 KVM, sbx 0.38.0, logged in as `vinusoft85`): 45 GB disk,

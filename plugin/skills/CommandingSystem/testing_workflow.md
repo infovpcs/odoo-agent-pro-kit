@@ -30,7 +30,9 @@ if incomplete:
 **Check 2 — Backend tests passed (from progress.json):**
 ```python
 progress = json.load(open(f"sessions/{module_name}_progress.json"))
-if not progress.get("backend_tests_passed"):
+# A migration may instead record parity with a named baseline (see start_coding_workflow.md STEP 5).
+parity = progress.get("backend_tests_baseline_parity") and progress.get("backend_tests_baseline")
+if not (progress.get("backend_tests_passed") or parity):
     print("⚠️ Backend tests not confirmed as passed.")
     print(f"Auto-bootstrapping: routing to /start-coding {version} for backend test completion.")
     run(f"/start-coding {version} {module_name}")

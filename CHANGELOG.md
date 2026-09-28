@@ -62,6 +62,13 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
 
 ### Fixed
 
+- **`/start-coding` → `/testing` chain (found live in the Phase 10 cloud migration).** A
+  `docs/tasks.md` without `- [ ]` checkboxes made the "all tasks done" gate pass vacuously. Both
+  gates now block it, and the PRD-Writing skill and `/plan-analysis` workflow require checkbox
+  tasks. `/testing` also accepts `backend_tests_baseline_parity` with a recorded
+  `backend_tests_baseline`, so a migration can keep failures that already existed on the source
+  version. The Stop hook blocks once when every task is done and no backend-test outcome is
+  recorded.
 - The contributor hook (`scripts/contributor_hook.py`) told blocked agents to set
   `ODOO_KIT_ALLOW_VCS_WRITE=1` or create `.sandbox/AUTHORIZED`, but it honours neither of them.
   It now names only `AGENTS_PHASE_AUTHORIZED=1`.

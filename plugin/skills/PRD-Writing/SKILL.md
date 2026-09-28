@@ -28,7 +28,7 @@ Produce concise PRD artifacts (requirements → design → tasks) for Odoo custo
 2) Draft requirements.md: capture existing functionality mapping, new stories with acceptance, data/security, integrations, NFRs, risks.
 3) Draft design.md from requirements: architecture choices, data model, flows, UI, integrations, reuse plan, performance, migration, testing.
 4) Generate Architecture.md: use `excalidraw-diagram-skill` combined with `copilot_odoo_agent.py` agents to map out the whole flow diagram.
-5) Draft tasks.md from design: ordered, testable tasks with dependencies and acceptance; mirror the progress.json sub_tasks order and include a final LIVE TEST step.
+5) Draft tasks.md from design: ordered, testable tasks with dependencies and acceptance; mirror the progress.json sub_tasks order and include a final LIVE TEST step. Write every task as a Markdown checkbox line (`- [ ] Task N: <title>`, details indented below it): `/start-coding` ticks them to `- [x]`, and the kit's `/start-coding` and `/testing` gates block a tasks.md without checkboxes.
 6) Review with stakeholders; revise until requirements → design → Architecture → tasks stay consistent.
 
 ## Quality bars
