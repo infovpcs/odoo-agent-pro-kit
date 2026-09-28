@@ -134,3 +134,50 @@ def test_kit_allows_pypi_for_session_requirements():
     kit = lock["kits"]["odoo-mixin"]
     assert kit["version"] == "0.7.0" and "version: 0.7.0" in spec
     assert kit["spec_sha256"] == hashlib.sha256((ROOT / kit["path"] / "spec.yaml").read_bytes()).hexdigest()
+
+
+# Phase 11: a module group brings several requirements.txt files.
+def test_merge_requirements_dedupes_and_sorts_by_normalised_name():
+    controller = load_controller()
+    merged = controller.merge_requirements([
+        ("a/requirements.txt", ["openai>=1.0.0", "httpx>=0.24.0"]),
+        ("b/requirements.txt", ["HTTPX>=0.24.0", "typesafe_sdk==0.7.0"]),
+    ])
+    assert merged == ["httpx>=0.24.0", "openai>=1.0.0", "typesafe_sdk==0.7.0"]
+
+
+def test_merge_requirements_combines_specifiers_and_extras_for_one_project():
+    controller = load_controller()
+    merged = controller.merge_requirements([
+        ("a", ["qrcode[pil]>=7"]), ("b", ["qrcode[svg]<8"]), ("c", ["Qrcode.X"]),
+    ])
+    assert merged == ["qrcode[pil,svg]<8,>=7", "Qrcode.X"]
+
+
+def test_merge_requirements_refuses_two_different_exact_pins():
+    controller = load_controller()
+    with pytest.raises(SystemExit) as error:
+        controller.merge_requirements([("a/requirements.txt", ["Pillow==10.0.1"]),
+                                       ("b/requirements.txt", ["pillow==11.0.0"])])
+    message = str(error.value)
+    assert "pillow" in message and "a/requirements.txt" in message and "b/requirements.txt" in message
+
+
+def test_merge_requirements_refuses_a_pin_that_another_file_excludes():
+    controller = load_controller()
+    with pytest.raises(SystemExit):
+        controller.merge_requirements([("a", ["requests==2.31.0"]), ("b", ["requests!=2.31.0"])])
+
+
+def test_merge_of_a_single_file_keeps_its_lines():
+    controller = load_controller()
+    assert controller.merge_requirements([("a", ["openai>=1.0.0"])]) == ["openai>=1.0.0"]
+
+
+def test_create_cli_repeats_requirements():
+    result = subprocess.run([str(ROOT / "sandbox/bin/sandboxctl"), "create", "--help"], capture_output=True, text=True, check=True)
+    assert "--requirements" in result.stdout
+    controller = load_controller()
+    parser = controller.build_parser()
+    args = parser.parse_args(["create", "--version", "19", "--module", "m", "--requirements", "a.txt", "--requirements", "b.txt"])
+    assert args.requirements == ["a.txt", "b.txt"]

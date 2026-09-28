@@ -395,6 +395,12 @@ is new, record parity with the baseline it was compared against, not a pass:
 }
 ```
 
+Decide parity with the deterministic checker, not by reading the logs: in the sandbox kit,
+`sandbox/scripts/test-parity.py BASELINE_LOG TARGET_LOG --json sessions/parity.json` exits 0
+only when every test that passed on the baseline still passes (by name). Record
+`backend_tests_baseline_parity: true` only after exit 0, and cite the JSON path and its summary
+in `backend_tests_baseline`. Exit 2 means a log has no tests, and that is not parity.
+
 If new failures remain, record `"backend_tests_passed": false` without parity and fix them first.
 
 After all tasks in `docs/tasks.md` are `[x]`:

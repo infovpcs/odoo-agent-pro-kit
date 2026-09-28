@@ -622,19 +622,29 @@ cross-encoder reranker, which the 20.0 version drops (owner decision). pgvector 
 is recorded as not exercised). Known risk: `odoo_whatsapp_mcp` pins `Pillow==10.0.1` /
 `requests==2.31.0` over the Odoo 20 system packages.
 
-- [ ] Multi-module requirements: `sandboxctl create --requirements` accepts the flag more than
+- [x] Multi-module requirements: `sandboxctl create --requirements` accepts the flag more than
       once (or a staging tree with several `requirements.txt`), merges the validated lines and
       fails on conflicting pins with a clear error. Test first, on synthetic fixtures only.
-- [ ] `sandbox-fleet create --cloud --import DIR [--requirements FILE ...]`: ship the staging
+      Done 2026-09-28: `merge_requirements` in `sandboxctl`; tests in
+      `tests/test_phase10_requirements.py`. Real group A/C files merge cleanly.
+- [x] `sandbox-fleet create --cloud --import DIR [--requirements FILE ...]`: ship the staging
       tree with the snapshot and pass it through to `sandboxctl create` in the cloud sandbox.
       `--module` stays the install target list. Test first; update `plugin/commands/fleet.md`.
-- [ ] Deterministic baseline-parity check (no LLM): a script that parses two Odoo test logs
+      Done 2026-09-28: `import_payload` → `.sandbox/fleet/imports/<session>.tgz`, cloud-only;
+      tests in `tests/test_phase10_fleet_cloud.py`; `plugin/commands/fleet.md` updated.
+- [x] Deterministic baseline-parity check (no LLM): a script that parses two Odoo test logs
       (19 baseline, 20 result), lists every test by name with its status, and exits non-zero
       when a test that passed on 19 fails, errors or is missing on 20. It writes a JSON result
       that `backend_tests_baseline_parity` can cite. Test first on synthetic fixture logs.
-- [ ] Private-code guard: a validate/test check that fails when an Odoo module
+      Done 2026-09-28: `sandbox/scripts/test-parity.py`, tests in
+      `tests/test_phase11_test_parity.py`. On the Phase 10 logs: parity PASS, 1 fix, and failed
+      and error counts match Odoo's summary (a class-level error from `odoo.tests.suite` counts as
+      its own row, so the total is 35, not 34).
+- [x] Private-code guard: a validate/test check that fails when an Odoo module
       (`__manifest__.py`) is tracked outside `sandbox/fixtures/`, or when a tracked or staged file
       is a migration patch/bundle of module code, so private module source cannot be committed.
+      Done 2026-09-28: `scripts/private_code_guard.py` (two Phase 8 evidence files
+      grandfathered), run by `validate.sh`; tests in `tests/test_private_code_guard.py`.
 - [ ] `vpcs_ai_livechat` 20.0 migration spec (given to `/plan-analysis` for group A): remove
       `sentence-transformers` from `requirements.txt` and `reranking_service.py`; replace the
       cross-encoder with a pure-Python hybrid reranker (BM25 over the retrieved chunks blended

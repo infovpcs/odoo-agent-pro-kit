@@ -233,6 +233,39 @@ def parse_requirements(text):
     return lines
 
 
+REQUIREMENT_PARTS = re.compile(r"([A-Za-z0-9][A-Za-z0-9._-]*)(?:\[([^\]]*)\])?(.*)")
+
+
+def merge_requirements(sources):
+    """Merge the validated lines of several requirements files into one list, one line per project.
+
+    Projects are keyed by their normalised name (PEP 503); extras are unioned and specifiers
+    combined. Two different exact pins, or a pin that another file excludes with `!=`, are refused
+    with both files named; anything subtler is left to pip's resolver at build time.
+    """
+    projects = {}
+    for source, lines in sources:
+        for line in lines:
+            name, extras, specs = REQUIREMENT_PARTS.fullmatch(line.replace(" ", "")).groups()
+            key = re.sub(r"[-_.]+", "-", name).lower()
+            entry = projects.setdefault(key, {"name": name, "extras": set(), "specs": {}})
+            entry["extras"].update(e for e in (extras or "").split(",") if e)
+            for spec in filter(None, specs.split(",")):
+                entry["specs"].setdefault(spec, source)
+    merged = []
+    for key in sorted(projects):
+        entry = projects[key]
+        pins = {spec[2:]: source for spec, source in entry["specs"].items() if spec.startswith("==") and not spec.startswith("===")}
+        excluded = {spec[2:]: source for spec, source in entry["specs"].items() if spec.startswith("!=")}
+        clash = [f"=={v} ({pins[v]})" for v in pins] if len(pins) > 1 else []
+        clash += [f"=={v} ({pins[v]}) vs !={v} ({excluded[v]})" for v in pins if v in excluded]
+        if clash:
+            raise SystemExit(f"conflicting requirements for {key}: " + "; ".join(clash))
+        extras = f"[{','.join(sorted(entry['extras']))}]" if entry["extras"] else ""
+        merged.append(entry["name"] + extras + ",".join(sorted(entry["specs"])))
+    return merged
+
+
 def requirements_image(base_image, lines):
     digest = hashlib.sha256("\n".join(lines).encode() + b"\n").hexdigest()[:12]
     return f"{base_image}-req{digest}"
@@ -488,7 +521,7 @@ def cmd_create(args):
         if not fixture_source.is_dir():
             raise SystemExit(f"fixture module not found: {fixture_source}")
         prepare_fixture(fixture_source, directory / "addons" / args.module, version["series"])
-    requirements = parse_requirements(Path(args.requirements).read_text()) if args.requirements else []
+    requirements = merge_requirements([(name, parse_requirements(Path(name).read_text())) for name in args.requirements or []])
     if requirements:
         (directory / "requirements").mkdir()
         (directory / "requirements" / "requirements.txt").write_text("\n".join(requirements) + "\n")
@@ -747,13 +780,13 @@ def recover(session, timeout):
         raise
 
 
-def main():
+def build_parser():
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="command", required=True)
     create = sub.add_parser("create")
     create.add_argument("--version", required=True); create.add_argument("--module", required=True); create.add_argument("--session"); create.add_argument("--timeout", type=int, default=180)
     create.add_argument("--import", dest="import_source", metavar="DIR", help="copy the Odoo modules of DIR (a migrate-local.py staging tree or one module) instead of a fixture")
-    create.add_argument("--requirements", metavar="FILE", help="PyPI requirements layered on the dev image for this session")
+    create.add_argument("--requirements", metavar="FILE", action="append", help="PyPI requirements layered on the dev image for this session; repeat for several modules (merged, conflicting pins refused)")
     for name in ("status", "logs", "stop", "start", "destroy", "export", "diagnose", "backup", "recover"):
         item = sub.add_parser(name); item.add_argument("session")
         if name == "logs": item.add_argument("--service", choices=("odoo", "db", "controller", "agent", "mcp")); item.add_argument("--follow", action="store_true"); item.add_argument("--since")
@@ -763,7 +796,11 @@ def main():
     restore = sub.add_parser("restore"); restore.add_argument("session"); restore.add_argument("backup")
     execute = sub.add_parser("exec"); execute.add_argument("session"); execute.add_argument("remainder", nargs=argparse.REMAINDER)
     module = sub.add_parser("module"); module.add_argument("session"); module.add_argument("operation", choices=("install", "update", "test")); module.add_argument("module")
-    args = parser.parse_args()
+    return parser
+
+
+def main():
+    args = build_parser().parse_args()
     if args.command == "create": return cmd_create(args)
     if not state_dir(args.session).is_dir(): raise SystemExit(f"unknown session: {args.session}")
     if args.command == "status":

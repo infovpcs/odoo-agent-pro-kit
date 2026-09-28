@@ -158,3 +158,70 @@ def test_cloud_run_and_destroy_use_the_cloud_client(fleet, monkeypatch):
 def test_fleet_command_doc_states_cloud_is_internal_only():
     doc = (ROOT / "plugin/commands/fleet.md").read_text()
     assert "--cloud" in doc and "internal-only" in doc
+
+
+# Phase 11: a cloud fleet session can import a private module group plus its requirements.
+def _staging(tmp_path):
+    tree = tmp_path / "staging"
+    (tree / "mod_a").mkdir(parents=True)
+    (tree / "mod_a/__manifest__.py").write_text("{'name': 'a', 'depends': ['base']}")
+    (tree / "migration-report.json").write_text("{}")
+    req_a, req_b = tmp_path / "a.txt", tmp_path / "b.txt"
+    req_a.write_text("openai>=1\n"); req_b.write_text("httpx>=0.24\n")
+    return tree, req_a, req_b
+
+
+def test_cli_accepts_import_and_repeated_requirements(fleet, tmp_path):
+    tree, req_a, req_b = _staging(tmp_path)
+    args = fleet.parser().parse_args(["create", "--version", "20", "--module", "mod_a", "--cloud", "--import", str(tree),
+                                      "--requirements", str(req_a), "--requirements", str(req_b)])
+    assert args.import_source == str(tree) and args.requirements == [str(req_a), str(req_b)]
+
+
+def test_import_is_cloud_only(fleet, tmp_path):
+    tree, _, _ = _staging(tmp_path)
+    args = fleet.parser().parse_args(["create", "--version", "20", "--module", "mod_a", "--import", str(tree)])
+    with pytest.raises(RuntimeError, match="--cloud"):
+        fleet.cmd_create(args)
+
+
+def test_import_payload_holds_the_tree_and_requirements_but_no_git_or_secrets(fleet, tmp_path):
+    import tarfile
+    tree, req_a, req_b = _staging(tmp_path)
+    (tree / ".git").mkdir(); (tree / ".git/config").write_text("x")
+    (tree / ".env").write_text("SECRET=1")
+    payload = fleet.import_payload("s1", str(tree), [str(req_a), str(req_b)])
+    assert payload.is_relative_to(fleet.STATE)
+    with tarfile.open(payload) as archive:
+        names = sorted(archive.getnames())
+    assert "tree/mod_a/__manifest__.py" in names and "requirements/0.txt" in names and "requirements/1.txt" in names
+    assert not any(".git" in n.split("/") or n.endswith(".env") for n in names)
+
+
+def test_import_payload_refuses_a_missing_tree(fleet, tmp_path):
+    with pytest.raises(RuntimeError, match="import"):
+        fleet.import_payload("s1", str(tmp_path / "missing"), [])
+
+
+def test_cloud_create_with_import_ships_the_payload_and_passes_it_to_sandboxctl(fleet, monkeypatch, tmp_path):
+    tree, req_a, req_b = _staging(tmp_path)
+    calls, scripts = [], []
+
+    class Done:
+        returncode, stdout, stderr = 0, "", ""
+
+    monkeypatch.setattr(fleet, "ROOT", tmp_path)
+    monkeypatch.setattr(fleet, "BUNDLES", tmp_path / "fleet/bundles")
+    monkeypatch.setattr(fleet, "run", lambda command, **kwargs: calls.append(command) or Done())
+    monkeypatch.setattr(fleet, "worktree_snapshot", lambda repo: "b" * 40)
+    monkeypatch.setattr(fleet, "write_bundle", lambda repo, commit, path: None)
+    monkeypatch.setattr(fleet, "cloud_exec", lambda name, script, label, timeout: scripts.append((label, script)) or (0, "ok"))
+    args = fleet.parser().parse_args(["create", "--version", "20", "--module", "mod_a", "--cloud", "--import", str(tree),
+                                      "--requirements", str(req_a), "--requirements", str(req_b)])
+    fleet.cmd_create(args)
+    copies = [c for c in calls if c[:3] == ["sbx", "--cloud", "cp"]]
+    assert any(c[-1].endswith(":/tmp/import.tgz") for c in copies)
+    _, script = scripts[0]
+    assert "tar -xzf /tmp/import.tgz -C ~/import" in script
+    assert ("sandbox/bin/sandboxctl create --version 20 --module mod_a --session " in script
+            and "--import ~/import/tree --requirements ~/import/requirements/0.txt --requirements ~/import/requirements/1.txt" in script)

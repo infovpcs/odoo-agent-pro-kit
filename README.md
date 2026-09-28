@@ -203,6 +203,15 @@ LIVE TESTs pass). It also adds real-module sessions with PyPI requirements
 sandbox through `/plan-analysis` → `/start-coding` → `/testing`. See
 [`docs/docker-sandbox/phase-10/live-test.md`](docs/docker-sandbox/phase-10/live-test.md).
 
+Phase 11 (in progress) prepares batch custom-module migrations on a cloud fleet:
+`--requirements` can be repeated (merged; conflicting pins refused),
+`sandbox-fleet create --cloud --import DIR --requirements FILE …` ships a staging tree to the
+cloud session, and `sandbox/scripts/test-parity.py BASELINE_LOG TARGET_LOG --json FILE`
+compares two Odoo test logs by test name (exit 1 when a baseline pass no longer passes, 2 when a
+log has no tests). Imported module code may be private: it stays in the gitignored `.sandbox/`,
+and `scripts/private_code_guard.py` (run by `validate.sh`) refuses any Odoo module outside
+`sandbox/fixtures/` and any patch or archive in tracked files.
+
 The Odoo 17/18/19/20 inner runtime controller is documented in
 [`sandbox/README.md`](sandbox/README.md). Phase gates remain authoritative in
 [`docs/docker-sandbox/tasks.md`](docs/docker-sandbox/tasks.md).

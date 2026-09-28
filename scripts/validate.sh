@@ -61,6 +61,7 @@ python3 -m py_compile \
   plugin/__init__.py \
   plugin/hooks/odoo_hook.py \
   scripts/contributor_hook.py \
+  scripts/private_code_guard.py \
   plugin/hooks/checks/__init__.py \
   plugin/hooks/checks/common.py \
   plugin/hooks/checks/version.py \
@@ -90,6 +91,9 @@ for ev in SessionStart PreToolUse Stop; do
     echo "FAIL: contributor_hook.py $ev did not exit 0 on empty payload"; exit 1; }
 done
 python3 -c "import json; json.load(open('plugin/hooks/hooks.json')); json.load(open('.claude/settings.json'))"
+
+echo "==> Private module code guard"
+python3 scripts/private_code_guard.py
 
 echo "==> Git whitespace validation"
 git diff --check

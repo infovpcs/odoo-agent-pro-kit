@@ -19,3 +19,13 @@ session in a Docker Cloud Sandbox (billable shape and TTL from
 internal-only: no Odoo port is published, because `sbx --cloud ports` gives a
 public URL. The code is shipped as a git bundle of a working-tree snapshot, and
 `SANDBOX_SBX` can point at a non-native `sbx` client (see the cloud runbook).
+
+To migrate real custom modules, add `--import DIR` (a `migrate-local.py` staging
+tree) and one `--requirements FILE` per module that has Python dependencies,
+for example `sandbox-fleet create --cloud --version 19 --module mod_a --import
+.sandbox/imports/19-group-a --requirements .sandbox/imports/19-group-a/mod_a/requirements.txt`.
+Both are cloud-only. The tree and files are packed into the gitignored
+`.sandbox/fleet/imports/` (without `.git`, `.env`, `*.conf`, `*.log`) and passed
+to `sandboxctl create --import/--requirements` inside the sandbox; the
+requirements are merged and conflicting pins are refused. Imported module code
+may be private: it never belongs in tracked files (`scripts/private_code_guard.py`).

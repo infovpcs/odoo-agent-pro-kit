@@ -11,6 +11,7 @@ import shlex
 import signal
 import subprocess
 import sys
+import tarfile
 import tempfile
 import time
 from contextlib import contextmanager
@@ -150,6 +151,34 @@ def write_bundle(repo, commit, path):
         git(repo, "update-ref", "-d", ref)
 
 
+IMPORT_EXCLUDES = {".git", ".env", "__pycache__"}
+
+
+def import_payload(name, source, requirements):
+    """Pack an import staging tree and its requirements files for one cloud session.
+
+    The archive stays in the gitignored fleet state: imported modules may be private code.
+    Git metadata, .env, *.conf and *.log files are left out, as `migrate-local.py` does.
+    """
+    tree = Path(source).resolve()
+    if not tree.is_dir():
+        raise RuntimeError(f"import source is not a directory: {tree}")
+
+    def keep(info):
+        parts = Path(info.name).parts
+        if any(part in IMPORT_EXCLUDES for part in parts) or info.name.endswith((".conf", ".log")):
+            return None
+        return info
+
+    payload = STATE / "imports" / f"{name}.tgz"
+    payload.parent.mkdir(parents=True, exist_ok=True)
+    with tarfile.open(payload, "w:gz") as archive:
+        archive.add(tree, arcname="tree", filter=keep)
+        for index, requirement in enumerate(requirements):
+            archive.add(Path(requirement).resolve(), arcname=f"requirements/{index}.txt")
+    return payload
+
+
 def cloud_exec(name, script, label, timeout):
     """Run a script detached inside a cloud sandbox and poll for its exit code.
 
@@ -194,6 +223,8 @@ def cmd_create(args):
         raise RuntimeError("module must be a valid Odoo technical name")
     if args.cloud:
         return create_cloud(args)
+    if args.import_source or args.requirements:
+        raise RuntimeError("--import and --requirements need --cloud (local fleet sessions use fixtures)")
     outer_creation_attempted = False
     data = None
     try:
@@ -286,12 +317,23 @@ def create_cloud(args):
         run(sbx("create", "--name", name, "--cpus", str(cloud["cpus"]), "--memory", f"{cloud['memory_gib']}g",
                 "--platform", cloud["platform"], "--ttl", f"{cloud['ttl_minutes']}m", "--kit", KIT, args.agent, cloud=True), cwd=ROOT)
         run(sbx("cp", str(bundle.relative_to(ROOT)), f"{name}:/tmp/kit.bundle", cloud=True), cwd=ROOT)
+        unpack, import_flags = "", []
+        if args.import_source:
+            payload = import_payload(name, args.import_source, args.requirements or [])
+            run(sbx("cp", str(payload.relative_to(ROOT)), f"{name}:/tmp/import.tgz", cloud=True), cwd=ROOT)
+            unpack = "mkdir -p ~/import && tar -xzf /tmp/import.tgz -C ~/import\n"
+            import_flags = ["--import", "~/import/tree"]
+            for index in range(len(args.requirements or [])):
+                import_flags += ["--requirements", f"~/import/requirements/{index}.txt"]
+        elif args.requirements:
+            raise RuntimeError("--requirements needs --import in a cloud fleet session")
         container_cpu = str(min(1.0, float(cloud["cpus"]) / 2))
         script = (
-            f"set -e\ngit init -q ~/kit\ncd ~/kit\ngit fetch -q /tmp/kit.bundle 'refs/sandbox-fleet/*:refs/sandbox-fleet/*'\n"
+            f"set -e\n{unpack}git init -q ~/kit\ncd ~/kit\ngit fetch -q /tmp/kit.bundle 'refs/sandbox-fleet/*:refs/sandbox-fleet/*'\n"
             f"git checkout -q -b {data['branch']} {commit}\n"
             f"SANDBOX_EXEC_MODE=run ODOO_CPU_LIMIT={container_cpu} POSTGRES_CPU_LIMIT={container_cpu} "
             f"sandbox/bin/sandboxctl create --version {args.version} --module {args.module} --session {name}"
+            + "".join(f" {flag}" for flag in import_flags)
         )
         rc, output = cloud_exec(name, script, "create", 1800)
         if rc:
@@ -407,7 +449,7 @@ def cmd_maintain(_args):
 def parser():
     value = argparse.ArgumentParser()
     commands = value.add_subparsers(dest="command", required=True)
-    create = commands.add_parser("create"); create.add_argument("--version", required=True); create.add_argument("--module", required=True); create.add_argument("--agent", choices=("codex", "claude", "copilot"), default="codex"); create.add_argument("--cloud", action="store_true", help="allocate in a Docker Cloud Sandbox (internal-only, no published port)")
+    create = commands.add_parser("create"); create.add_argument("--version", required=True); create.add_argument("--module", required=True); create.add_argument("--agent", choices=("codex", "claude", "copilot"), default="codex"); create.add_argument("--cloud", action="store_true", help="allocate in a Docker Cloud Sandbox (internal-only, no published port)"); create.add_argument("--import", dest="import_source", metavar="DIR", help="cloud only: ship this migrate-local.py staging tree and install it instead of a fixture"); create.add_argument("--requirements", metavar="FILE", action="append", help="cloud only, with --import: PyPI requirements file; repeat for several modules")
     status = commands.add_parser("status"); status.add_argument("session", nargs="?")
     cancel = commands.add_parser("cancel"); cancel.add_argument("session")
     execute = commands.add_parser("run"); execute.add_argument("session"); execute.add_argument("operation", choices=("install", "update", "test")); execute.add_argument("module")

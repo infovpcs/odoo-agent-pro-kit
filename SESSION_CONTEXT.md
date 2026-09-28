@@ -757,7 +757,11 @@ that consumes stable Community releases instead of forking this repository.
   **Privacy rule (owner, 2026-09-28): module/repo names may be public; module source, migrated
   code and patches never enter tracked files or commits** (keep them in gitignored `.sandbox/`).
   Checklist, LIVE TEST and exit gate: `docs/docker-sandbox/tasks.md` § Phase 11.
-  Nothing is implemented yet. Checked 2026-09-28: `sbx --cloud ls` → "No sandboxes found";
+  **Build items done 2026-09-28** (test-first, 432 tests pass, `validate.sh` green): repeatable
+  `--requirements` merge, `sandbox-fleet --cloud --import/--requirements`,
+  `sandbox/scripts/test-parity.py` (reproduces the Phase 10 result on its real logs), and
+  `scripts/private_code_guard.py`. Open: the `vpcs_ai_livechat` spec runs inside the LIVE TEST;
+  staging; the cloud LIVE TEST (needs owner spend approval). Checked 2026-09-28: `sbx --cloud ls` → "No sandboxes found";
   Docker Hub still has no `odoo:20.0` (tag API 404). Versions: plugin `0.8.0`, `odoo-mixin` kit
   `0.7.0`, CHANGELOG *Unreleased* holds Phase 10. Cloud secrets (`anthropic` workspace-scoped,
   `openai` ChatGPT OAuth, `github` with repo access) are set; about $2.38 of the $5 Anthropic
@@ -1553,9 +1557,9 @@ that consumes stable Community releases instead of forking this repository.
   tests), `website_blog_ai_generator`; B `currency_rate_of_rbi` → `vpcs_gitlab` →
   `vpcs_cloud_website_customization`; C `odoo_whatsapp_mcp` (Pillow/requests pin risk).
 - Module code stays private: source, migrated code and patches only in gitignored `.sandbox/`.
-- Build first, test-first, on synthetic fixtures: repeatable `--requirements` merge with
-  conflict detection; `sandbox-fleet create --cloud --import/--requirements`; a deterministic
-  19-vs-20 test-log parity script; the private-code guard (no tracked module outside `sandbox/fixtures/`).
+- Build items are DONE (2026-09-28). Next: stage the three groups with `migrate-local.py` into
+  `.sandbox/imports/` (group A's 19 baseline uses a trimmed requirements copy without
+  `sentence-transformers`), then ask the owner to approve the cloud spend.
 - Then the cloud LIVE TEST: codex template, Codex on ChatGPT OAuth, 3 parallel sandboxes. Get the
   owner's approval of the cloud spend before creating any sandbox. The owner runs `sbx --cloud rm`.
 
