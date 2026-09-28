@@ -29,7 +29,7 @@ Before changing files:
   planning
 - Active branch: `main`
 - Branch base: `main` at commit `12368b7` (post-Phase-7, additive 0.2.0/0.3.0 work)
-- Last context update: 2026-09-28 (Phase 11 closed) — **Phases 0–11 complete**; the next task is agreeing Phase 12 with the owner (see "Next task").
+- Last context update: 2026-09-28 (Phase 11 closed) — **Phases 0–11 complete**; the next task is Phase 12, batch-migration kit fixes (see "Next task").
 
 ## Phase 9 — complete (2026-09-25, commit `ba87f5c`, pushed to origin/main by the owner)
 
@@ -1551,11 +1551,14 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Next task
 
-**Sole next task: agree Phase 12 with the owner**, add it to `docs/docker-sandbox/tasks.md`, then
-start it in a fresh session. Phase 11 closed 2026-09-28 (owner accepted the evidence as is).
-The owner publishes the Phase 11 close commit to `origin/main` (hook-blocked for the agent).
+**Sole next task: Phase 12 — batch-migration kit fixes from the Phase 11 findings**
+(`docs/docker-sandbox/tasks.md` § Phase 12; owner picked candidate 1 on 2026-09-28). Start in a
+fresh session: first agree the LIVE TEST host with the owner (local Docker Desktop, KVM host, or
+approved cloud spend), then work the checklist test-first. Phase 11 closed 2026-09-28; the owner
+publishes the Phase 11 close and Phase 12 planning commits to `origin/main` (hook-blocked for the
+agent).
 
-**Phase 12 candidates (owner picks; most concrete first):**
+**Phase 12 candidates (owner picked the first, 2026-09-28; the others stay for later):**
 - **Kit fixes from Phase 11 findings** (`phase-11/live-test.md`): replay a session's
   `results/requirements-freeze.txt` as a pinned input (finding 7, pip drift); runner prompts
   without a leading slash command (finding 2); pass/fail = install exit codes + parity, with the

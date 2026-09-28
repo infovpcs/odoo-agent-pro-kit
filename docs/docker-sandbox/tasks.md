@@ -713,6 +713,44 @@ is recorded as not exercised). Known risk: `odoo_whatsapp_mcp` pins `Pillow==10.
       `./scripts/validate.sh` green, one focused commit.
       Met 2026-09-28: `./scripts/validate.sh` OK (443 passed), `private_code_guard.py` rc 0.
 
+## Phase 12: Batch-migration kit fixes from the Phase 11 findings
+
+Owner decision 2026-09-28 (candidate 1 of 3). Turns the Phase 11 findings
+(`phase-11/live-test.md`, findings 2, 3, 4, 7 and 9) into shipped, tested kit behaviour, so the
+next batch (the WhatsApp chatbot chain) runs on kit code instead of the private helper scripts in
+`.sandbox/phase11/`. Module code stays private as in Phase 11: only generic, module-agnostic
+tooling enters tracked files, and `scripts/private_code_guard.py` must pass.
+
+- [ ] Pinned requirements replay (finding 7), test-first: `sandboxctl create` accepts a recorded
+      `results/requirements-freeze.txt` as a pinned input (pip constraints layered with the
+      `--requirements` lines), so a build that resolved once resolves the same way later.
+      Refuse a freeze recorded for another Odoo version or base image digest.
+- [ ] Pass/fail criterion (finding 3), test-first: `test-parity.py` takes the expected module
+      list and the install exit codes; a module that did not install, or has no test result
+      where the baseline had one, fails the check even when no baseline pass regresses.
+- [ ] Batch migration runner in the kit (findings 2 and 4): a generic
+      `sandbox/scripts/migration-runner.sh` (from `.sandbox/phase11/runner.sh`, with no module
+      names or private paths) with stages baseline → plan → code → test → verify; prompts in plain
+      words naming the workflow file (no leading slash command); install exit codes recorded
+      per module; groups run serially by default, parallel only when asked; each stage appends
+      a machine-readable status line. Unit tests with fake `sandboxctl`/agent binaries.
+- [ ] Live UI gate (finding 9): ship the proven browser checks as kit scripts (page errors,
+      console `[error]`, error dialogs, new `odoo.http` exceptions in the session log) and make a
+      recorded UI-check outcome required by `/testing` for migration targets, test-first
+      (gate refuses without it; the Stop hook names it).
+- [ ] Quota plan documented in the runbook and the runner (serial default, per-group budget
+      stop, resume from the last finished stage).
+- [ ] LIVE TEST (host agreed with the owner at the start of the phase; no cloud spend without
+      approval): (1) the group A requirements that failed with `ResolutionImpossible` on
+      2026-09-28 build from the cloud run's freeze file; (2) the runner's no-LLM `baseline` +
+      `verify` stages on group C's 19 source and its `20.0` branch give parity PASS with install
+      exit codes recorded; (3) a deliberately broken install fails the new pass criterion;
+      (4) the UI check on one migrated app passes, and fails on an injected JS console error.
+- [ ] Docs: `docs/docker-sandbox/phase-12/live-test.md`, README, `DockerSandboxOperations`
+      skill / runbook, CHANGELOG *Unreleased*, `SESSION_CONTEXT.md`.
+- [ ] Exit gate: all items above checked, `./scripts/validate.sh` green, the private-code guard
+      passes, one focused commit.
+
 ## Definition of done for every implementation task
 
 - Code/config and user documentation are updated together.
