@@ -203,8 +203,8 @@ LIVE TESTs pass). It also adds real-module sessions with PyPI requirements
 sandbox through `/plan-analysis` → `/start-coding` → `/testing`. See
 [`docs/docker-sandbox/phase-10/live-test.md`](docs/docker-sandbox/phase-10/live-test.md).
 
-Phase 11 (in progress; results in [`docs/docker-sandbox/phase-11/live-test.md`](docs/docker-sandbox/phase-11/live-test.md):
-eight private modules migrated 19→20 with parity PASS) prepares batch custom-module migrations on a cloud fleet:
+Phase 11 (complete; results in [`docs/docker-sandbox/phase-11/live-test.md`](docs/docker-sandbox/phase-11/live-test.md):
+eight private modules migrated 19→20 with parity PASS and a live UI test) adds batch custom-module migrations on a cloud fleet:
 `--requirements` can be repeated (merged; conflicting pins refused),
 `sandbox-fleet create --cloud --import DIR --requirements FILE …` ships a staging tree to the
 cloud session, and `sandbox/scripts/test-parity.py BASELINE_LOG TARGET_LOG --json FILE`

@@ -1,8 +1,8 @@
 # Phase 11 LIVE TEST — batch 19→20 migration on a cloud fleet
 
-Status: **run 1 (cloud) finished 2026-09-28** with group C passing and A/B partial; the
-**completion run (local)** finished all three groups with parity PASS (see below). Whether the
-cloud LIVE TEST needs a final no-LLM cloud re-verification is an owner decision. Module source, migrated code and patches are private and stay in the
+Status: **closed 2026-09-28.** Run 1 (cloud) finished with group C passing and A/B partial; the
+**completion run (local)** finished all three groups with parity PASS (see below). The owner
+accepted this evidence as the Phase 11 LIVE TEST without a no-LLM cloud re-verification. Module source, migrated code and patches are private and stay in the
 gitignored `.sandbox/phase11/`. This record lists names, commands and results only.
 
 ## Setup
@@ -146,10 +146,12 @@ live UI step found more real bugs than the backend tests. The documentation skil
 rule was extended (console errors, error dialogs, server-log exceptions) with the Odoo 20 form
 quirks met in this run (`plugin/skills/Odoo_Module_Documentation_Screenshot/SKILL.md`).
 
-## Next
+## Owner decision and close (2026-09-28)
 
-Owner: publish `VPCS-Cloud` branch `20.0` (blocked for the agent by the contributor hook). Then
-decide whether the local completion closes the Phase 11 LIVE TEST or one no-LLM cloud
-verification runs. Then close Phase 11. The
-migrated code is exported privately (`.sandbox/phase11/export/`, patches + bundles); pushing it
-to the private repository is an owner action.
+- Both branches are published: `VPCS-Cloud` `20.0` at `9f4e1d4` and kit `main` at `17c81ab`
+  (checked with `git ls-remote`).
+- The owner accepted the evidence as is: cloud run 1 (fleet allocation, 19 baselines, Codex,
+  group C PASS) plus the local completion run and the live UI test (A, B, C parity PASS; all
+  eight modules in one Odoo 20 database). Groups A and B not finishing in the cloud (ChatGPT
+  usage limit) is an accepted gap. No no-LLM cloud re-verification was run and no cloud spend
+  was made for the close. Pushing migrated code anywhere else remains an owner action.

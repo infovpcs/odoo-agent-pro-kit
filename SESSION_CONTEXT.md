@@ -29,7 +29,7 @@ Before changing files:
   planning
 - Active branch: `main`
 - Branch base: `main` at commit `12368b7` (post-Phase-7, additive 0.2.0/0.3.0 work)
-- Last context update: 2026-09-28 (end of session) — **Phase 11 done in substance** (8 VPCS-Cloud modules on Odoo 20, live-tested and documented); owner push + LIVE TEST decision + exit gate remain (see "Next task").
+- Last context update: 2026-09-28 (Phase 11 closed) — **Phases 0–11 complete**; the next task is agreeing Phase 12 with the owner (see "Next task").
 
 ## Phase 9 — complete (2026-09-25, commit `ba87f5c`, pushed to origin/main by the owner)
 
@@ -747,17 +747,16 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Current state
 
-- **START HERE (2026-09-28, end of session).** Phases 0–10 complete and pushed. **Phase 11
-  (batch 19→20 custom-module migration on a cloud fleet) is done in substance; only the owner's
-  LIVE TEST decision and the exit gate remain.** Read "Next task" below first.
+- **START HERE (2026-09-28, Phase 11 closed).** Phases 0–11 complete. Read "Next task" below.
   - **Result:** all eight `VPCS-Cloud` modules migrated to Odoo 20.0 and verified: parity PASS for
     every group (no 19-passing test regresses), all eight install together in one database, live
     UI test of every app, `index.html` + screenshots for every module. The live UI test found 7
     Odoo 20 bugs that backend tests and parity had missed (all fixed with regression tests).
-  - **Not yet pushed (owner runs these; the contributor hook blocks the agent):**
-    `VPCS-Cloud` branch `20.0` (11 commits on `3530251`, tip `9f4e1d4`):
-    `cd ~/workspace/VPCS-Cloud && git push -u origin 20.0`; kit `main` (7 commits `fff69ec`…
-    this context commit, on `c39e43b`): `cd ~/workspace/odoo-agent-pro-kit && git push origin main`.
+  - **Published by the owner:** `VPCS-Cloud` `20.0` at `9f4e1d4`, kit `main` at `17c81ab`
+    (`git ls-remote`, 2026-09-28). The Phase 11 close commit is local only until the owner pushes.
+  - **Owner decision (2026-09-28):** the LIVE TEST closes on the existing evidence (cloud run 1 +
+    local completion + live UI test); groups A/B not finishing in the cloud is an accepted gap; no
+    no-LLM cloud re-verification, no cloud spend for the close.
   - **Privacy rule (owner, 2026-09-28):** module/repo names may be public; module source, migrated
     code and patches never enter this repository (`scripts/private_code_guard.py` enforces the
     code part). Private notes, including a credential to rotate: `.sandbox/phase11/plan.md`.
@@ -1552,21 +1551,9 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Next task
 
-**Sole next task: close Phase 11** (`docs/docker-sandbox/tasks.md` § Phase 11; open items:
-the LIVE TEST item, the docs item and the exit gate).
-
-1. **Owner pushes** (hook-blocked for the agent): `VPCS-Cloud` `20.0` and kit `main` (commands in
-   "START HERE"). Check with `git ls-remote --heads origin 20.0` in `~/workspace/VPCS-Cloud`.
-2. **Owner decision on the LIVE TEST item** (written for the cloud fleet): (a) accept the evidence
-   as is — cloud run 1 (fleet allocation, baselines, Codex, group C PASS) + local completion and
-   live UI test (all groups PASS); or (b) first run one **no-LLM cloud verification** of branch
-   `20.0` (one medium sandbox, ~30 min, owner-approved spend; `sandbox-fleet create --cloud
-   --import` of the 8 modules, install + tests, `test-parity.py` against the cloud 19 logs in
-   `.sandbox/phase11/results/*/p11/base19-odoo.log`; the owner runs `sbx --cloud rm`).
-3. **Close Phase 11:** tick the LIVE TEST, docs and exit-gate items with the evidence; CHANGELOG
-   *Unreleased* entries for the documentation-skill acceptance rule; `./scripts/validate.sh`
-   (+ `scripts/private_code_guard.py`); one focused commit; set Phase 12 as the next task after
-   agreeing it with the owner.
+**Sole next task: agree Phase 12 with the owner**, add it to `docs/docker-sandbox/tasks.md`, then
+start it in a fresh session. Phase 11 closed 2026-09-28 (owner accepted the evidence as is).
+The owner publishes the Phase 11 close commit to `origin/main` (hook-blocked for the agent).
 
 **Phase 12 candidates (owner picks; most concrete first):**
 - **Kit fixes from Phase 11 findings** (`phase-11/live-test.md`): replay a session's

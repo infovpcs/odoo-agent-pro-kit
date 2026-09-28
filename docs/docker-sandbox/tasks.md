@@ -597,7 +597,7 @@ run mode, local `exec` mode is unchanged (full suite green), costs are recorded.
     was not workspace-scoped (API 400); Codex needs a `codex`-template sandbox.
   - Exit gate passed 2026-09-28; evidence in `phase-10/live-test.md`.
 
-## Phase 11: Batch 19→20 custom-module migration on a cloud fleet
+## Phase 11: Batch 19→20 custom-module migration on a cloud fleet — complete (2026-09-28)
 
 Owner decision 2026-09-28. The kit gains what a multi-module batch migration needs, then proves
 it by migrating eight Odoo 19 modules from the owner's private `VPCS-Cloud` repository to 20.0
@@ -665,7 +665,7 @@ is recorded as not exercised). Known risk: `odoo_whatsapp_mcp` pins `Pillow==10.
       `sentence-transformers`. Finding: `vpcs_gitlab` imports `paramiko` at load time without
       declaring it (added to group B's file; fix the manifest in the migration). All three groups'
       requirements merge without conflict. The 19 baselines run in the cloud sandboxes (open).
-- [ ] LIVE TEST (cloud, owner-approved spend): three parallel `sandbox-fleet create --cloud`
+- [x] LIVE TEST (cloud, owner-approved spend): three parallel `sandbox-fleet create --cloud`
       sandboxes (codex template, internal-only), one per group. In
       each: 19 baseline → `/plan-analysis` → `/start-coding` → `/testing` with Codex (ChatGPT
       OAuth) and the plugin hooks → parity check on 20. Pass: every module installs on 20; the
@@ -676,6 +676,11 @@ is recorded as not exercised). Known risk: `odoo_whatsapp_mcp` pins `Pillow==10.
       19 and 20). Groups A and B partial: Codex hit the ChatGPT usage limit at 10:53 UTC in all
       three sandboxes; A has 2 of 4 modules migrated, and B is blocked by the removed
       `website_sale_comparison.product_attributes_body` template. Sandboxes removed by the owner.
+      Closed 2026-09-28 by owner decision: the evidence is accepted as is — cloud run 1
+      (fleet allocation, 19 baselines, Codex, group C PASS) plus the local completion run and
+      live UI test (groups A, B, C parity PASS; all eight modules in one Odoo 20 database). The
+      owner accepts that groups A and B did not finish in the cloud (ChatGPT usage limit); no
+      no-LLM cloud re-verification was run. `sbx --cloud ls` was empty at the end.
 - [x] Fix the fail-open gates found in run 1, test-first: `/start-coding` and `/testing` must
       refuse when no `docs/tasks.md` checklist is found for the target (repository root or the
       named module), not treat the target as out of scope.
@@ -698,12 +703,15 @@ is recorded as not exercised). Known risk: `odoo_whatsapp_mcp` pins `Pillow==10.
       2026-09-28: not triggered live (no run ended at Stop with all tasks done and no record). On
       the pulled group C repository the fixed hook's Stop check returns 2 with its message; still
       no in-agent live trigger.
-- [ ] `docs/docker-sandbox/phase-11/live-test.md` (commands, versions, per-module install and
+- [x] `docs/docker-sandbox/phase-11/live-test.md` (commands, versions, per-module install and
       parity tables by test name, costs, blockers; no module code or diffs), CHANGELOG
       *Unreleased*, README/runbook updates, `SESSION_CONTEXT.md`. Migrated code is exported as
       patches under `.sandbox/phase11/` only.
-- [ ] Exit gate: all items above checked, the private-code guard passes on the final tree,
+      Done 2026-09-28: `live-test.md` (run 1, completion run, branch + live UI test, owner
+      decision), CHANGELOG *Unreleased*, README, documentation skill acceptance rule.
+- [x] Exit gate: all items above checked, the private-code guard passes on the final tree,
       `./scripts/validate.sh` green, one focused commit.
+      Met 2026-09-28: `./scripts/validate.sh` OK (443 passed), `private_code_guard.py` rc 0.
 
 ## Definition of done for every implementation task
 

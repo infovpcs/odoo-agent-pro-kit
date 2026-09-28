@@ -7,7 +7,7 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
 
 ### Added
 
-- **Batch migration tooling (Phase 11, in progress).** `sandboxctl create --requirements` is
+- **Batch migration tooling (Phase 11).** `sandboxctl create --requirements` is
   repeatable: lines are merged per project (PEP 503 names, extras unioned, specifiers combined),
   and two different exact pins or a pin excluded by `!=` are refused with both files named.
   `sandbox-fleet create --cloud --import DIR [--requirements FILE …]` packs the staging tree
@@ -17,6 +17,8 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
   JSON result for `backend_tests_baseline_parity`; on the Phase 10 logs it reproduces the
   recorded result (parity PASS, one 19 failure fixed on 20). New `scripts/private_code_guard.py`,
   run by `validate.sh`, keeps private module code out of this public repository.
+  LIVE: eight private Odoo 19 modules in three groups migrated to 20.0 with parity PASS, all
+  eight installed together and live UI tested (`docs/docker-sandbox/phase-11/live-test.md`).
 - **Odoo 20.0 in the Docker Sandbox (Phase 10)**. Docker Hub has no `odoo:20.0`,
   so `sandbox/images/odoo-dev/20.Dockerfile` reproduces the official `odoo/docker` 20.0 recipe
   on a pinned `ubuntu:noble` digest (nightly deb and wkhtmltopdf checksum-pinned). Sessions run
@@ -64,6 +66,10 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
 
 ### Changed
 
+- `Odoo_Module_Documentation_Screenshot` skill: a screen is accepted only with no page error,
+  no console `[error]`, no error dialog and no new server-log exception, and the skill lists the
+  Odoo 20 form quirks met in the Phase 11 live UI test. That test found seven Odoo 20 bugs that
+  backend tests and parity had missed.
 - `odoo-mixin` kit 0.6.0 allows the Odoo 20 image build hosts; 0.7.0 adds `pypi.org` and
   `files.pythonhosted.org` for `--requirements`.
 - `odoo-mixin` kit 0.5.2 allows `production.cloudfront.docker.com` (Docker Hub blob host).
