@@ -1569,7 +1569,12 @@ that consumes stable Community releases instead of forking this repository.
   (patches + bundles) `.sandbox/phase11/export/`; helper scripts `verify-local.sh`, `iter.sh`.
   Odoo 20 change list + kit findings 7 (pip drift) and 8 (Docker Desktop auto-update):
   `phase-11/live-test.md` "Completion run". Private follow-ups: `.sandbox/phase11/plan.md`.
-- **Next:** owner decides whether the local completion closes the LIVE TEST or one no-LLM cloud
+- **2026-09-28 afternoon:** `VPCS-Cloud` branch `20.0` built (11 commits, not published — owner
+  runs `git push -u origin 20.0`); live UI test + documentation of all 8 apps in session `docs20`
+  found and fixed 7 Odoo 20 bugs; every module has an Odoo 20 section in `index.html`. Record:
+  `phase-11/live-test.md` "Branch, live UI test and documentation". Helpers: `.sandbox/phase11/`
+  (`ab.sh`, `shot.sh`, `rpc.py`, `gen_index.py`).
+- **Next:** owner publishes `20.0`, then decides whether the local completion closes the LIVE TEST or one no-LLM cloud
   re-verification runs; then close Phase 11 (exit gate, one commit). Earlier plan text: finish A and B in
   fresh sandboxes after the owner agrees a model-quota plan. The owner's Kaggle Ollama endpoint
   (Qwen3.8 27B, notebooks in `.sandbox/local-models/`, token-protected variant written

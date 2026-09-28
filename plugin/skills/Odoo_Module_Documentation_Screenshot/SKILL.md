@@ -160,6 +160,27 @@ rm -f /tmp/ck
 - Never hard-code `admin/admin` — a sandbox session's password is random and lives
   in `.sandbox/sessions/<s>/runtime.env` (`ODOO_API_PASSWORD`). `.sandbox/` is
   git-ignored; never copy that file or its values into tracked files, logs, or docs.
+- **`AB errors` is not enough** (Odoo 20 migration run, 2026-09-28: 7 real bugs, none caught
+  by backend tests or by `errors`). Accept a screen only when all four are clean:
+  `AB errors`; `AB console` has no `[error]` line (clear it with `AB console --clear` before
+  `open`) — missing JS modules only show up here; the page text has no "Internal Server
+  Error", "Oops", "Something went wrong" or "Access Error"; and the session's `odoo.log` got no
+  new `odoo.http: Exception` line while the page loaded (count lines before, grep after).
+- After every `sandboxctl module <s> update` the server restarts and the browser session is
+  gone — log in again before the next capture.
+- With `website` installed, `/web/login` is the website login page: the inputs are not in
+  `snapshot -i`; fill `input[name=login]` / `input[name=password]` and `press Enter` (a
+  website overlay can cover the submit button).
+- Odoo 20 forms: a Selection field renders as a textbox that opens a dropdown — `click` it,
+  then click the `menuitem`; a Many2one only lists options after you `fill` a few letters,
+  then click the `link` option. `select` does nothing on either.
+- If Save seems to do nothing, a required field is empty: list them with
+  `AB eval "[...document.querySelectorAll('.o_field_invalid')].map(e=>e.getAttribute('name'))"`.
+- Never click buttons that call `window.alert()` (e.g. a download that fails without an
+  external token): the dialog blocks the browser session.
+- Screenshot names that collide with existing app-store images overwrite them: prefix new
+  captures (e.g. `odoo20_NN_name.png`) and add them to `index.html` as a section, keeping the
+  existing marketing content.
 
 ### 4. Icon & Banner Generation
 

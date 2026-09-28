@@ -119,9 +119,37 @@ Kit findings:
 8. **Docker Desktop auto-update** restarted the daemon mid-run (one aborted create, cleaned up;
    `unless-stopped` containers came back). Turn auto-update off for long runs and recordings.
 
+## Branch, live UI test and documentation (2026-09-28, 13:10–14:25 UTC, owner request)
+
+The owner asked for a `20.0` branch in `VPCS-Cloud` with all changes, then live testing with the
+documentation skill until every app has its `index.html`.
+
+- Branch `20.0` from `3530251`: one commit per group plus migration records
+  (`docs/odoo20-migration/`), each module checked file by file against its work repository.
+  The contributor hook blocks publishing from this session; the owner publishes the branch.
+- One local Odoo 20 session (`docs20`) with all eight modules installed together, a local-only
+  `socat` bridge, `agent-browser` 0.35.1. Every screen was accepted only with no page error, no
+  console `[error]`, no error dialog and no new server exception; every action was checked over
+  JSON-RPC.
+- **The live UI test found seven Odoo 20 bugs that the backend tests and the parity check had
+  missed** (details in the private repository's `docs/odoo20-migration/LIVE-TEST.md`): a removed
+  `_notify_thread` argument that broke the web client, the product page interaction and CTA
+  markup, `add_members`, a notice-forwarding loop, a new computed field not assigned, and a test
+  fixture colliding with existing data. All fixed with regression tests; afterwards every group
+  still passes parity in the same database (A 32/41, B 28/28, C 13/20; all non-passing tests
+  also failed on 19).
+- 41 screenshots and an "Odoo 20.0 — live tested" section in every module's `index.html`; two
+  modules got their first `index.html`, icon and banner.
+
+Kit finding 9: backend parity is necessary but not sufficient for a migration — the `/testing`
+live UI step found more real bugs than the backend tests. The documentation skill's acceptance
+rule was extended (console errors, error dialogs, server-log exceptions) with the Odoo 20 form
+quirks met in this run (`plugin/skills/Odoo_Module_Documentation_Screenshot/SKILL.md`).
+
 ## Next
 
-Owner decision: accept the local completion as the Phase 11 LIVE TEST result, or run one final
-no-LLM cloud verification of the three committed work repositories. Then close Phase 11. The
+Owner: publish `VPCS-Cloud` branch `20.0` (blocked for the agent by the contributor hook). Then
+decide whether the local completion closes the Phase 11 LIVE TEST or one no-LLM cloud
+verification runs. Then close Phase 11. The
 migrated code is exported privately (`.sandbox/phase11/export/`, patches + bundles); pushing it
 to the private repository is an owner action.
