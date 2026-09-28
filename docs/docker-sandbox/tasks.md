@@ -657,6 +657,12 @@ is recorded as not exercised). Known risk: `odoo_whatsapp_mcp` pins `Pillow==10.
 - [ ] Stage the three groups with `migrate-local.py` from a clean `VPCS-Cloud` checkout (commit
       recorded) into `.sandbox/`, and record each group's 19 baseline (install + tests, by name)
       inside its cloud sandbox before any change.
+      Staged 2026-09-28 (local, no spend) from `VPCS-Cloud` `3530251` into
+      `.sandbox/phase11/groups/{a,b,c}` (11 / 8 / 49 MB; a 78 MB marketing `.mp4` left out).
+      Requirements mirror each manifest's `external_dependencies`; group A's livechat file drops
+      `sentence-transformers`. Finding: `vpcs_gitlab` imports `paramiko` at load time without
+      declaring it (added to group B's file; fix the manifest in the migration). All three groups'
+      requirements merge without conflict. The 19 baselines run in the cloud sandboxes (open).
 - [ ] LIVE TEST (cloud, owner-approved spend): three parallel `sandbox-fleet create --cloud`
       sandboxes (codex template, internal-only), one per group. In
       each: 19 baseline → `/plan-analysis` → `/start-coding` → `/testing` with Codex (ChatGPT
@@ -664,6 +670,17 @@ is recorded as not exercised). Known risk: `odoo_whatsapp_mcp` pins `Pillow==10.
       parity check exits 0 for every group (unless a difference is recorded and accepted by the
       owner); every command gate is passed rather than bypassed; `sbx --cloud ls` is empty at
       the end (owner runs removals).
+      Run 1 (2026-09-28, `phase-11/live-test.md`): group C PASS (installs, parity 9/3/4 of 16 on
+      19 and 20). Groups A and B partial: Codex hit the ChatGPT usage limit at 10:53 UTC in all
+      three sandboxes; A has 2 of 4 modules migrated, and B is blocked by the removed
+      `website_sale_comparison.product_attributes_body` template. Sandboxes removed by the owner.
+- [ ] Fix the fail-open gates found in run 1, test-first: `/start-coding` and `/testing` must
+      refuse when no `docs/tasks.md` checklist is found for the target (repository root or the
+      named module), not treat the target as out of scope.
+- [ ] Finish groups A and B from the pulled work repositories (`.sandbox/phase11/results/`) in
+      fresh sandboxes; model quota plan agreed with the owner first (serial groups, or a second
+      OpenAI-compatible provider such as the owner's Kaggle Ollama endpoint once its self-test
+      passes: tool calls, `/v1/responses`, speed).
 - [ ] If a run stops at `/start-coding` with no outcome recorded, the Stop-hook enforcement
       (`gates.needs_backend_test_record`) blocks it. Record that as live evidence;
       otherwise note it as still unit-test-only.

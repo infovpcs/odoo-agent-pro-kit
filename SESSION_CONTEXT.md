@@ -1557,9 +1557,15 @@ that consumes stable Community releases instead of forking this repository.
   tests), `website_blog_ai_generator`; B `currency_rate_of_rbi` → `vpcs_gitlab` →
   `vpcs_cloud_website_customization`; C `odoo_whatsapp_mcp` (Pillow/requests pin risk).
 - Module code stays private: source, migrated code and patches only in gitignored `.sandbox/`.
-- Build items are DONE (2026-09-28). Next: stage the three groups with `migrate-local.py` into
-  `.sandbox/imports/` (group A's 19 baseline uses a trimmed requirements copy without
-  `sentence-transformers`), then ask the owner to approve the cloud spend.
+- Build items DONE; staging DONE; **cloud LIVE TEST run 1 done 2026-09-28** (see
+  `docs/docker-sandbox/phase-11/live-test.md`): group C PASS; A and B partial (ChatGPT usage limit
+  at 10:53 UTC). Owner removed the sandboxes; `sbx --cloud ls` empty; fleet state marked
+  destroyed. Pulled work repos, logs, parity JSON: `.sandbox/phase11/results/{a,b,c}/`; runner,
+  launch, poll, pull, wait scripts: `.sandbox/phase11/`.
+- Next, in order: (1) fix the fail-open gates test-first (tasks.md item); (2) finish A and B in
+  fresh sandboxes after the owner agrees a model-quota plan. The owner's Kaggle Ollama endpoint
+  (Qwen3.8 27B, notebooks in `.sandbox/local-models/`, token-protected variant written
+  2026-09-28, not yet run) is a candidate second provider once its self-test cell passes.
 - Then the cloud LIVE TEST: codex template, Codex on ChatGPT OAuth, 3 parallel sandboxes. Get the
   owner's approval of the cloud spend before creating any sandbox. The owner runs `sbx --cloud rm`.
 
