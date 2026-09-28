@@ -597,6 +597,73 @@ run mode, local `exec` mode is unchanged (full suite green), costs are recorded.
     was not workspace-scoped (API 400); Codex needs a `codex`-template sandbox.
   - Exit gate passed 2026-09-28; evidence in `phase-10/live-test.md`.
 
+## Phase 11: Batch 19→20 custom-module migration on a cloud fleet
+
+Owner decision 2026-09-28. The kit gains what a multi-module batch migration needs, then proves
+it by migrating eight Odoo 19 modules from the owner's private `VPCS-Cloud` repository to 20.0
+in three parallel Docker Cloud Sandboxes. Codex runs the LLM steps on the owner's ChatGPT
+subscription. **Code stays private (owner, 2026-09-28):** module and repository names may appear
+in public docs, but module source, migrated code and patches never enter tracked files, commits
+or public artifacts; they live only in the gitignored `.sandbox/`. Pushing migrated code to the
+private repository is an owner action.
+
+| Group | Modules (install order) | Test files on 19 |
+|-------|-------------------------|------------------|
+| A: LLM stack | `vpcs_llm_provider` (Phase 10 control) → `vpcs_typesafe_ai`, `vpcs_ai_livechat` (+ new reranker tests on 20), `website_blog_ai_generator` | 4+1+0+4 |
+| B: commerce chain | `currency_rate_of_rbi` → `vpcs_gitlab` → `vpcs_cloud_website_customization` | 0+2+1 |
+| C: WhatsApp base | `odoo_whatsapp_mcp` | 5 |
+
+`vpcs_github_copilot_provider` was dropped (owner does not use it) and replaced by
+`vpcs_ai_livechat`: it has no tests on 19, but with `odoo_whatsapp_mcp` it unblocks the WhatsApp
+chatbot chain for a later phase. Its embeddings already go through provider HTTP APIs (OpenAI,
+Google, Ollama server); `sentence-transformers` (PyTorch, several GB) is used only by the optional
+cross-encoder reranker, which the 20.0 version drops (owner decision). pgvector stays optional
+(`init()` tolerates a missing `vector` extension; the sandbox Postgres has none, so vector search
+is recorded as not exercised). Known risk: `odoo_whatsapp_mcp` pins `Pillow==10.0.1` /
+`requests==2.31.0` over the Odoo 20 system packages.
+
+- [ ] Multi-module requirements: `sandboxctl create --requirements` accepts the flag more than
+      once (or a staging tree with several `requirements.txt`), merges the validated lines and
+      fails on conflicting pins with a clear error. Test first, on synthetic fixtures only.
+- [ ] `sandbox-fleet create --cloud --import DIR [--requirements FILE ...]`: ship the staging
+      tree with the snapshot and pass it through to `sandboxctl create` in the cloud sandbox.
+      `--module` stays the install target list. Test first; update `plugin/commands/fleet.md`.
+- [ ] Deterministic baseline-parity check (no LLM): a script that parses two Odoo test logs
+      (19 baseline, 20 result), lists every test by name with its status, and exits non-zero
+      when a test that passed on 19 fails, errors or is missing on 20. It writes a JSON result
+      that `backend_tests_baseline_parity` can cite. Test first on synthetic fixture logs.
+- [ ] Private-code guard: a validate/test check that fails when an Odoo module
+      (`__manifest__.py`) is tracked outside `sandbox/fixtures/`, or when a tracked or staged file
+      is a migration patch/bundle of module code, so private module source cannot be committed.
+- [ ] `vpcs_ai_livechat` 20.0 migration spec (given to `/plan-analysis` for group A): remove
+      `sentence-transformers` from `requirements.txt` and `reranking_service.py`; replace the
+      cross-encoder with a pure-Python hybrid reranker (BM25 over the retrieved chunks blended
+      with the vector similarity score; no new dependency) as the default, plus an optional
+      `llm` mode that reranks through the configured `vpcs_llm_provider`; keep
+      `use_reranking`/`rerank_top_k`, migrate `rerank_model` values that name a cross-encoder;
+      fix the docstring that says Ollama embeddings use sentence-transformers. Ship new unit
+      tests for the reranker (ordering, blend weights, empty input, `llm` fallback on provider
+      error).
+- [ ] Stage the three groups with `migrate-local.py` from a clean `VPCS-Cloud` checkout (commit
+      recorded) into `.sandbox/`, and record each group's 19 baseline (install + tests, by name)
+      inside its cloud sandbox before any change.
+- [ ] LIVE TEST (cloud, owner-approved spend): three parallel `sandbox-fleet create --cloud`
+      sandboxes (codex template, internal-only), one per group. In
+      each: 19 baseline → `/plan-analysis` → `/start-coding` → `/testing` with Codex (ChatGPT
+      OAuth) and the plugin hooks → parity check on 20. Pass: every module installs on 20; the
+      parity check exits 0 for every group (unless a difference is recorded and accepted by the
+      owner); every command gate is passed rather than bypassed; `sbx --cloud ls` is empty at
+      the end (owner runs removals).
+- [ ] If a run stops at `/start-coding` with no outcome recorded, the Stop-hook enforcement
+      (`gates.needs_backend_test_record`) blocks it. Record that as live evidence;
+      otherwise note it as still unit-test-only.
+- [ ] `docs/docker-sandbox/phase-11/live-test.md` (commands, versions, per-module install and
+      parity tables by test name, costs, blockers; no module code or diffs), CHANGELOG
+      *Unreleased*, README/runbook updates, `SESSION_CONTEXT.md`. Migrated code is exported as
+      patches under `.sandbox/phase11/` only.
+- [ ] Exit gate: all items above checked, the private-code guard passes on the final tree,
+      `./scripts/validate.sh` green, one focused commit.
+
 ## Definition of done for every implementation task
 
 - Code/config and user documentation are updated together.

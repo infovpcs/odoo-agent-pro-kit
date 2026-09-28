@@ -749,17 +749,19 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Current state
 
-- **START HERE (2026-09-28, end of session).** Phases 0–10 are complete; everything is pushed
-  (kit `origin/main`, knowledge base `infovpcs` `09d09df`). The working tree is clean; 402 tests
-  pass; `./scripts/validate.sh` is green. **No Phase 11 exists in `docs/docker-sandbox/tasks.md`**,
-  so the hook prints no "[next phase task]". Read **"Next task"** (near the end of this file): the
-  first job of the new session is to agree Phase 11 with the owner, then write it into
-  `tasks.md` with a LIVE TEST and an exit gate before any code. Versions: plugin `0.8.0`,
-  `odoo-mixin` kit `0.7.0`, CHANGELOG *Unreleased* holds Phase 10. Cloud state: the cloud
-  secrets (`anthropic` workspace-scoped key, `openai` ChatGPT OAuth, `github` token with repo
-  access) are set. Four TTL-ended sandboxes (`kit-p10-mig3`, `-git`, `-tar`, `-cgit`) await
-  owner `sbx --cloud rm`; check `sbx --cloud ls` first. About $2.38 of the $5 Anthropic credit
-  remains.
+- **START HERE (2026-09-28, Phase 11 defined).** Phases 0–10 are complete and pushed. The owner
+  chose **Phase 11: batch 19→20 custom-module migration on a cloud fleet**: new kit features
+  (multi `--requirements`, `sandbox-fleet --import`, deterministic parity check, private-code
+  guard), then a cloud LIVE TEST with Codex on the ChatGPT
+  subscription, on eight modules from the private `VPCS-Cloud` repo (groups in `tasks.md`).
+  **Privacy rule (owner, 2026-09-28): module/repo names may be public; module source, migrated
+  code and patches never enter tracked files or commits** (keep them in gitignored `.sandbox/`).
+  Checklist, LIVE TEST and exit gate: `docs/docker-sandbox/tasks.md` § Phase 11.
+  Nothing is implemented yet. Checked 2026-09-28: `sbx --cloud ls` → "No sandboxes found";
+  Docker Hub still has no `odoo:20.0` (tag API 404). Versions: plugin `0.8.0`, `odoo-mixin` kit
+  `0.7.0`, CHANGELOG *Unreleased* holds Phase 10. Cloud secrets (`anthropic` workspace-scoped,
+  `openai` ChatGPT OAuth, `github` with repo access) are set; about $2.38 of the $5 Anthropic
+  credit remains.
 - **2026-09-28 (latest, Phase 10 closed):** private-repo clone carry-over. The cloud `github`
   fine-grained token saw 0 private repos; the owner widened it (All repositories + Contents), and
   it then saw 62. Plain private `git clone` over HTTPS **passes** in the `claude` (`kit-p10-tar`)
@@ -1543,15 +1545,24 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Next task
 
-Phase 10 is complete and pushed. **No Phase 11 exists in `docs/docker-sandbox/tasks.md` yet.**
-Start a fresh session, read this file, then:
+**Sole next task: Phase 11 — batch 19→20 custom-module migration on a cloud fleet**
+(`docs/docker-sandbox/tasks.md` § Phase 11, agreed with the owner 2026-09-28).
 
-1. **Cloud cleanup check:** `sbx --cloud ls` (Intel Mac: the `sbx-cloud:0.45.1` container, see the
-   cloud runbook). If `kit-p10-*` sandboxes remain, ask the owner to remove them (the hook blocks
-   agent `sbx rm`).
-2. **Agree Phase 11 with the owner** (it decides the next priority), then add it to `tasks.md`
-   with checklist items, a LIVE TEST and an exit gate, and set it here as the sole next task.
-   Candidates, most concrete first:
+- Groups: A `vpcs_llm_provider` → `vpcs_typesafe_ai`, `vpcs_ai_livechat` (20.0 drops
+  `sentence-transformers`; pure-Python BM25+vector hybrid reranker + optional `llm` mode, new
+  tests), `website_blog_ai_generator`; B `currency_rate_of_rbi` → `vpcs_gitlab` →
+  `vpcs_cloud_website_customization`; C `odoo_whatsapp_mcp` (Pillow/requests pin risk).
+- Module code stays private: source, migrated code and patches only in gitignored `.sandbox/`.
+- Build first, test-first, on synthetic fixtures: repeatable `--requirements` merge with
+  conflict detection; `sandbox-fleet create --cloud --import/--requirements`; a deterministic
+  19-vs-20 test-log parity script; the private-code guard (no tracked module outside `sandbox/fixtures/`).
+- Then the cloud LIVE TEST: codex template, Codex on ChatGPT OAuth, 3 parallel sandboxes. Get the
+  owner's approval of the cloud spend before creating any sandbox. The owner runs `sbx --cloud rm`.
+
+Previous session's candidate list (kept for reference; the owner picked the batch migration):
+
+1. Cloud cleanup check: done 2026-09-28, nothing left.
+2. Candidates considered for Phase 11:
    - **Batch 19→20 migrations** of more VPCS modules through the proven cloud chain
      (`migrate-local.py` → `sandboxctl create --import/--requirements` → headless
      `/plan-analysis` → `/start-coding` → `/testing`, with per-step `--model`/`--max-budget-usd`
