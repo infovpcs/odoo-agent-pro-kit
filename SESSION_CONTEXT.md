@@ -1562,7 +1562,15 @@ that consumes stable Community releases instead of forking this repository.
   at 10:53 UTC). Owner removed the sandboxes; `sbx --cloud ls` empty; fleet state marked
   destroyed. Pulled work repos, logs, parity JSON: `.sandbox/phase11/results/{a,b,c}/`; runner,
   launch, poll, pull, wait scripts: `.sandbox/phase11/`.
-- Gate fix DONE 2026-09-28 (`tests/hooks/test_gates_fail_closed.py`, 443 tests pass). Next: finish A and B in
+- Gate fix DONE 2026-09-28 (`tests/hooks/test_gates_fail_closed.py`, 443 tests pass).
+- **A, B, C finished locally 2026-09-28** (owner decision: this Claude Code session + Docker
+  Desktop, no cloud spend): all 8 modules install on 20, parity PASS for every group in fresh
+  sessions, gates pass. Work repos `.sandbox/phase11/local/group-{a,b,c}`; private exports
+  (patches + bundles) `.sandbox/phase11/export/`; helper scripts `verify-local.sh`, `iter.sh`.
+  Odoo 20 change list + kit findings 7 (pip drift) and 8 (Docker Desktop auto-update):
+  `phase-11/live-test.md` "Completion run". Private follow-ups: `.sandbox/phase11/plan.md`.
+- **Next:** owner decides whether the local completion closes the LIVE TEST or one no-LLM cloud
+  re-verification runs; then close Phase 11 (exit gate, one commit). Earlier plan text: finish A and B in
   fresh sandboxes after the owner agrees a model-quota plan. The owner's Kaggle Ollama endpoint
   (Qwen3.8 27B, notebooks in `.sandbox/local-models/`, token-protected variant written
   2026-09-28, not yet run) is a candidate second provider once its self-test cell passes.

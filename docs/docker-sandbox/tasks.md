@@ -645,7 +645,7 @@ is recorded as not exercised). Known risk: `odoo_whatsapp_mcp` pins `Pillow==10.
       is a migration patch/bundle of module code, so private module source cannot be committed.
       Done 2026-09-28: `scripts/private_code_guard.py` (two Phase 8 evidence files
       grandfathered), run by `validate.sh`; tests in `tests/test_private_code_guard.py`.
-- [ ] `vpcs_ai_livechat` 20.0 migration spec (given to `/plan-analysis` for group A): remove
+- [x] `vpcs_ai_livechat` 20.0 migration spec (given to `/plan-analysis` for group A): remove
       `sentence-transformers` from `requirements.txt` and `reranking_service.py`; replace the
       cross-encoder with a pure-Python hybrid reranker (BM25 over the retrieved chunks blended
       with the vector similarity score; no new dependency) as the default, plus an optional
@@ -654,7 +654,9 @@ is recorded as not exercised). Known risk: `odoo_whatsapp_mcp` pins `Pillow==10.
       fix the docstring that says Ollama embeddings use sentence-transformers. Ship new unit
       tests for the reranker (ordering, blend weights, empty input, `llm` fallback on provider
       error).
-- [ ] Stage the three groups with `migrate-local.py` from a clean `VPCS-Cloud` checkout (commit
+      Done: `rerank_model` Selection (`hybrid` default, `llm`), BM25+vector reranker, provider
+      fallback, pre-migration of old values, 5 tests pass on 20; `sentence-transformers` removed.
+- [x] Stage the three groups with `migrate-local.py` from a clean `VPCS-Cloud` checkout (commit
       recorded) into `.sandbox/`, and record each group's 19 baseline (install + tests, by name)
       inside its cloud sandbox before any change.
       Staged 2026-09-28 (local, no spend) from `VPCS-Cloud` `3530251` into
@@ -683,13 +685,19 @@ is recorded as not exercised). Known risk: `odoo_whatsapp_mcp` pins `Pillow==10.
       repositories: A and B `/testing` still blocked (open tasks); C now blocked for `/testing`
       and at Stop (its outcome was written to the repository's `sessions/`, not next to its
       module checklist).
-- [ ] Finish groups A and B from the pulled work repositories (`.sandbox/phase11/results/`) in
+- [x] Finish groups A and B from the pulled work repositories (`.sandbox/phase11/results/`) in
       fresh sandboxes; model quota plan agreed with the owner first (serial groups, or a second
       OpenAI-compatible provider such as the owner's Kaggle Ollama endpoint once its self-test
       passes: tool calls, `/v1/responses`, speed).
-- [ ] If a run stops at `/start-coding` with no outcome recorded, the Stop-hook enforcement
+      Done 2026-09-28 locally (owner decision: Claude Code session + Docker Desktop, no cloud
+      spend): A, B, C install on 20 with parity PASS in fresh sessions; gates pass. Details and
+      the Odoo 20 change list: `phase-11/live-test.md` "Completion run".
+- [x] If a run stops at `/start-coding` with no outcome recorded, the Stop-hook enforcement
       (`gates.needs_backend_test_record`) blocks it. Record that as live evidence;
       otherwise note it as still unit-test-only.
+      2026-09-28: not triggered live (no run ended at Stop with all tasks done and no record). On
+      the pulled group C repository the fixed hook's Stop check returns 2 with its message; still
+      no in-agent live trigger.
 - [ ] `docs/docker-sandbox/phase-11/live-test.md` (commands, versions, per-module install and
       parity tables by test name, costs, blockers; no module code or diffs), CHANGELOG
       *Unreleased*, README/runbook updates, `SESSION_CONTEXT.md`. Migrated code is exported as

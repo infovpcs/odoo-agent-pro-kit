@@ -1,7 +1,8 @@
 # Phase 11 LIVE TEST — batch 19→20 migration on a cloud fleet
 
-Status: **run 1 finished 2026-09-28. The LIVE TEST has not passed yet:** group C passes, groups
-A and B are partial. Module source, migrated code and patches are private and stay in the
+Status: **run 1 (cloud) finished 2026-09-28** with group C passing and A/B partial; the
+**completion run (local)** finished all three groups with parity PASS (see below). Whether the
+cloud LIVE TEST needs a final no-LLM cloud re-verification is an owner decision. Module source, migrated code and patches are private and stay in the
 gitignored `.sandbox/phase11/`. This record lists names, commands and results only.
 
 ## Setup
@@ -79,7 +80,48 @@ repositories with full git history, logs and parity JSON were pulled first.
    `migrate-local.py`), and a failed earlier create left a session name behind. Both now fail
    fast with the error logged.
 
+## Completion run — local Docker Desktop (2026-09-28, 11:45–13:05 UTC, owner decision)
+
+After the ChatGPT limit, the owner chose to finish the three groups in the local Claude Code
+session on the kit's local runtime: Docker Desktop 29.8.0→29.8.1 (it auto-updated during the run),
+`sandboxctl` exec mode, pinned image `odoo-agent-dev:20-008173c23f95` (Odoo 20.0-20260926). Work
+started from the pulled cloud repositories; every group was re-verified in a **fresh** Odoo 20
+session built from the committed work (`git archive` of HEAD, because `migrate-local.py` refuses a
+source inside the kit repository), then compared with the **cloud** 19 baseline log by test name.
+
+| Group | Installs on 20 | Parity | 20.0 tests |
+|-------|----------------|--------|------------|
+| A | 4 / 4 | PASS: 0 regressions, 10 fixed, 9 new | 31 passed, 4 failed, 5 errors of 40 (all 9 non-passing also failed on 19) |
+| B | 3 / 3 | PASS | 28 passed of 28 (19: 28 of 28) |
+| C | 1 / 1 | PASS | 9 passed, 3 failed, 4 errors of 16 (same on 19) |
+
+Gates (`odoo_hook.py`, fixed in `c980a9e`) pass for all three work repositories: every checklist
+item done, and the outcome recorded next to its checklist. Coverage limits: livechat document
+ingestion/retrieval (embedding API + pgvector) and browser checks were not exercised.
+
+Odoo 20 migration changes needed (beyond the Phase 10 list):
+- Binary fields hold `BinaryValue` objects: read `.content`/`.size`, write `BinaryBytes(...)` or a
+  base64 **string**; writing raw `bytes` raises. `ir.attachment.datas` is gone (`create` drops it
+  with a warning, reading raises): use `raw`.
+- `ir.access` rows without a group are **restrictions**, not grants: 19's "no group = everyone"
+  rows need explicit groups.
+- `toggle_active` removed: header `action_archive`/`action_unarchive` + `web_ribbon`.
+- `website_sale`: `website_sale_comparison.product_attributes_body` moved to `website_sale`; the
+  product tile `<form>` became `<article>` (with `t-attf-class`, so `hasclass()` does not match);
+  `combination_info['prevent_zero_price_sale']` became `hide_price`.
+- `odoo upgrade_code` 19→20: running all scripts fails (`19.3-00-account-groups` KeyError), and
+  `19.4-00-ir-access` crashed on module copies; conversions were done by hand.
+
+Kit findings:
+7. **Requirement drift.** The same unpinned group A requirements built in the cloud at 10:30 UTC
+   but failed locally on the 19 image at 12:47 (`ResolutionImpossible`: `nltk` → `click`). A
+   session's `results/requirements-freeze.txt` should be replayable as a pinned input.
+8. **Docker Desktop auto-update** restarted the daemon mid-run (one aborted create, cleaned up;
+   `unless-stopped` containers came back). Turn auto-update off for long runs and recordings.
+
 ## Next
 
-Finish groups A and B from the pulled repositories in fresh sandboxes (owner approval of spend
-and model quota first), after fixing finding 1 test-first.
+Owner decision: accept the local completion as the Phase 11 LIVE TEST result, or run one final
+no-LLM cloud verification of the three committed work repositories. Then close Phase 11. The
+migrated code is exported privately (`.sandbox/phase11/export/`, patches + bundles); pushing it
+to the private repository is an owner action.
