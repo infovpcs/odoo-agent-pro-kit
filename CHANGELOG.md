@@ -96,6 +96,11 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
 
 ### Fixed
 
+- **Quiet readiness poll in `sandbox/tests/lifecycle.sh`.** While Odoo restarts, each refused
+  `/web/health` probe printed a full `urllib` traceback although the run passed. The poll now
+  discards its expected errors (`2>/dev/null`); a real failure still surfaces in the next step.
+  Live: `SANDBOX_LIFECYCLE_VERSIONS=20` passed in 90 s with no traceback.
+
 - **Command gates no longer pass when the plan is missing (Phase 11).** A module, or a
   repository of modules without a root `docs/tasks.md`, was treated as out of scope, so
   `/start-coding` ran with no plan and `/testing` ran without checking the checklist or the

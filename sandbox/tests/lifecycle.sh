@@ -53,7 +53,7 @@ for version in "${VERSIONS[@]}"; do
     "${compose[@]}" "${start[@]}"
 
     for _ in $(seq 1 60); do
-      if "$CTL" exec "$session" -- python3 -c 'import os, urllib.request; urllib.request.urlopen(os.environ.get("ODOO_URL", "http://127.0.0.1:8069") + "/web/health", timeout=2).read()'; then
+      if "$CTL" exec "$session" -- python3 -c 'import os, urllib.request; urllib.request.urlopen(os.environ.get("ODOO_URL", "http://127.0.0.1:8069") + "/web/health", timeout=2).read()' 2>/dev/null; then
         break
       fi
       sleep 2

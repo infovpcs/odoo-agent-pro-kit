@@ -29,7 +29,7 @@ Before changing files:
   planning
 - Active branch: `main`
 - Branch base: `main` at commit `12368b7` (post-Phase-7, additive 0.2.0/0.3.0 work)
-- Last context update: 2026-09-29 (Phase 12 complete) — **Phases 0–12 complete**; the next task is an owner decision (see "Next task").
+- Last context update: 2026-09-29 (lifecycle.sh readiness poll made quiet, for the Pro v2 video R3 take) — **Phases 0–12 complete**; the next task is an owner decision (see "Next task").
 
 ## Phase 9 — complete (2026-09-25, commit `ba87f5c`, pushed to origin/main by the owner)
 

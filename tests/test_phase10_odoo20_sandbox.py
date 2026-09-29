@@ -203,3 +203,11 @@ def test_pgdg_key_is_fetched_over_https_and_fingerprint_checked():
     assert "--keyserver" not in text and "&& gpg --batch --recv-keys" not in text
     assert 'https://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=0x${repokey}' in text
     assert 'test "$(gpg --batch --with-colons --import-options show-only --import /tmp/pgdg.asc | awk -F: \'$1 == "fpr" {print $10; exit}\')" = "${repokey}"' in text
+
+
+def test_lifecycle_health_poll_is_quiet():
+    """While Odoo restarts, each refused /web/health probe printed a full urllib traceback
+    (the run still passed). The readiness poll must discard its expected errors."""
+    text = (ROOT / "sandbox/tests/lifecycle.sh").read_text()
+    poll = next(line for line in text.splitlines() if '"/web/health", timeout=2' in line)
+    assert poll.rstrip().endswith("2>/dev/null; then")
