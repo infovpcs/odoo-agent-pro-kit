@@ -1807,7 +1807,7 @@ done. In video-editing-toolkit (private, pushed):
 - Router tiers: rule → Jev → `openrouter/free` → `openrouter/auto`.
 - The take freeze for R4a/R4b is at kit `.sandbox/video/r4-freeze-20.txt`. Local Odoo 20 (8110)
   and MCP (8768) were started for the check.
-- Open: P5 (Stage 5 intro card before the hook).
+- P5 done (`37722ed`): hybrid videos open on the hook (Stage 5 `--intro-after`).
 - Next: the owner records R1.
 
 Files (uncommitted, in the video workspace repo):
