@@ -29,7 +29,7 @@ Before changing files:
   planning
 - Active branch: `main`
 - Branch base: `main` at commit `12368b7` (post-Phase-7, additive 0.2.0/0.3.0 work)
-- Last context update: 2026-09-28 (Phase 11 closed) — **Phases 0–11 complete**; the next task is Phase 12, batch-migration kit fixes (see "Next task").
+- Last context update: 2026-09-29 (Phase 12 complete) — **Phases 0–12 complete**; the next task is an owner decision (see "Next task").
 
 ## Phase 9 — complete (2026-09-25, commit `ba87f5c`, pushed to origin/main by the owner)
 
@@ -747,7 +747,31 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Current state
 
-- **START HERE (2026-09-28, Phase 11 closed).** Phases 0–11 complete. Read "Next task" below.
+- **START HERE (2026-09-29, Phase 12 complete).** Phases 0–12 complete; no open phase in
+  `docs/docker-sandbox/tasks.md`. Read "Next task" below (owner picks the next phase).
+  - **Phase 12 shipped** (test-first, 58 new tests; `docs/docker-sandbox/phase-12/live-test.md`):
+    `sandbox/scripts/migration-runner.sh` (stages baseline/plan/code/test/verify, JSON status
+    lines, serial default, `--parallel`, `--group-budget-seconds`, quota stop, resume, `--rerun`);
+    `test-parity.py --expect-module/--install-exit` (report schema 1.1.0: `modules`, `pass`;
+    `module_filter` replaces the old `modules` list); `sandboxctl create --requirements-freeze`
+    (+ `sandbox-fleet --cloud`), freeze provenance header, pip 60 s timeout / 10 retries;
+    `sandbox/scripts/ui-check.py`; Stop gate: a migration target's `/testing` session must record
+    `"ui_check"` (`gates.needs_ui_check_record`).
+  - **Finding 7 corrected:** Phase 11's `ResolutionImpossible` was PyPI read timeouts, not drift
+    (same requirements built on 19 in 4 min on 2026-09-29).
+  - **LIVE TEST (local Docker Desktop 29.8.1, owner decision; no spend):** (1) group A freeze
+    recorded (81 pins) and replayed byte-identical, 19 freeze refused on 20, headerless refused;
+    (2) runner baseline + verify on group C: 19 = 9/16 passed, 20 = 13/20, parity PASS, pass PASS,
+    resume skipped baseline; (3) broken probe install (exit 255): parity PASS but result FAIL;
+    (4) ui-check PASS on 6 group C screens, FAIL on an injected console error; Stop gate rc 2 → 0.
+  - **State:** no Phase 12 sessions, containers or bridges left; `odoo20-pg16` untouched.
+    501 tests pass, `validate.sh` green. Gitignored work: `.sandbox/phase12/` (groups file,
+    runner output `run/`, freeze `freeze-a-19.txt`, UI screenshots and JSON).
+  - **Video:** the Draft Videos plan was updated for Phase 12 (R4a/R4b now use the runner's
+    no-LLM verify, the freeze replay and `ui-check.py`; finding 7 corrected). Plan file committed
+    in that repository, not pushed.
+
+Phase 11 summary (2026-09-28):
   - **Result:** all eight `VPCS-Cloud` modules migrated to Odoo 20.0 and verified: parity PASS for
     every group (no 19-passing test regresses), all eight install together in one database, live
     UI test of every app, `index.html` + screenshots for every module. The live UI test found 7
@@ -1551,15 +1575,16 @@ that consumes stable Community releases instead of forking this repository.
 
 ## Next task
 
-**Sole next task: Phase 12 — batch-migration kit fixes from the Phase 11 findings**
-(`docs/docker-sandbox/tasks.md` § Phase 12; owner picked candidate 1 on 2026-09-28). Start in a
-fresh session: first agree the LIVE TEST host with the owner (local Docker Desktop, KVM host, or
-approved cloud spend), then work the checklist test-first. Phase 11 closed 2026-09-28; the owner
-publishes the Phase 11 close and Phase 12 planning commits to `origin/main` (hook-blocked for the
-agent).
+**Sole next task: the owner picks and plans Phase 13.** Phase 12 is complete (2026-09-29, one
+focused commit, not pushed; the owner publishes). There is no open phase in
+`docs/docker-sandbox/tasks.md`, so add the chosen phase there (checklist + LIVE TEST + exit gate)
+before any implementation. The natural candidate is the **next VPCS-Cloud batch to 20.0** (the
+WhatsApp chatbot chain) run on the Phase 12 runner instead of the private Phase 11 scripts. Its
+agent stages need an LLM, so agree the provider and spend first. The remaining candidates are
+below.
 
-**Phase 12 candidates (owner picked the first, 2026-09-28; the others stay for later):**
-- **Kit fixes from Phase 11 findings** (`phase-11/live-test.md`): replay a session's
+**Phase 13 candidates (Phase 12 shipped the first of the 2026-09-28 list):**
+- ~~**Kit fixes from Phase 11 findings**~~ (done in Phase 12) (`phase-11/live-test.md`): replay a session's
   `results/requirements-freeze.txt` as a pinned input (finding 7, pip drift); runner prompts
   without a leading slash command (finding 2); pass/fail = install exit codes + parity, with the
   expected module list given to `test-parity.py` (finding 3); serial-or-second-provider quota plan

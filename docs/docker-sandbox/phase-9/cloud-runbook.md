@@ -145,6 +145,28 @@ kit archive, or copy it in separately with `SBX cp`. The requirements build need
 `pypi.org` and `files.pythonhosted.org`, which kit 0.7.0 allows. See
 `sandbox/README.md`.
 
+## Batch migrations and the quota plan (Phase 12)
+
+A batch of module groups runs through `sandbox/scripts/migration-runner.sh`, inside one cloud
+sandbox per group (or locally). In Phase 11, three Codex sandboxes running in parallel on one
+ChatGPT subscription all hit the usage limit after about 20 minutes. Plan for the quota:
+
+- **Serial by default.** The runner runs groups one after another; `--parallel` only when the
+  owner asks and the quota can take it (or each group uses a different model provider).
+- **Per-group budget stop.** `--group-budget-seconds N` stops a group (`budget_stop`) before its
+  next agent stage once its agents have used N seconds; with `--agent claude`,
+  `--stage-budget-usd` caps each `claude -p` call as well. A usage-limit message from the agent
+  stops the whole batch (`quota_stop`) instead of burning the remaining groups.
+- **Resume from the last finished stage.** Re-running the same command skips every stage with a
+  `done` line in `OUT/<group>/status.jsonl`, so a batch continues after the quota window resets.
+  `--rerun STAGE` repeats a finished stage on purpose.
+- **Cheap stages first.** `baseline` and `verify` need no LLM; run `--stages baseline` for all
+  groups before any agent spend, and `verify` again after any manual fix.
+- **Pin requirements.** Replay a group's recorded freeze with the groups file's fifth field (the
+  baseline) or `sandboxctl create --requirements-freeze`, so a rebuilt session resolves the same.
+
+Every cloud run still needs the owner's spend approval, and every sandbox is removed at the end.
+
 ## `/fleet` in cloud (`sandbox-fleet create --cloud`)
 
 `sandbox-fleet create --cloud --version V --module M --agent codex|claude`

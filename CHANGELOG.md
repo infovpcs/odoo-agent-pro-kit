@@ -7,6 +7,24 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
 
 ### Added
 
+- **Batch-migration kit fixes (Phase 12, from the Phase 11 findings).**
+  `sandbox/scripts/migration-runner.sh` runs module groups through
+  `baseline → plan → code → test → verify`: `baseline` and `verify` need no LLM, and agent
+  prompts are plain words naming the workflow file. The kit's hook gates run around the agent
+  stages. Install exit codes are recorded per module, and every event is a JSON line in
+  `status.jsonl`. Groups are serial by default (`--parallel` on request), with a per-group
+  budget stop, a batch-wide stop on an agent usage limit, and resume from the last finished
+  stage. `test-parity.py --expect-module M --install-exit M=CODE` fails a module that did not
+  install, or has no test result where the baseline had one, even when parity passes (report
+  schema 1.1.0: `modules` table and `pass`; the old filter list is now `module_filter`).
+  `sandboxctl create --requirements-freeze FILE` (also `sandbox-fleet --cloud`) replays a
+  recorded `requirements-freeze.txt` as pip constraints. The freeze now carries a provenance
+  header, and one recorded for another Odoo version or base image is refused. The requirements
+  build waits 60 s per index request with 10 retries: Phase 11's `ResolutionImpossible` was a
+  PyPI read timeout, not drift. `sandbox/scripts/ui-check.py` checks screens for page errors,
+  console `[error]`, error dialogs and new `odoo.http` exceptions. A migration's `/testing` must
+  record its outcome (`"ui_check"`), which the Stop gate enforces. Evidence:
+  `docs/docker-sandbox/phase-12/live-test.md`.
 - **Batch migration tooling (Phase 11).** `sandboxctl create --requirements` is
   repeatable: lines are merged per project (PEP 503 names, extras unioned, specifiers combined),
   and two different exact pins or a pin excluded by `!=` are refused with both files named.

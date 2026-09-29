@@ -80,13 +80,50 @@ reused across sessions with the same file; `pip freeze` of the overlay goes to
 `results/requirements-freeze.txt`. The build fails fast when the overlay breaks
 Odoo's own imports. Example: requirements that upgrade `cryptography` break Odoo
 17's Debian pyOpenSSL. Kit 0.7.0 allows `pypi.org` and `files.pythonhosted.org`
-for this build.
+for this build. The build waits 60 s per index request and retries 10 times
+(`PIP_DEFAULT_TIMEOUT`/`PIP_RETRIES` build args). With pip's defaults (15 s, 5 retries) a slow
+PyPI surfaced as a false `ResolutionImpossible` (Phase 11 finding 7).
+
+The freeze starts with a provenance line,
+`# sandbox-requirements-freeze odoo_version=<series> base_image=<pinned base image>`.
+`create --requirements-freeze FILE` (with the same `--requirements`) replays it as pip
+constraints (`-c`), so a build that resolved once resolves the same way later. A freeze
+without that header, one recorded for another Odoo version or base image, or one with anything
+but `name==version` lines is refused before a session directory is created.
+`sandbox-fleet create --cloud --import … --requirements … --requirements-freeze FILE` ships the
+freeze to the cloud session.
 
 ```bash
 sandbox/bin/sandboxctl create --version 20 --session mig20 --module vpcs_llm_provider \
     --import .sandbox/imports/20-vpcs-apps \
     --requirements .sandbox/imports/20-vpcs-apps/vpcs_llm_provider/requirements.txt
 ```
+
+### Batch migrations (Phase 12)
+
+`scripts/migration-runner.sh` runs module groups through
+`baseline → plan → code → test → verify` (see its header for the groups file and every option).
+`baseline` and `verify` need no LLM: they install and test every module of a group in a fresh
+session on `--from` and, from the committed work repository, on `--to`. `verify` then runs
+`test-parity.py` with `--expect-module`/`--install-exit`. The agent stages run the kit's
+workflow files under plain-words prompts, between the kit's own hook gates. Every event is
+one JSON line in `OUT/<group>/status.jsonl`. Groups run one after another unless `--parallel`
+is given. `--group-budget-seconds` stops a group before its next agent stage, and an agent
+usage-limit message stops the batch. A re-run resumes after the last finished stage
+(`--rerun STAGE` repeats one on purpose).
+
+`scripts/test-parity.py BASE_LOG TARGET_LOG --expect-module M … --install-exit M=CODE …` fails
+(`result: FAIL`, exit 1) when an expected module did not install, has no recorded install, or
+has no test result where the baseline had one, even when parity itself passes. Phase 11 group
+A's modules with no passing 19 test are the case this catches.
+
+`scripts/ui-check.py --base-url URL --path /odoo/<screen> … --server-log <session>/logs/odoo.log`
+opens each screen with `agent-browser` and passes it only when there is no page error, no
+console `[error]`, no error dialog, and no new `odoo.http` exception in the session log. Add
+`--login admin --runtime-env <session>/runtime.env` to log in (the password is never printed),
+`--screenshot-dir` for captures, and `--json` for the result that a migration's
+`"ui_check": {"passed": …, "result": …}` progress record cites. The session's Odoo port is
+private, so reach it through a local-only bridge, as the documentation skill describes.
 
 The MCP sidecar (`mcp-sidecar/mcp_up.sh`) passes the session's `ODOO_API_KEY`, so on
 19 and 20 it uses `/json/2` with the `rpc`-scope key that `create` generates; the

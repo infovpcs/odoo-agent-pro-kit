@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -115,6 +116,26 @@ def _handle_post_tool(payload: dict) -> int:
     return 0
 
 
+def _testing_session(payload: dict) -> bool:
+    """True when this session runs /testing: its prompt (runner payload) or the transcript's user
+    turns name `/testing` or the testing workflow file."""
+    texts = [payload.get("prompt") or ""]
+    transcript = payload.get("transcript_path")
+    if transcript:
+        try:
+            lines = Path(transcript).read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            lines = []
+        for line in lines:
+            try:
+                entry = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(entry, dict) and entry.get("type") == "user":
+                texts.append(json.dumps(entry.get("message", "")))
+    return any(re.search(r"(?:^|[\s\"])/testing\b|testing_workflow\.md", text) for text in texts)
+
+
 def _handle_stop(payload: dict) -> int:
     if payload.get("stop_hook_active"):
         return 0
@@ -129,6 +150,15 @@ def _handle_stop(payload: dict) -> int:
               'migration "backend_tests_baseline_parity": true plus "backend_tests_baseline" '
               "(the pre-existing results compared against). Record only what the tests showed.",
               file=sys.stderr)
+        return 2
+    # Blocking once: a migration's /testing session must record the live UI check (finding 9).
+    if mod is not None and _testing_session(payload) and gates.needs_ui_check_record(mod):
+        progress = f"sessions/{mod.name}_progress.json"
+        print(f"[odoo-agent-pro-kit] '{mod.name}' is a migration target and {progress} records no "
+              "live UI check. Run sandbox/scripts/ui-check.py over the module's screens (page errors, "
+              "console [error], error dialogs, new odoo.http exceptions in the session log), then write "
+              '"ui_check": {"passed": true|false, "result": "<its JSON file>"}. '
+              "Record only what the check showed.", file=sys.stderr)
         return 2
     # Advisory only: mirror contributor_hook.py — remind about validate.sh only
     # when a stamp EXISTS and is stale (older than the newest tracked file). An

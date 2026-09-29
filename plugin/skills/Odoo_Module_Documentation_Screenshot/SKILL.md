@@ -166,6 +166,8 @@ rm -f /tmp/ck
   `open`) — missing JS modules only show up here; the page text has no "Internal Server
   Error", "Oops", "Something went wrong" or "Access Error"; and the session's `odoo.log` got no
   new `odoo.http: Exception` line while the page loaded (count lines before, grep after).
+  `sandbox/scripts/ui-check.py` runs these four checks per screen and writes the JSON a
+  migration's `"ui_check"` progress record cites.
 - After every `sandboxctl module <s> update` the server restarts and the browser session is
   gone — log in again before the next capture.
 - With `website` installed, `/web/login` is the website login page: the inputs are not in

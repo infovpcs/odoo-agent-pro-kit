@@ -266,22 +266,56 @@ def merge_requirements(sources):
     return merged
 
 
-def requirements_image(base_image, lines):
-    digest = hashlib.sha256("\n".join(lines).encode() + b"\n").hexdigest()[:12]
+def requirements_image(base_image, lines, constraints=()):
+    content = "\n".join(lines) + "\n"
+    if constraints:
+        content += "# constraints\n" + "\n".join(constraints) + "\n"
+    digest = hashlib.sha256(content.encode()).hexdigest()[:12]
     return f"{base_image}-req{digest}"
 
 
-def build_requirements_image(session, lines):
-    """Layer the session's PyPI requirements on the pinned dev image and record pip freeze."""
+FREEZE_HEADER = re.compile(r"# sandbox-requirements-freeze odoo_version=(?P<series>\S+) base_image=(?P<base>\S+)")
+FREEZE_PIN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*==[A-Za-z0-9.+!_-]+")
+
+
+def freeze_record(series, base_image, freeze):
+    """A session's pip freeze with the Odoo series and base image it was resolved against."""
+    return f"# sandbox-requirements-freeze odoo_version={series} base_image={base_image}\n" + freeze
+
+
+def parse_freeze(text, series, base_image):
+    """Return the exact pins of a recorded freeze; refuse one recorded for another series or base image."""
+    lines = text.splitlines()
+    header = FREEZE_HEADER.fullmatch(lines[0].strip()) if lines else None
+    if not header:
+        raise SystemExit("requirements freeze has no provenance header (record it with sandboxctl create --requirements)")
+    if header["series"] != series:
+        raise SystemExit(f"requirements freeze was recorded for Odoo {header['series']}, not {series}")
+    if header["base"] != base_image:
+        raise SystemExit(f"requirements freeze was recorded on another base image: {header['base']} (this session: {base_image})")
+    pins = []
+    for number, raw in enumerate(lines[1:], 2):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if not FREEZE_PIN.fullmatch(line):
+            raise SystemExit(f"unsupported freeze line {number}: {line!r} (only exact 'name==version' pins)")
+        pins.append(line)
+    return pins
+
+
+def build_requirements_image(session, lines, constraints=()):
+    """Layer the session's PyPI requirements (pinned by an optional replayed freeze) on the dev image
+    and record pip freeze with its provenance."""
     directory = state_dir(session)
     env = load_env(session)
     base = env["ODOO_DEV_IMAGE"]
-    image = requirements_image(base, lines)
+    image = requirements_image(base, lines, constraints)
     subprocess.run(["docker", "build", "-f", str(REQUIREMENTS_DOCKERFILE), "--build-arg", f"ODOO_DEV_IMAGE={base}",
                     "-t", image, str(directory / "requirements")], check=True)
     freeze = subprocess.run(["docker", "run", "--rm", "--entrypoint", "cat", image, "/opt/sandbox-requirements.freeze"],
                             text=True, capture_output=True, check=True).stdout
-    (directory / "results" / "requirements-freeze.txt").write_text(freeze)
+    (directory / "results" / "requirements-freeze.txt").write_text(freeze_record(manifest(session)["odoo_version"], env["ODOO_BASE_IMAGE"], freeze))
     update_runtime_env(session, ODOO_DEV_IMAGE=image)
     data = manifest(session)
     data["runtime"]["odoo_image"] = image
@@ -486,6 +520,10 @@ def cmd_create(args):
     session = args.session or f"{major}-{args.module.replace('_', '-')}-{secrets.token_hex(3)}"
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]{2,62}", session):
         raise SystemExit("invalid session ID")
+    if args.requirements_freeze and not args.requirements:
+        raise SystemExit("--requirements-freeze needs --requirements: a freeze only pins what the requirements ask for")
+    base_image = lock_values()[version["base_image_lock"]]
+    constraints = parse_freeze(Path(args.requirements_freeze).read_text(), version["series"], base_image) if args.requirements_freeze else []
     directory = state_dir(session)
     directory.parent.mkdir(parents=True, exist_ok=True)
     try:
@@ -525,7 +563,7 @@ def cmd_create(args):
     if requirements:
         (directory / "requirements").mkdir()
         (directory / "requirements" / "requirements.txt").write_text("\n".join(requirements) + "\n")
-    base_image = locks[version["base_image_lock"]]
+        (directory / "requirements" / "constraints.txt").write_text("".join(pin + "\n" for pin in constraints))
     env = {
         "COMPOSE_PROJECT_NAME": session, "REPOSITORY_ROOT": str(ROOT), "ODOO_BASE_IMAGE": base_image,
         "ODOO_DOCKERFILE": version["dockerfile"],
@@ -556,7 +594,7 @@ def cmd_create(args):
         transition(session, "provisioning")
         compose(session, "build", "--pull", "odoo")
         if requirements:
-            build_requirements_image(session, requirements)
+            build_requirements_image(session, requirements, constraints)
         transition(session, "starting")
         compose(session, "up", "-d", "--wait", "--wait-timeout", str(args.timeout), "db")
         compose(session, "run", "--rm", "odoo", "odoo", "--config", "/etc/odoo/odoo.conf", "--database", dbname, "--init", "base", "--stop-after-init", "--no-http")
@@ -787,6 +825,7 @@ def build_parser():
     create.add_argument("--version", required=True); create.add_argument("--module", required=True); create.add_argument("--session"); create.add_argument("--timeout", type=int, default=180)
     create.add_argument("--import", dest="import_source", metavar="DIR", help="copy the Odoo modules of DIR (a migrate-local.py staging tree or one module) instead of a fixture")
     create.add_argument("--requirements", metavar="FILE", action="append", help="PyPI requirements layered on the dev image for this session; repeat for several modules (merged, conflicting pins refused)")
+    create.add_argument("--requirements-freeze", metavar="FILE", help="replay a recorded results/requirements-freeze.txt as pip constraints for --requirements (refused if recorded for another Odoo version or base image)")
     for name in ("status", "logs", "stop", "start", "destroy", "export", "diagnose", "backup", "recover"):
         item = sub.add_parser(name); item.add_argument("session")
         if name == "logs": item.add_argument("--service", choices=("odoo", "db", "controller", "agent", "mcp")); item.add_argument("--follow", action="store_true"); item.add_argument("--since")

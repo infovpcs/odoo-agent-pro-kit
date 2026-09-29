@@ -27,5 +27,7 @@ for example `sandbox-fleet create --cloud --version 19 --module mod_a --import
 Both are cloud-only. The tree and files are packed into the gitignored
 `.sandbox/fleet/imports/` (without `.git`, `.env`, `*.conf`, `*.log`) and passed
 to `sandboxctl create --import/--requirements` inside the sandbox; the
-requirements are merged and conflicting pins are refused. Imported module code
+requirements are merged and conflicting pins are refused. Add
+`--requirements-freeze FILE` (a `results/requirements-freeze.txt` recorded on the same Odoo
+version and base image) to pin the build to what resolved before. Imported module code
 may be private: it never belongs in tracked files (`scripts/private_code_guard.py`).

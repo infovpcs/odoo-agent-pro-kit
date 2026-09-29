@@ -64,6 +64,20 @@ python3 sandbox/scripts/migrate-local.py --source /absolute/custom-addons --vers
 
 Review `migration-report.json`; do not silently move a workspace or import a production database.
 
+## Batch migrations
+
+Run module groups with `sandbox/scripts/migration-runner.sh --groups FILE --from 19 --to 20 --out DIR`
+(stages `baseline plan code test verify`; the header documents the groups file). Read
+`DIR/<group>/status.jsonl`: a migration passes only when `verify` has `"pass": true`, meaning
+every expected module installed, kept its tests, and no baseline pass regressed. Parity alone is
+not enough. Keep groups serial unless the owner asks for `--parallel`: parallel agents share one
+subscription quota, and three Codex runs used it up in about 20 minutes (Phase 11). Set
+`--group-budget-seconds`, and for Claude `--stage-budget-usd`. After a `quota_stop` or
+`budget_stop`, re-run the same command to resume. Pin a rebuilt session's Python overlay with
+`sandboxctl create --requirements … --requirements-freeze <session>/results/requirements-freeze.txt`.
+A migration's `/testing` needs a recorded live UI check (`sandbox/scripts/ui-check.py` and
+`"ui_check"` in the progress file); the Stop gate asks for it.
+
 ## Release and rollback
 
 Run the release verifier, Compose validation, CI smoke matrix, and documented clean-host LIVE TEST. Record benchmarks with `benchmark.py`. For rollback, restore the prior lock files and clean session data; restore a database only from an explicit compatible backup. Never downgrade persisted schema/database state in place.

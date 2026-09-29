@@ -343,6 +343,25 @@ if errors.strip():
 
 **Key: /start-coding checks `frontend_errors_to_fix` on load and auto-patches before continuing.**
 
+### 6d-bis. Migration targets: record the live UI check (required)
+
+A module whose progress records `backend_tests_baseline_parity` is a migration target. Backend
+parity is necessary but not sufficient: in the Phase 11 19→20 run the live UI test found seven
+bugs that the backend tests and parity missed. Run the kit's check over every screen you
+captured (menus, list, form, and any website/portal page):
+
+```bash
+python3 sandbox/scripts/ui-check.py --base-url "http://127.0.0.1:${ODOO_PORT}" \
+    --login admin --runtime-env ".sandbox/sessions/${SESSION}/runtime.env" \
+    --server-log ".sandbox/sessions/${SESSION}/logs/odoo.log" \
+    --path /odoo/<menu-or-action> --path /odoo/<model>/<id> ... --json docs/ui-check.json
+```
+
+Then write what it showed into `sessions/{module_name}_progress.json`:
+`"ui_check": {"passed": true|false, "result": "docs/ui-check.json"}`. The Stop gate blocks the end
+of a migration's `/testing` until this record exists and its result file is present. A failed
+check is an honest record: fix the errors with `/start-coding`, then run the check again.
+
 ### 6e. Record GIF of key workflow
 
 ```bash

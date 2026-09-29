@@ -2,11 +2,18 @@
 """Compare two Odoo backend-test logs by test name (no LLM): baseline (e.g. 19) vs target (e.g. 20).
 
 Exit 0 when no test that passed in the baseline fails, errors, is skipped or is missing in the
-target; 1 on any such regression; 2 when a log contains no tests (a vacuous comparison).
-Baseline failures may stay failing: a migration keeps pre-existing failures, and fixes are listed.
-The JSON result is what a `backend_tests_baseline_parity` record cites.
+target; 1 on any such regression; 2 when a log contains no tests (a vacuous comparison) or the
+arguments are malformed. Baseline failures may stay failing: a migration keeps pre-existing
+failures, and fixes are listed. The JSON result is what a `backend_tests_baseline_parity` record cites.
 
-Usage: test-parity.py BASELINE_LOG TARGET_LOG [--module ADDON ...] [--json FILE]
+Parity alone is not the pass criterion for a migration (Phase 11 finding 3): a module that fails
+to install but had no passing test on the baseline never shows up as a regression. With
+`--expect-module` (the modules that must be migrated) and `--install-exit MODULE=CODE` (the
+install exit code recorded per module) the check also fails when an expected module did not
+install, has no recorded install, or has no test result on the target where the baseline had one.
+
+Usage: test-parity.py BASELINE_LOG TARGET_LOG [--module ADDON ...] [--expect-module ADDON ...]
+                      [--install-exit ADDON=CODE ...] [--json FILE]
 """
 import argparse
 import json
@@ -80,21 +87,56 @@ def compare(baseline, target, modules=None):
     }
 
 
+def module_check(baseline, target, expected, install_exits):
+    """Per expected module: installed (exit 0), and tested on the target when the baseline had tests."""
+    modules = []
+    for module in expected:
+        before = sum(1 for key in baseline if key.split("/", 1)[0] == module)
+        after = sum(1 for key in target if key.split("/", 1)[0] == module)
+        code = install_exits.get(module)
+        reason = None
+        if code is None:
+            reason = "install exit code not recorded"
+        elif code != 0:
+            reason = f"install failed (exit {code})"
+        elif before and not after:
+            reason = f"no test result on the target ({before} on the baseline)"
+        modules.append({"module": module, "install_exit": code, "baseline_tests": before, "target_tests": after,
+                        "ok": reason is None, "reason": reason})
+    return {"ok": all(m["ok"] for m in modules), "modules": modules}
+
+
+def install_exit(value):
+    module, _, code = value.partition("=")
+    if not module or not code.lstrip("-").isdigit():
+        raise argparse.ArgumentTypeError(f"--install-exit expects MODULE=CODE, got {value!r}")
+    return module, int(code)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("baseline_log"); parser.add_argument("target_log")
     parser.add_argument("--module", action="append", help="limit to this addon (repeatable)")
+    parser.add_argument("--expect-module", action="append", default=[], help="a module that must install and keep its tests (repeatable)")
+    parser.add_argument("--install-exit", action="append", default=[], type=install_exit, metavar="ADDON=CODE",
+                        help="install exit code recorded for a module (repeatable)")
     parser.add_argument("--json", metavar="FILE", help="write the full result here")
-    args = parser.parse_args(argv)
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as exit_:
+        return exit_.code
     baseline = parse_log(Path(args.baseline_log).read_text(errors="replace"))
     target = parse_log(Path(args.target_log).read_text(errors="replace"))
     for name, results in (("baseline", baseline), ("target", target)):
         if not results:
             print(f"test-parity: no tests found in the {name} log; refusing a vacuous comparison", file=sys.stderr)
             return 2
-    report = {"schema_version": "1.0.0", "baseline_log": str(Path(args.baseline_log).resolve()),
-              "target_log": str(Path(args.target_log).resolve()), "modules": args.module or [],
+    report = {"schema_version": "1.1.0", "baseline_log": str(Path(args.baseline_log).resolve()),
+              "target_log": str(Path(args.target_log).resolve()), "module_filter": args.module or [],
               **compare(baseline, target, args.module)}
+    check = module_check(baseline, target, args.expect_module, dict(args.install_exit))
+    report["modules"] = check["modules"]
+    report["pass"] = report["parity"] and check["ok"]
     if args.json:
         Path(args.json).write_text(json.dumps(report, indent=2) + "\n")
     b, t = report["summary"]["baseline"], report["summary"]["target"]
@@ -104,8 +146,12 @@ def main(argv=None):
         print(f"REGRESSION {item['test']}: {item['baseline']} -> {item['target']}")
     for item in report["improvements"]:
         print(f"fixed      {item['test']}: {item['baseline']} -> {item['target']}")
+    for item in report["modules"]:
+        print(f"module     {item['module']}: install exit {item['install_exit']}, tests {item['baseline_tests']} -> {item['target_tests']}"
+              + ("" if item["ok"] else f" — FAIL: {item['reason']}"))
     print("parity: " + ("PASS" if report["parity"] else "FAIL"))
-    return 0 if report["parity"] else 1
+    print("result: " + ("PASS" if report["pass"] else "FAIL"))
+    return 0 if report["pass"] else 1
 
 
 if __name__ == "__main__":

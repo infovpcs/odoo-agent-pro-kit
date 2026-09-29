@@ -213,6 +213,16 @@ log has no tests). Imported module code may be private: it stays in the gitignor
 and `scripts/private_code_guard.py` (run by `validate.sh`) refuses any Odoo module outside
 `sandbox/fixtures/` and any patch or archive in tracked files.
 
+Phase 12 (complete; [`docs/docker-sandbox/phase-12/live-test.md`](docs/docker-sandbox/phase-12/live-test.md))
+turns the Phase 11 findings into kit behaviour. `sandbox/scripts/migration-runner.sh` runs
+module groups through `baseline → plan → code → test → verify`. `baseline` and `verify` need no
+LLM, the agent prompts are plain words naming the workflow file, and each event is a JSON status
+line. Groups are serial by default, with a per-group budget stop, a batch stop on an agent usage
+limit, and resume. `test-parity.py --expect-module/--install-exit` fails a module that did not
+install, even when parity passes. `sandboxctl create --requirements-freeze` replays a recorded
+freeze, and `sandbox/scripts/ui-check.py` is the live UI check that a migration's `/testing`
+must record.
+
 The Odoo 17/18/19/20 inner runtime controller is documented in
 [`sandbox/README.md`](sandbox/README.md). Phase gates remain authoritative in
 [`docs/docker-sandbox/tasks.md`](docs/docker-sandbox/tasks.md).

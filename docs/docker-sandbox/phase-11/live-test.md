@@ -116,6 +116,11 @@ Kit findings:
 7. **Requirement drift.** The same unpinned group A requirements built in the cloud at 10:30 UTC
    but failed locally on the 19 image at 12:47 (`ResolutionImpossible`: `nltk` → `click`). A
    session's `results/requirements-freeze.txt` should be replayable as a pinned input.
+   **Corrected in Phase 12 (2026-09-29):** the local build log shows five `Read timed out`
+   retries on `pypi.org/simple/click/` before the error. pip reported the unreachable index as
+   `ResolutionImpossible`, so it was not drift: the same requirements built later on the 20 image
+   (`click` 8.5.0). The fix is a longer pip timeout with more retries, and the freeze replay
+   ships anyway for reproducible builds.
 8. **Docker Desktop auto-update** restarted the daemon mid-run (one aborted create, cleaned up;
    `unless-stopped` containers came back). Turn auto-update off for long runs and recordings.
 

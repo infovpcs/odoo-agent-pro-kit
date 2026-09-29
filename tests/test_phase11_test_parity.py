@@ -107,7 +107,7 @@ def run_cli(tmp_path, baseline, target, *extra):
 def test_cli_exit_zero_on_parity_and_writes_json(tmp_path):
     result, report = run_cli(tmp_path, BASELINE, BASELINE)
     assert result.returncode == 0, result.stderr
-    assert report["parity"] is True and report["schema_version"] == "1.0.0"
+    assert report["parity"] is True and report["schema_version"] == "1.1.0"  # 1.1.0 (Phase 12): per-module install table
     assert report["baseline_log"].endswith("b.log") and report["target_log"].endswith("t.log")
 
 

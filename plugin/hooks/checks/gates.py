@@ -130,3 +130,27 @@ def needs_backend_test_record(module_dir: Optional[Path]) -> bool:
         return False
     data = _progress(module_dir)
     return "backend_tests_passed" not in data and "backend_tests_baseline_parity" not in data
+
+
+def needs_ui_check_record(module_dir: Optional[Path]) -> bool:
+    """True when a migration target's backend outcome is recorded but no live UI check is.
+
+    Backend parity is necessary but not sufficient for a migration (Phase 11 finding 9: the
+    live UI test found seven Odoo 20 bugs that the tests and parity missed). A migration target
+    is a module whose progress records ``backend_tests_baseline_parity``. The record is
+    ``"ui_check": {"passed": true|false, "result": "<ui-check.py JSON>"}``; an honest failure
+    counts as recorded, a result file that does not exist does not.
+    """
+    if module_dir is None or needs_backend_test_record(module_dir):
+        return False
+    data = _progress(module_dir)
+    if "backend_tests_baseline_parity" not in data:
+        return False
+    record = data.get("ui_check")
+    if not isinstance(record, dict) or not isinstance(record.get("passed"), bool):
+        return True
+    result = record.get("result")
+    if not isinstance(result, str) or not result:
+        return True
+    path = Path(result)
+    return not (path if path.is_absolute() else module_dir / path).is_file()
