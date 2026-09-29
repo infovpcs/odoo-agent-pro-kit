@@ -1794,6 +1794,22 @@ and this file.
 
 ## Video pipeline plan (additive, not a Docker Sandbox phase; planned 2026-09-27)
 
+**Update 2026-09-29 (latest):** the video is ready to record once the owner's recording setup is
+done. In video-editing-toolkit (private, pushed):
+- P1 hybrid timeline (`0638d57`) and the reusable manifest-driven skill
+  `hybrid-project-video-studio` with `scaffold_project_video.py` (`71b4b35`). The first manifest
+  is `video_projects/odoo_agent_pro_kit_pro_v2.json`: two parts, clips
+  `OdooAgentProKitProV2Part{1,2}_NNN.mov`.
+- Owner decisions: R4a source `vpcs_apps_cloud_19`, R9 as a slide, Cartesia voice, two parts,
+  canonical playlists only.
+- Owner confirmed: keys validated (OpenAI, OpenRouter with a credit limit, TypeSafe
+  `jev-1.13.0` pinned), Docker Desktop auto-update off.
+- Router tiers: rule → Jev → `openrouter/free` → `openrouter/auto`.
+- The take freeze for R4a/R4b is at kit `.sandbox/video/r4-freeze-20.txt`. Local Odoo 20 (8110)
+  and MCP (8768) were started for the check.
+- Open: P5 (Stage 5 intro card before the hook).
+- Next: the owner records R1.
+
 Files (uncommitted, in the video workspace repo):
 - `/Users/vinusoft85/Draft Videos/odoo-agent-pro-kit-pro-v2-video-context.md` — full production
   plan for the "Odoo Agent Pro Kit Pro v2" guided masterclass (~30 min EN, then HI; 3–5 Shorts):
