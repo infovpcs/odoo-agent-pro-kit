@@ -757,6 +757,13 @@ that consumes stable Community releases instead of forking this repository.
     (+ `sandbox-fleet --cloud`), freeze provenance header, pip 60 s timeout / 10 retries;
     `sandbox/scripts/ui-check.py`; Stop gate: a migration target's `/testing` session must record
     `"ui_check"` (`gates.needs_ui_check_record`).
+  - **CI fix after the push (2026-09-29):** both workflows failed on `e0cbbc1`.
+    `test_fleet_create_passes_the_freeze_to_sandboxctl` patched `STATE` but not `SESSIONS`/`LOCK`
+    (computed at import), so it needed a local `.sandbox/fleet/` and wrote five fake
+    `odoo-20-mod-a-*` records into the real fleet state (removed). Reproduced in a clean clone (1
+    failed), fixed, 501 passed there. Lesson: run a new test file from a clean clone before pushing.
+  - **Published (owner-approved 2026-09-29):** kit `e0cbbc1` + fix, video-editing-toolkit `5e10e52`,
+    infovpcs `7fd8291` (KB update for Phase 12, OKF audit unchanged at 9).
   - **Finding 7 corrected:** Phase 11's `ResolutionImpossible` was PyPI read timeouts, not drift
     (same requirements built on 19 in 4 min on 2026-09-29).
   - **LIVE TEST (local Docker Desktop 29.8.1, owner decision; no spend):** (1) group A freeze

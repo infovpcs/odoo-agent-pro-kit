@@ -135,7 +135,11 @@ def test_fleet_create_passes_the_freeze_to_sandboxctl(tmp_path, monkeypatch):
         returncode, stdout, stderr = 0, "", ""
 
     monkeypatch.setattr(fleet, "ROOT", tmp_path)
+    # Every module-level path under .sandbox/fleet must point at tmp_path: a clean checkout has no
+    # .sandbox/fleet, and the real one must not collect fake session records.
     monkeypatch.setattr(fleet, "STATE", tmp_path / "fleet")
+    monkeypatch.setattr(fleet, "SESSIONS", tmp_path / "fleet/sessions")
+    monkeypatch.setattr(fleet, "LOCK", tmp_path / "fleet/controller.lock")
     monkeypatch.setattr(fleet, "BUNDLES", tmp_path / "fleet/bundles")
     monkeypatch.setattr(fleet, "run", lambda command, **kwargs: Done())
     monkeypatch.setattr(fleet, "worktree_snapshot", lambda repo: "b" * 40)
