@@ -21,9 +21,9 @@ def load_controller():
 
 def test_runtime_files_are_present_and_pinned():
     lock = (ROOT / "sandbox/config/images.lock").read_text()
-    for version in ("17", "18", "19"):
+    for version in ("17", "18", "19", "20"):
         assert f"odoo:{version}.0@sha256:" in lock
-    assert "ubuntu:noble@sha256:" in lock  # Odoo 20 base until Hub publishes odoo:20.0
+    assert "ubuntu:noble" not in lock
     assert "postgres:15-bookworm@sha256:" in lock
     assert "postgres:16-bookworm@sha256:" in lock
     assert lock.count("@sha256:") == 6

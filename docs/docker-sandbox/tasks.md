@@ -543,6 +543,11 @@ run mode, local `exec` mode is unchanged (full suite green), costs are recorded.
       (helper files sha256-checked; pgdg key over HTTPS + fingerprint check because dirmngr fails
       in sbx microVMs). Built on macOS and in a kit-backed KVM microVM. Hub re-checked 2026-09-27:
       still no `odoo:20.0`.
+      Follow-up 2026-10-09: Hub published `odoo:20.0` (release `20.0-20260926`, index pushed
+      2026-10-02, same `odoo/docker` commit). `ODOO_20_BASE` now pins that index digest
+      (`sha256:cdd83e83…`) and `20.Dockerfile` is the dev layer only. `ci-smoke.sh 20` passes on
+      macOS Docker Desktop 29.8.1 (`exec` mode). Not yet run in a KVM microVM or cloud sandbox.
+      The kit spec still allow-lists the old build hosts (unchanged, so no kit version bump).
 - [x] `POSTGRES_16` lock (Odoo 20 `MIN_PG_VERSION = 16`), `versions.yaml` 20 entry,
       `20.Dockerfile`, schema enum, `lifecycle.sh`/`ci-smoke.sh`/`multiarch-build.sh`,
       `sandbox-fleet`, release workflow matrix, `/fleet` accepts 20.

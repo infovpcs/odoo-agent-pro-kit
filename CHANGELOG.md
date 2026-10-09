@@ -5,6 +5,15 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
 
 ## Unreleased
 
+### Changed
+
+- **Odoo 20 sandbox image uses the official Docker Hub `odoo:20.0`.** `ODOO_20_BASE` pins the
+  published index digest (release `20.0-20260926`) and `sandbox/images/odoo-dev/20.Dockerfile`
+  is now the same dev layer as 17/18/19. The first Odoo 20 session on a host pulls the image
+  instead of building Odoo from the nightly package. The `odoo-mixin` kit spec is unchanged.
+- **README:** a "Watch it in action" section links the Odoo 20 video series and the earlier
+  masterclasses.
+
 ### Added
 
 - **Batch-migration kit fixes (Phase 12, from the Phase 11 findings).**

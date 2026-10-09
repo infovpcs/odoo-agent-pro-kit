@@ -9,9 +9,8 @@ never replace the Sandbox boundary with threads or subprocess agents sharing a
 writable workspace. Aggregate only coordinator manifests and preserve sibling
 sessions when one allocation fails or is cancelled.
 
-Odoo 20 sessions run on PostgreSQL 16 and an image built from the official
-`odoo/docker` 20.0 recipe (Docker Hub has no `odoo:20.0` tag yet), so the first
-Odoo 20 allocation on a host builds that image and takes longer.
+Odoo 20 sessions run on PostgreSQL 16 and the official Docker Hub `odoo:20.0`
+image, pinned by digest like 17/18/19.
 
 For hosts without local microVMs, `sandbox-fleet create --cloud` allocates each
 session in a Docker Cloud Sandbox (billable shape and TTL from

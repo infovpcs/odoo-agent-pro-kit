@@ -19,17 +19,12 @@ sandbox/bin/sandboxctl destroy <session-id>
 Version-specific image locks, Dockerfiles, addons paths, PostgreSQL dependency,
 and RPC protocol live in `config/versions.yaml` and `config/images.lock`.
 Odoo 17/18/19 run on PostgreSQL 15; Odoo 20 needs PostgreSQL 16 (`MIN_PG_VERSION`)
-and runs on `POSTGRES_16`. Docker Hub has no `odoo:20.0` image yet, so
-`images/odoo-dev/20.Dockerfile` reproduces the official `odoo/docker` 20.0
-recipe (commit `d5431604`, sha1-checked Odoo nightly deb and wkhtmltopdf, helper
-files sha256-checked) on the pinned `ubuntu:noble` digest (`ODOO_20_BASE`). One
-deviation: the pgdg key is fetched with `curl` over HTTPS and must match the pinned
-fingerprint, because `gpg --recv-keys` fails inside sbx microVMs. The
-first Odoo 20 session on a host builds it (a few minutes; it needs Ubuntu apt,
-`apt.postgresql.org`, `keyserver.ubuntu.com`, `nightly.odoo.com`, the npm registry,
-and GitHub release assets, all on the `odoo-mixin` kit allow-list, so create the
-microVM with `sandbox/bin/sandbox-agent create`, which attaches the kit). Once Hub
-publishes `odoo:20.0`, pin that digest and cut the Dockerfile down to the dev layer.
+and runs on `POSTGRES_16`. Its dev image is the same thin layer as 17/18/19 on the
+official Docker Hub `odoo:20.0` image (`ODOO_20_BASE`, release `20.0-20260926`, built by
+Docker from `odoo/docker` commit `d5431604`), so the first Odoo 20 session on a host only
+pulls that image. Before Hub published it (2026-10-02), `20.Dockerfile` rebuilt the same
+recipe on `ubuntu:noble`; the build hosts that needed are still on the `odoo-mixin` kit
+allow-list and can be dropped in the next kit release.
 Odoo 20 replaced `ir.model.access` with `ir.access`, so the fixture gets its
 Odoo 20 files from `fixtures/_overlays/20/` (a `.remove` file lists deletions).
 Each Odoo 17/18/19/20 development image build verifies the image's

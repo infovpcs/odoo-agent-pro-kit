@@ -1,10 +1,10 @@
 """Phase 10: Odoo 20.0 in the Docker Sandbox.
 
-Docker Hub has no `odoo:20.0` tag yet (checked 2026-09-27), so the Odoo 20 dev image
-reproduces the official `odoo/docker` 20.0 recipe (commit d54316042067, 2026-09-26) on the
-same pinned `ubuntu:noble` digest, keeping its sha1 checks. Odoo 20 needs PostgreSQL >= 16
-(`odoo/release.py` MIN_PG_VERSION) and replaced `ir.model.access` with `ir.access`.
-17/18/19 must stay exactly as they were.
+Docker Hub published the official `odoo:20.0` image (index digest checked 2026-10-09, release
+20260926), so the Odoo 20 dev image is the same thin dev layer as 17/18/19 on that pinned
+digest. Until then the kit reproduced the `odoo/docker` 20.0 recipe on `ubuntu:noble`.
+Odoo 20 needs PostgreSQL >= 16 (`odoo/release.py` MIN_PG_VERSION) and replaced
+`ir.model.access` with `ir.access`. 17/18/19 must stay exactly as they were.
 """
 import importlib.machinery
 import importlib.util
@@ -15,8 +15,6 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-UPSTREAM = "d54316042067a95e28d8ef64280d41c2182d3804"
-
 UNCHANGED_LOCKS = {
     "ODOO_17_BASE": "odoo:17.0@sha256:4959237918da385a5befe007fc95177bc2244c048ebc55097b7aa71c703e70ba",
     "ODOO_18_BASE": "odoo:18.0@sha256:4ea9b4667921130add13c1b859aa170a4572b5c3c3d747bfb0ef152fdb0b48a7",
@@ -47,7 +45,7 @@ def test_odoo20_and_postgres16_are_digest_pinned_and_older_locks_are_unchanged()
     values = locks()
     for key, value in UNCHANGED_LOCKS.items():
         assert values[key] == value
-    assert re.fullmatch(r"ubuntu:noble@sha256:[0-9a-f]{64}", values["ODOO_20_BASE"])
+    assert re.fullmatch(r"odoo:20\.0@sha256:[0-9a-f]{64}", values["ODOO_20_BASE"])
     assert re.fullmatch(r"postgres:16-bookworm@sha256:[0-9a-f]{64}", values["POSTGRES_16"])
 
 
@@ -67,28 +65,16 @@ def test_versions_yaml_adds_20_on_postgres16_json2_and_keeps_17_to_19():
     }
 
 
-def test_odoo20_dockerfile_reproduces_the_pinned_official_recipe():
+def test_odoo20_dockerfile_is_the_dev_layer_on_the_official_image():
+    """Same file as 17/18/19: the official image already carries Odoo, wkhtmltopdf and the
+    PostgreSQL client, so nothing is downloaded or installed at build time."""
     text = (ROOT / "sandbox/images/odoo-dev/20.Dockerfile").read_text()
-    assert "FROM ${ODOO_BASE_IMAGE}" in text
-    assert UPSTREAM in text
-    # The official sha1 checks stay: Odoo nightly deb and wkhtmltopdf per architecture.
-    assert "ARG ODOO_RELEASE=20260926" in text
-    assert "ARG ODOO_SHA=7cb4a582ebe275a4f9c22eae24ce2bcb7fa27040" in text
-    assert text.count("sha1sum -c -") == 2
-    assert "967390a759707337b46d1c02452e2bb6b2dc6d59" in text  # amd64
-    assert "90f6e69896d51ef77339d3f3a20f8582bdf496cc" in text  # arm64
-    # The three helper files come from the same commit, checksum-verified.
-    for name, digest in (
-        ("entrypoint.sh", "18ea7deeebfb22ea625c72b45f84ff3356644443f89942f1a82cb73a8f10c205"),
-        ("odoo.conf", "4d772957164d15f1c5c13d5b0e11be0b0ee54b1d1e9068487db403a5b51c7b32"),
-        ("wait-for-psql.py", "69d21ecbd9ac92d149f7d3edacfddf05f44ddb83d07590940fdf83b95d7679ab"),
-    ):
-        assert re.search(rf"ADD [^\n]*--checksum=sha256:{digest} [^\n]*/{UPSTREAM}/20\.0/{re.escape(name)} ", text)
-    # Same dev layer as 17/18/19.
-    assert "COPY --chmod=0755 sandbox/scripts/odoo-healthcheck.sh /usr/local/bin/odoo-healthcheck" in text
+    reference = (ROOT / "sandbox/images/odoo-dev/19.Dockerfile").read_text()
+    assert text == reference.replace("odoo:19.0", "odoo:20.0")
+    assert "ARG ODOO_BASE_IMAGE=odoo:20.0\nFROM ${ODOO_BASE_IMAGE}\n" in text
+    for leftover in ("ubuntu:noble", "apt-get", "curl", "nightly.odoo.com", "keyserver", "sha1sum", "ADD "):
+        assert leftover not in text
     assert "0\\.12\\.6.*patched qt" in text
-    assert 'CMD ["/usr/local/bin/odoo-healthcheck"]' in text
-    assert 'ENTRYPOINT ["/entrypoint.sh"]' in text
     assert text.index("USER odoo") > text.index("odoo-healthcheck")
 
 
@@ -193,16 +179,6 @@ def test_odoo_listens_on_the_compose_network():
     interfaces. Sidecars and run-mode probes reach Odoo at http://odoo:8069."""
     template = (ROOT / "sandbox/config/odoo.conf.template").read_text()
     assert "\nhttp_interface = 0.0.0.0\n" in template
-
-
-def test_pgdg_key_is_fetched_over_https_and_fingerprint_checked():
-    """In a Docker Sandbox microVM, build containers reach the network only through transparent
-    80/443 interception; gpg's dirmngr (hkp:11371 and hkps) failed there on 2026-09-27 while
-    curl over HTTPS worked. The key must still match the upstream full fingerprint."""
-    text = (ROOT / "sandbox/images/odoo-dev/20.Dockerfile").read_text()
-    assert "--keyserver" not in text and "&& gpg --batch --recv-keys" not in text
-    assert 'https://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=0x${repokey}' in text
-    assert 'test "$(gpg --batch --with-colons --import-options show-only --import /tmp/pgdg.asc | awk -F: \'$1 == "fpr" {print $10; exit}\')" = "${repokey}"' in text
 
 
 def test_lifecycle_health_poll_is_quiet():

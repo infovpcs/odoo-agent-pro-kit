@@ -7,6 +7,25 @@ covered.
 
 ![Architecture](docs/architecture.png)
 
+## Watch it in action
+
+[![Odoo 20 Live: Build a New App from a Requirement with AI Agents](https://img.youtube.com/vi/44co5Eqoiuc/maxresdefault.jpg)](https://youtu.be/44co5Eqoiuc)
+
+Latest: **[Odoo 20 Live: Build a New App from a Requirement with AI Agents](https://youtu.be/44co5Eqoiuc)**
+(14 min 43 s, 2026-10-08). A one-page requirement becomes a new Odoo 20 module,
+`vpcs_hotel_housekeeping`, through `/plan-analysis` → `/start-coding` → `/testing`: 10 tasks,
+67 tests, and a scripted UI check that failed as admin and passed after one human decision.
+
+| Video | Odoo | What it shows |
+|-------|------|---------------|
+| [Build a New App from a Requirement with AI Agents](https://youtu.be/44co5Eqoiuc) | 20 | Full lifecycle for a new module, from requirement to UI check |
+| [Part 2: Finish the Migration in a Real Browser](https://youtu.be/smNP_r8VtU8) | 19 → 20 | `/testing 20` and `ui-check.py` on the migrated hotel booking app, fresh-install proof |
+| [Part 1: Migrate a 19.0 App with AI Agents](https://youtu.be/rfIJwyemkxY) | 19 → 20 | Install and validate, sandboxes, two live 19 → 20 migrations with test parity |
+| [Isolated AI Agent Sandboxes masterclass](https://youtu.be/XUovprFZKsA) | 19 | Docker Sandbox sessions per agent (English) |
+| [Odoo Agent Pro Kit masterclass](https://youtu.be/4zHkZrf66z0) | 19 | Kit walkthrough (Hindi) |
+
+More on [YouTube @vinusoft85](https://youtube.com/@vinusoft85).
+
 ## Who this is for
 
 Any Odoo developer with a year or two of experience who wants a ready-made,
@@ -25,9 +44,9 @@ for Odoo 17.0, 18.0, 19.0, and 20.0 — without building any of it from scratch.
 > 19/20 talks to Odoo's External JSON-2 API (`/json/2`, bearer API key) once
 > `./manage_modules.sh mcp-apikey` has stored `ODOO20_API_KEY` in the workspace `.env`
 > (without a key it falls back to `/jsonrpc`, deprecated upstream and slated for removal in Odoo 22).
-> The **Docker Sandbox runs 20.0 too** (Phase 10): PostgreSQL 16 and an image built from the
-> official `odoo/docker` 20.0 recipe on a pinned `ubuntu:noble` digest, until Docker Hub
-> publishes `odoo:20.0` (see [`sandbox/README.md`](sandbox/README.md)). For Odoo 20
+> The **Docker Sandbox runs 20.0 too** (Phase 10): PostgreSQL 16 and the official Docker Hub
+> `odoo:20.0` image, pinned by digest like 17/18/19 (see
+> [`sandbox/README.md`](sandbox/README.md)). For Odoo 20
 > review/security guidelines the kit defers to Odoo's own `skills/` library in `odoo/odoo@20.0`.
 > See [docs/odoo-20-migration-roadmap.md](docs/odoo-20-migration-roadmap.md).
 

@@ -29,7 +29,34 @@ Before changing files:
   planning
 - Active branch: `main`
 - Branch base: `main` at commit `12368b7` (post-Phase-7, additive 0.2.0/0.3.0 work)
-- Last context update: 2026-09-29 (lifecycle.sh readiness poll made quiet, for the Pro v2 video R3 take) — **Phases 0–12 complete**; the next task is an owner decision (see "Next task").
+- Last context update: 2026-10-09 (Odoo 20 sandbox image switched to the official `odoo:20.0`; README video section) — **Phases 0–12 complete**; the next task is an owner decision (see "Next task").
+
+
+## Follow-up — official `odoo:20.0` image and README videos (2026-10-09)
+
+Not a new phase: the switch Phase 10 left open ("once Hub publishes `odoo:20.0`").
+
+- Docker Hub: `odoo:20.0` = `20.0-20260926`, index `sha256:cdd83e8359b3…1533`, pushed
+  2026-10-02 (Hub API and `docker buildx imagetools inspect`; image revision is `odoo/docker`
+  `d54316042067`, the commit the old `20.Dockerfile` reproduced).
+- Changed: `sandbox/config/images.lock` (`ODOO_20_BASE`), `sandbox/images/odoo-dev/20.Dockerfile`
+  (now identical to 19 apart from the default tag), `README.md`, `sandbox/README.md`,
+  `plugin/commands/fleet.md`, `docs/docker-sandbox/tasks.md`, `CHANGELOG.md`,
+  `tests/test_phase10_odoo20_sandbox.py`, `tests/test_sandbox_runtime.py`.
+- Tests first: 3 failing before the change (lock regex, Dockerfile equals the dev layer, runtime
+  lock), passing after. The recipe/pgdg-key tests were removed with the recipe.
+- Live, macOS Docker Desktop 29.8.1, `exec` mode: `sandbox/tests/ci-smoke.sh 20` EXIT 0 twice
+  (288 s with the cold image pull, 89 s warm); no leftover containers or sessions. Built image
+  `odoo-agent-dev:20-cdd83e8359b3`: Odoo `20.0-20260926`, wkhtmltopdf `0.12.6.1 (with patched
+  qt)`, `psql` 18.6, user `odoo`.
+- Not run: KVM microVM, Docker Cloud Sandbox, `lifecycle.sh`, multi-arch build, the GitHub
+  workflow (needs a push).
+- Left as is: `sandbox/kits/odoo-mixin/spec.yaml` still allow-lists the old build hosts and its
+  comment still says Hub has no `odoo:20.0`; changing it means a new `spec_sha256` and a kit
+  release. The 17/18/19 digests were not refreshed.
+- README: new "Watch it in action" section with the three public Odoo 20 videos
+  (`44co5Eqoiuc`, `smNP_r8VtU8`, `rfIJwyemkxY`) and the two Odoo 19 masterclasses
+  (`XUovprFZKsA`, `4zHkZrf66z0`); titles checked through YouTube oEmbed on 2026-10-09.
 
 ## Phase 9 — complete (2026-09-25, commit `ba87f5c`, pushed to origin/main by the owner)
 
