@@ -32,6 +32,20 @@ Before changing files:
 - Last context update: 2026-10-09 (Odoo 20 sandbox image switched to the official `odoo:20.0`; README video section) — **Phases 0–12 complete**; the next task is an owner decision (see "Next task").
 
 
+## Follow-up — VPS roadmap reconciliation and publication (2026-10-10)
+
+Documentation only, explicitly authorized by the owner; not a new phase.
+The VPS pulled `f9a3ef9` and preserved the October 4 local migration-roadmap
+reconciliation. `docs/odoo-20-migration-roadmap.md` now records the official
+image adoption and labels the earlier self-built-base status as historical.
+No Odoo instance/image was started or downloaded, and no service restarted.
+
+Validation command: `PATH=/home/ubuntu/.hermes/cache/scratch/odoo-update-verification-env/bin:$PATH ./scripts/validate.sh`.
+Exit 0: 474 tests passed, 3 skipped, 6 deprecation warnings; 26 skills validated;
+artifact/release/rollback, Compose, syntax, hooks and private-code guard checks
+passed. `sbx` kit validation skipped (runtime unavailable); no KVM or lifecycle
+LIVE TEST claim. The isolated environment leaves production dependencies untouched.
+
 ## Follow-up — official `odoo:20.0` image and README videos (2026-10-09)
 
 Not a new phase: the switch Phase 10 left open ("once Hub publishes `odoo:20.0`").

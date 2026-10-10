@@ -1,10 +1,65 @@
 # Odoo 20.0 Migration Roadmap
 
-Status: **released 2026-09-24 — kit support in progress (see "Release and kit support")**
+Status: **released 2026-09-24 — kit Phases 0–12 complete; official Odoo 20 image configuration adopted upstream and pulled on VPS 2026-10-10 (see updates below)**
 Created: 2026-09-12
 Owner: Vinay Rana / infovpcs
 
-## Timeline
+## Update — official image configuration pulled 2026-10-10
+
+The VPS checkout fast-forwarded to upstream `f9a3ef9`. That update adopts
+`odoo:20.0@sha256:cdd83e8359b3e8c357895d476396c05021fed9975bf420f353bab25fcaed1533`
+as `ODOO_20_BASE` in `sandbox/config/images.lock`; the Odoo 20 Dockerfile is
+now the thin dev layer, and PostgreSQL 16 remains required. This replaces
+the earlier self-built base described in the dated reconciliation below.
+
+On this VPS, `tests/test_phase10_odoo20_sandbox.py` and
+`tests/test_sandbox_runtime.py` passed: **25 tests in 0.22s**, using an
+isolated test environment. This is source/configuration verification, not
+a new image pull, Odoo lifecycle run, KVM test or deployment. Upstream's
+separate macOS live-image evidence is in `SESSION_CONTEXT.md`, under the
+2026-10-09 follow-up. Local roadmap reconciliation was retained during the
+pull. No new phase or automatic integration was enabled.
+
+Publication validation on VPS: `./scripts/validate.sh` with the isolated
+test interpreter returned exit 0: **474 passed, 3 skipped, 6 deprecation
+warnings**; 26 skills, artifact/release contracts, rollback, Compose,
+syntax, hook smoke and private-code guard checks passed. `sbx` kit
+validation was skipped because that runtime is unavailable on this host.
+This still does not constitute an Odoo image lifecycle or KVM LIVE TEST.
+
+## Historical status — reconciled 2026-10-04
+
+`SESSION_CONTEXT.md` (current-state section) and
+`docs/docker-sandbox/tasks.md` record Phases 0–12 complete. The checked-out
+`main` head `12c4229` matches remote `main` on 2026-10-04. This is a
+documentation reconciliation, not a new implementation phase or runtime test.
+
+- **Phase 9**: Docker Cloud Sandbox support for 17/18/19 completed.
+- **Phase 10**: Odoo 20 sandbox support completed using a self-built base
+  from the official `odoo/docker` 20.0 recipe and PostgreSQL 16. Official
+  Docker Hub image adoption is a separate future option, not a runtime blocker.
+- **Phase 11**: eight-module 19→20 migration completed with historical
+  baseline parity, combined installation and live UI evidence.
+- **Phase 12**: batch migration runner, install-aware pass criterion,
+  requirements-freeze replay and live UI check gate completed. The runner's
+  paid LLM stages are not newly accepted by this documentation change.
+- **Official docs**: `infovpcs/Knowledge-Base` branch `20.0` exists at
+  `5fa28625e55de51cab7f31cef5bfba795d3b62a5`; separate VPS mirror
+  `/home/ubuntu/odoo-knowledge-base/knowledge-20/odoo20-okf/` deployed with
+  read-only file search/read verified. 1,351 Markdown files (1,164
+  non-reserved documents, 186 indexes, one log), 3,989 attachments; bundle
+  generator log claims 1,165 pages. Profile/`odoo_kb_*` retrieval wiring
+  is not implied and was not changed.
+- **Host distinction**: historical KVM/cloud/desktop acceptance remains
+  historical. Replacement Arm VPS `vpcs-a1` has no `/dev/kvm`; the owner's
+  rebuild context records a 2026-10-03 direct-Docker public-fixture pass via
+  `sandbox/bin/sandboxctl`, not microVM support. No container was started here.
+
+Next: owner selects Phase 13. Earlier dated plans and evidence below are
+retained for provenance; unchecked research items without completion
+evidence remain open. No commit, publication, paid call, or production change.
+
+## Timeline (historical planning)
 
 - Odoo's `master` branch on `github.com/odoo/odoo` is what eventually becomes
   the `20.0` release branch. Per Odoo's own convention (confirmed via the
@@ -22,7 +77,8 @@ Owner: Vinay Rana / infovpcs
 
 ## Trigger plan (automated)
 
-Two Hermes cron jobs track this from the VPS, independent of any laptop:
+The original VPS plan used two Hermes cron jobs, independent of any laptop
+(historical record; not a claim that these jobs are restored on the replacement VPS):
 
 1. **`odoo-20-branch-watch`** (monitor-gated, runs ~daily) — polls the GitHub
    API for the `20.0` branch's existence on `odoo/odoo`. The monitor only
@@ -100,16 +156,15 @@ Reference (fetched 2026-09-11 from `odoo/odoo` `master`):
 
 ## Open items / to confirm once 20.0 branch exists
 
-- [ ] Confirm actual `20.0` branch cut date vs. this doc's estimate.
+- [x] Confirm actual `20.0` branch cut date vs. this doc's estimate (detected 2026-09-17; evidence below).
 - [ ] Confirm whether Odoo's official skills changed at all between the
       2026-09-11 snapshot above and the 20.0 cut (re-diff, don't assume).
   - [ ] Pull full `guidelines/*.md` files (only `SKILL.md` table-of-contents
         was captured 2026-09-11 — the per-domain guideline files themselves
         still need a full fetch once we do the real integration pass).
-- [ ] Odoo 20 install/migration test in Docker Sandbox — real run, not
-      documentation-only.
-- [ ] Cross-check `OdooRulesDriftCheck` catalog for new 20.0-specific drift
-      patterns (new deprecated APIs, renamed fields/methods).
+- [x] Odoo 20 install/migration test in Docker Sandbox — historical Phase 10 acceptance; see `docs/docker-sandbox/phase-10/live-test.md`.
+- [x] Cross-check `OdooRulesDriftCheck` catalog for new 20.0-specific drift
+      patterns (L7–L17 shipped; see release/kit coverage below).
 
 ## Branch cut detected - 2026-09-17
 
@@ -203,13 +258,21 @@ install/upgrade/test runners, rules-drift, MCP discovery, KB tools, and version-
   can abort in `19.3-00-account-groups`), bump the manifest to `20.0.x`, lint at 20, fix L11–L13
   and card-view inheritance by hand, then install + test against a 19.0 baseline.
 
-### Remaining (not done)
-- [ ] Docker Sandbox 20.0: blocked on an official `odoo:20.0` image (Docker Hub shows 17/18/19
-      only on 2026-09-24). Then: pin digest, add `versions.yaml` 20 entry + Dockerfile, extend
-      schema enum and `lifecycle.sh`, run the Phase-7 acceptance on the Ubuntu KVM host.
+### Completion reconciliation (earlier 2026-09-24 blockers superseded)
+- [x] Docker Sandbox 20.0 support shipped in Phase 10 with `versions.yaml`,
+      `20.Dockerfile`, schema/lifecycle support and historical acceptance.
+      The 2026-09-24 official-image blocker was bypassed with a self-built
+      base from the official recipe; see `docs/docker-sandbox/phase-10/live-test.md`.
 - [x] Real install/migration test of custom modules on Odoo 20 (2026-09-24; see `SESSION_CONTEXT.md`).
 - [x] `OdooRulesDriftCheck` catalogue entries for L7–L17 (0.8.0, 2026-09-25).
 - [x] 19.1–20.0 ORM changelog coverage: L14–L17 (0.8.0, verified live on local Odoo 20 / PG 16).
-- [ ] Docker Cloud Sandbox runtime for 17/18/19 (Phase 9), then a 20.0 image built from the
-      `nightly.odoo.com/20.0` deb until `odoo/docker` publishes a `20.0/` directory (Phase 10).
-- [ ] `knowledge-20` OKF bundle (DSH/Hermes `odoo_kb_*` tools have no 20 KB yet).
+- [x] Docker Cloud Sandbox runtime for 17/18/19 (Phase 9) and Odoo 20 support
+      (Phase 10); `odoo/docker` published its `20.0/` recipe on 2026-09-26
+      per the phase checklist. Historical cloud evidence, not a new paid run.
+- [x] Official Odoo 20 OKF bundle exists and VPS `knowledge-20` mirror is
+      deployed (2026-10-04); direct read-only retrieval verified.
+- [ ] Optional profile/DSH/Hermes `odoo_kb_*` wiring or hybrid indexing for
+      that bundle — outside this deployment scope; no new profile or config added.
+- [x] Switch from the self-built base to the official digest-pinned `odoo:20.0`
+      image — upstream `f9a3ef9` (2026-10-09), pulled on VPS 2026-10-10.
+      See the update above; VPS verification does not imply a new runtime test.
