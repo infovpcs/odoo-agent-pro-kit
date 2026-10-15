@@ -29,8 +29,32 @@ Before changing files:
   planning
 - Active branch: `main`
 - Branch base: `main` at commit `12368b7` (post-Phase-7, additive 0.2.0/0.3.0 work)
-- Last context update: 2026-10-09 (Odoo 20 sandbox image switched to the official `odoo:20.0`; README video section) — **Phases 0–12 complete**; the next task is an owner decision (see "Next task").
+- Last context update: 2026-10-15 (issues #3 and #4 fixed: `module test` no longer passes on an empty run; failed module operation logs carry the Odoo traceback) — **Phases 0–12 complete**; the next task is an owner decision (see "Next task").
 
+
+## Follow-up — GitHub issues #3 and #4 (2026-10-15)
+
+Not a new phase: two sandbox bugs filed by the owner on 2026-10-11 against `f9a3ef9`.
+
+- **#3 `module test` passed with 0 tests.** `compose_module_operation` (`odoo_local_setup/manage_modules.sh`)
+  now checks `module_is_installed` before a test run (`module_not_installed`), reads the last
+  `odoo.tests.result` summary of the run (0 or none → `no_tests_executed`; failures/errors with
+  exit 0 → `test_failed`) and puts the totals in the result `message`. `sandboxctl`
+  (`odoo_test_totals`, `module_test_totals`) writes them into `tests/junit/junit.xml`.
+- **#4 failed install log had no traceback.** The Compose path records the `odoo.log` size before
+  the run and appends the lines written during it to the operation log; on failure it runs
+  `extract_errors_for_agent`, lists the operation log, `odoo.log` and the error report in `logs`,
+  and puts the last exception line in `error.summary`. `${operation^^}` (bash 4 only) replaced so
+  the report also works on macOS bash 3.2.
+- **Tests:** `tests/test_module_test_and_log_issues.py` (13, written first and seen failing);
+  full suite 514 passed; `./scripts/validate.sh` green (Intel macOS, 2026-10-15).
+- **LIVE TEST (local Docker Desktop 29.8.1, Odoo 19.0, session `issue34-live`, destroyed after):**
+  test before install → rc 1 `module_not_installed`; install of a module whose `post_init_hook`
+  raises → rc 255, operation log holds the traceback, `error.summary` = `install failed:
+  ValueError: boom from post_init_hook (see …install_errors_*.log)`, `logs` lists `odoo.log`;
+  install of the fixture with two tests → test rc 0, `message` `2 tests, 0 failed, 0 error(s)`,
+  junit `tests="2" failures="0" errors="0"`. No containers, networks or volumes left;
+  `odoo20-pg16` untouched.
 
 ## Follow-up — VPS roadmap reconciliation and publication (2026-10-10)
 

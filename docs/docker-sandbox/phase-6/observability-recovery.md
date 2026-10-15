@@ -37,7 +37,15 @@ tests/browser/result.json
 tests/browser/screenshots/
 ```
 
-The module test gate always emits JUnit. Until an instrumented coverage or
+The module test gate always emits JUnit. Its `tests`, `failures` and `errors`
+come from the last `odoo.tests.result` summary that Odoo writes during the run.
+A test of a module that is not installed fails with `module_not_installed`
+before Odoo starts, and a run whose summary reports 0 tests (or has none) fails
+with `no_tests_executed`, so an empty run is never reported as a pass. The
+operation log of every Compose-path module operation includes the `odoo.log`
+lines written during that run; a failed operation also lists `odoo.log` and an
+error report in `logs` and puts the last exception line in `error.summary`.
+Until an instrumented coverage or
 browser runner is requested, valid zero-measurement coverage and an explicit
 `not_run` browser result prevent missing artifacts from being mistaken for a
 pass.

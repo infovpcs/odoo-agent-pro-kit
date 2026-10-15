@@ -293,7 +293,7 @@ extract_errors_for_agent() {
     
     cat > "$error_output" << EOFHEADER
 ╔═══════════════════════════════════════════════════════════════════════════╗
-║                  ODOO MODULE ${operation^^} ERROR REPORT                    ║
+║                  ODOO MODULE $(printf '%s' "$operation" | tr '[:lower:]' '[:upper:]') ERROR REPORT                    ║
 ║                    (AI AGENT CONTEXT - AUTO-PARSED)                        ║
 ╚═══════════════════════════════════════════════════════════════════════════╝
 
@@ -489,24 +489,33 @@ path.write_text(json.dumps(data, indent=2) + "\n")
 PY
 }
 
+# Optional arguments 6-9: error code, error summary, message, and extra log
+# paths (newline-separated) to list after the operation log.
 emit_operation_result() {
     local operation="$1"
     local module="$2" started_epoch="$3" exit_code="$4" operation_log="$5"
-    local status="succeeded" error_code="" result_file
-    [ "$exit_code" -eq 0 ] || { status="failed"; error_code="${operation}_failed"; }
+    local error_code="${6:-}" error_summary="${7:-}" message="${8:-}" extra_logs="${9:-}"
+    local status="succeeded" result_file
+    if [ "$exit_code" -eq 0 ]; then
+        error_code=""
+    else
+        status="failed"
+        [ -n "$error_code" ] || error_code="${operation}_failed"
+    fi
     result_file="$RESULTS_DIR/${operation}-$(date +%s)-$$.json"
-    python3 - "$result_file" "$SESSION_ID" "$operation" "$module" "$started_epoch" "$exit_code" "$operation_log" "$status" "$error_code" <<'PY'
+    python3 - "$result_file" "$SESSION_ID" "$operation" "$module" "$started_epoch" "$exit_code" "$operation_log" "$status" "$error_code" "$error_summary" "$message" "$extra_logs" <<'PY'
 import datetime, json, pathlib, sys, time
-target, session, operation, module, started, code, log, status, error_code = sys.argv[1:]
+target, session, operation, module, started, code, log, status, error_code, error_summary, message, extra_logs = sys.argv[1:]
 started = int(started)
+logs = [log] + [path for path in extra_logs.splitlines() if path and path != log]
 now = datetime.datetime.now(datetime.timezone.utc)
 data = {"schema_version":"1.0.0", "session_id":session, "operation_id":pathlib.Path(target).stem,
         "operation":operation, "module":module, "attempt":1, "status":status,
         "started_at":datetime.datetime.fromtimestamp(started, datetime.timezone.utc).isoformat().replace("+00:00","Z"),
         "finished_at":now.isoformat().replace("+00:00","Z"), "duration_ms":max(0, int((time.time()-started)*1000)),
-        "exit_code":int(code), "message":None, "logs":[log], "artifacts":[], "error":None}
+        "exit_code":int(code), "message":message or None, "logs":list(dict.fromkeys(logs)), "artifacts":[], "error":None}
 if error_code:
-    data["error"]={"code":error_code, "summary":f"{operation} failed; inspect {log}", "diagnostic_bundle":None}
+    data["error"]={"code":error_code, "summary":error_summary or f"{operation} failed; inspect {log}", "diagnostic_bundle":None}
 pathlib.Path(target).write_text(json.dumps(data, indent=2)+"\n")
 PY
     write_progress_state "$module" "$operation" "$status" "$result_file"
@@ -528,11 +537,28 @@ compose_start_odoo_run_mode() {
     done
 }
 
+# Print "<tests> <failed> <errors>" from the last odoo.tests.result summary in
+# a log, or nothing when the log has none.
+odoo_test_totals() {
+    grep -E 'odoo\.tests\.result: [0-9]+ failed, [0-9]+ error\(s\) of [0-9]+ tests' "$1" 2>/dev/null | tail -1 \
+        | sed -E 's/.*odoo\.tests\.result: ([0-9]+) failed, ([0-9]+) error\(s\) of ([0-9]+) tests.*/\3 \1 \2/' || true
+}
+
+# Print the most useful error line of a log: the last exception line of a
+# traceback, else the last ERROR/CRITICAL record.
+last_odoo_error_line() {
+    local line
+    line=$(grep -E '^[A-Za-z_][A-Za-z0-9_.]*(Error|Exception)(:|$)' "$1" 2>/dev/null | tail -1 || true)
+    [ -n "$line" ] || line=$(grep -E ' (ERROR|CRITICAL) ' "$1" 2>/dev/null | tail -1 || true)
+    printf '%s' "$line"
+}
+
 compose_module_operation() {
     local requested="$1" modules="$2"
     local operation="$requested" flag="--update" rc=0
     local test_args=() http_args=(--no-http)
     local started operation_log module
+    local error_code="" error_summary="" message="" extra_logs="" log_offset=0 run_segment totals
     started=$(date +%s)
     operation_log="$TEST_LOG_DIR/${requested}_$(date '+%Y%m%d_%H%M%S').log"
     module="${modules%%,*}"
@@ -543,6 +569,14 @@ compose_module_operation() {
         echo "Module $module is already installed in $DATABASE; resolving install request to update."
     fi
     [ "$operation" = "install" ] && flag="--init"
+    if [ "$rc" -eq 0 ] && [ "$operation" = "test" ] && ! module_is_installed "$module"; then
+        # `--update` on a module that is not installed is a silent no-op, so
+        # Odoo would run no test and exit 0 (issue #3).
+        rc=1
+        error_code="module_not_installed"
+        error_summary="module $module is not installed in $DATABASE; run 'module install' first"
+        echo "$error_summary" >>"$operation_log"
+    fi
     if [ "$operation" = "test" ]; then
         test_args=(--test-enable)
         # QWeb PDF rendering fetches report assets from Odoo itself.  Disabling
@@ -556,8 +590,36 @@ compose_module_operation() {
     local run_opts=(--rm)
     [ "$SANDBOX_EXEC_MODE" = "run" ] && run_opts+=(--no-deps)
     if [ "$rc" -eq 0 ]; then
+        # Odoo writes to the logfile set in odoo.conf, not to stdout, so copy
+        # the lines this run adds to odoo.log into the operation log (issue #4).
+        [ -f "$LOG_FILE" ] && log_offset=$(wc -c <"$LOG_FILE" | tr -d ' ')
+        run_segment=$(mktemp)
         compose_run run "${run_opts[@]}" -T "$COMPOSE_SERVICE" odoo --config "$CONFIG_FILE" --database "$DATABASE" \
             "$flag" "$modules" "${test_args[@]}" --stop-after-init "${http_args[@]}" >>"$operation_log" 2>&1 || rc=$?
+        if [ -f "$LOG_FILE" ]; then
+            # A smaller file means odoo.log was rotated or truncated during the run.
+            [ "$(wc -c <"$LOG_FILE" | tr -d ' ')" -ge "$log_offset" ] || log_offset=0
+            tail -c +"$((log_offset + 1))" "$LOG_FILE" >"$run_segment" 2>/dev/null || true
+            extra_logs="$LOG_FILE"
+        fi
+        { echo "----- odoo.log lines written during this run -----"; cat "$run_segment"; } >>"$operation_log"
+        if [ "$operation" = "test" ]; then
+            totals=$(odoo_test_totals "$run_segment")
+            if [ -n "$totals" ]; then
+                set -- $totals
+                message="$1 tests, $2 failed, $3 error(s)"
+            fi
+            if [ "$rc" -eq 0 ] && { [ -z "$totals" ] || [ "$1" -eq 0 ]; }; then
+                rc=1
+                error_code="no_tests_executed"
+                error_summary="no test ran for $module (${message:-no odoo.tests.result summary in odoo.log})"
+            elif [ "$rc" -eq 0 ] && [ $(( $2 + $3 )) -gt 0 ]; then
+                rc=1
+                error_code="test_failed"
+                error_summary="tests failed for $module: $message"
+            fi
+        fi
+        rm -f "$run_segment"
     fi
     if [ "$SANDBOX_EXEC_MODE" = "run" ]; then
         compose_start_odoo_run_mode >>"$operation_log" 2>&1 || [ "$rc" -ne 0 ] || rc=$?
@@ -573,10 +635,27 @@ compose_module_operation() {
     if [ "$rc" -eq 0 ] && { [ "$operation" = "install" ] || [ "$operation" = "update" ]; }; then
         if ! module_is_installed "$module"; then
             rc=1
-            echo "Module $module did not reach 'installed' state after $operation (check for missing/uninstallable dependencies)" >>"$operation_log"
+            error_summary="Module $module did not reach 'installed' state after $operation (check for missing/uninstallable dependencies)"
+            echo "$error_summary" >>"$operation_log"
         fi
     fi
-    emit_operation_result "$operation" "$module" "$started" "$rc" "$operation_log"
+    if [ "$rc" -ne 0 ]; then
+        local error_report error_line
+        error_report="$LOG_DIR/${operation}_errors_$(date '+%Y%m%d_%H%M%S').log"
+        extract_errors_for_agent "$operation_log" "$error_report" "$modules" "$operation" || true
+        extra_logs="$extra_logs
+$error_report"
+        if [ -z "$error_summary" ]; then
+            error_line=$(last_odoo_error_line "$operation_log")
+            if [ -n "$error_line" ]; then
+                error_summary="$operation failed: $error_line (see $error_report)"
+            else
+                error_summary="$operation failed; inspect $operation_log"
+            fi
+        fi
+    fi
+    emit_operation_result "$operation" "$module" "$started" "$rc" "$operation_log" \
+        "$error_code" "$error_summary" "$message" "$extra_logs"
     return "$rc"
 }
 

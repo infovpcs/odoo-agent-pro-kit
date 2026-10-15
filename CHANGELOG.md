@@ -5,6 +5,21 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
 
 ## Unreleased
 
+### Fixed
+
+- **`sandboxctl module test` no longer passes when no test ran** (issue #3). It fails with
+  `module_not_installed` before the run when the module is not installed (Odoo's `--update` on
+  such a module is a silent no-op), with `no_tests_executed` when Odoo's `odoo.tests.result`
+  summary reports 0 tests or is missing, and with `test_failed` when that summary counts
+  failures or errors. The result `message` carries the totals (`28 tests, 0 failed,
+  0 error(s)`), and `tests/junit/junit.xml` now uses the real totals instead of a fixed
+  `tests="1"`.
+- **A failed module operation's log now holds the Odoo error** (issue #4). Odoo writes to
+  `odoo.log`, not stdout, so the Compose path copies the `odoo.log` lines written during the
+  run into the operation log. On failure it writes an `extract_errors_for_agent` report, lists
+  the operation log, `odoo.log` and the report in `logs`, and puts the last exception line in
+  `error.summary`. `extract_errors_for_agent` no longer uses bash-4-only `${var^^}`.
+
 ### Changed
 
 - **Odoo 20 sandbox image uses the official Docker Hub `odoo:20.0`.** `ODOO_20_BASE` pins the

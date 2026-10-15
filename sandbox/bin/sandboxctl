@@ -656,19 +656,50 @@ def module_operation(session, operation, module_name):
         result(session, operation, time.time(), "cancelled", 130, "operation interrupted", {"code": "interrupted", "summary": "operation interrupted", "diagnostic_bundle": bundle})
         return 130
     if operation == "test":
-        write_test_artifacts(session, module_name, proc.returncode)
+        write_test_artifacts(session, module_name, proc.returncode, module_test_totals(session, started))
     if proc.returncode:
         bundle = diagnostics(session, f"module-{operation}-failed")
         transition(session, "recoverable", failure={"summary": f"{operation} failed for {module_name}", "diagnostic_bundle": bundle})
     return proc.returncode
 
 
-def write_test_artifacts(session, module_name, exit_code):
+ODOO_TEST_SUMMARY = re.compile(r"odoo\.tests\.result: (\d+) failed, (\d+) error\(s\) of (\d+) tests")
+
+
+def odoo_test_totals(text):
+    """Return (tests, failures, errors) from the last Odoo test summary in text, or None."""
+    matches = ODOO_TEST_SUMMARY.findall(text)
+    if not matches:
+        return None
+    failed, errors, tests = (int(value) for value in matches[-1])
+    return tests, failed, errors
+
+
+def module_test_totals(session, started):
+    """Read the test totals from the operation log of the test result written since started."""
+    results = [path for path in (state_dir(session) / "results").glob("test-*.json") if path.stat().st_mtime >= started - 1]
+    for path in sorted(results, key=lambda item: item.stat().st_mtime, reverse=True):
+        try:
+            logs = json.loads(path.read_text()).get("logs") or []
+            return odoo_test_totals(Path(logs[0]).read_text(errors="replace")) if logs else None
+        except (OSError, ValueError, IndexError):
+            return None
+    return None
+
+
+def write_test_artifacts(session, module_name, exit_code, totals=None):
+    """Write junit.xml from Odoo's real test totals; without totals, one case carries the exit code."""
     directory = state_dir(session) / "tests"
     case = ET.Element("testcase", classname=f"odoo.{module_name}", name="module_test")
     if exit_code:
         ET.SubElement(case, "failure", message="Odoo module test failed")
-    suite = ET.Element("testsuite", name=module_name, tests="1", failures=str(int(bool(exit_code))))
+    if totals is None:
+        suite = ET.Element("testsuite", name=module_name, tests="1", failures=str(int(bool(exit_code))))
+    else:
+        tests, failed, errors = totals
+        # A failed run with no failing Odoo test (e.g. none ran) still counts its own case.
+        failed = failed or int(bool(exit_code) and not errors)
+        suite = ET.Element("testsuite", name=module_name, tests=str(tests), failures=str(failed), errors=str(errors))
     suite.append(case)
     ET.ElementTree(suite).write(directory / "junit/junit.xml", encoding="utf-8", xml_declaration=True)
     coverage = ET.Element("coverage", {"version": "sandbox", "lines-valid": "0", "lines-covered": "0", "line-rate": "0", "branches-valid": "0", "branches-covered": "0", "branch-rate": "0"})
