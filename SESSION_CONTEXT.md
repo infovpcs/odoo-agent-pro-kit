@@ -1647,13 +1647,59 @@ Phase 11 summary (2026-09-28):
 
 ## Next task
 
-**Sole next task: the owner picks and plans Phase 13.** Phase 12 is complete (2026-09-29, one
-focused commit, not pushed; the owner publishes). There is no open phase in
-`docs/docker-sandbox/tasks.md`, so add the chosen phase there (checklist + LIVE TEST + exit gate)
-before any implementation. The natural candidate is the **next VPCS-Cloud batch to 20.0** (the
-WhatsApp chatbot chain) run on the Phase 12 runner instead of the private Phase 11 scripts. Its
-agent stages need an LLM, so agree the provider and spend first. The remaining candidates are
-below.
+**Sole next task (week of 2026-10-19; owner was at 97% of the weekly agent limit on 2026-10-15):
+confirm and plan Phase 13 = Kaggle model provider for the kit's agent stages.** Proposal below;
+the owner confirms scope, then add it to `docs/docker-sandbox/tasks.md` (checklist + LIVE TEST +
+exit gate) before any implementation. Phase 14 = the WhatsApp chain batch to 20.0 on the Phase 12
+runner, using that provider (moves agent spend off the weekly limit).
+
+**Input — owner's Kaggle studio (2026-10-13, outside this repo):**
+`~/Draft Videos/kaggle_gpu_studio/` (`README.md` is the overview). Free Kaggle dual T4 (30 h/week,
+2 concurrent sessions), driven from the CLI by `run_kaggle_notebook.sh` (push, queue/status
+poll, log stream, `--force`) and `kaggle_session_manager.py` (auto-rerun). Notebook
+`kaggle_all_in_one_ai_engine.ipynb` runs a
+FastAPI gateway behind a Cloudflare quick tunnel: `/health`; `/v1/{path}` → Ollama
+(Qwen3.8 27B Q4_K_M, 64K ctx, SSE streaming to avoid Cloudflare 524); `/api/laya/predict`
+(`convaiinnovations/laya`, ModernBERT ~421M, ~100 ms); `/api/vega/predict`
+(`nandakishorm/vega-08b-public-intents`, ~80 ms, calibrated confidence). Tested by
+`test_odoo_pro_kit_endpoint.py`. A separate SDXL image studio is for video, not the kit.
+
+**Gaps found on 2026-10-15 (read-only review of that folder):**
+1. Only `/v1/chat/completions` is tested. Agent use needs tool calling and the API the agent CLI
+   speaks (Anthropic `/v1/messages` for Claude Code, `/v1/responses` for Codex): untested; check
+   what the notebook's Ollama version serves, else add a translating proxy.
+2. No auth on the gateway: the public tunnel URL is the only secret. Add a bearer token (Kaggle
+   secret) before any agent traffic.
+3. The tunnel URL changes every run: the kit needs a way to read it (kernel output/log) and pass it
+   to the runner, plus handling of the 9 h session limit and 30 h/week quota (stop, not fail).
+4. Kit allowlist needs `*.trycloudflare.com` for cloud sandboxes (new kit version).
+5. Vega/Laya evidence so far is portfolio and CRM intents, not Odoo kit tasks.
+
+**Proposed Phase 13 checklist (draft):**
+- [ ] Self-test the endpoint for agent use: tool calls, streaming, `/v1/messages` or
+      `/v1/responses`, tokens/s on a real migration prompt; record numbers.
+- [ ] Bearer token on the gateway; token from a Kaggle secret / local env, never in the repo.
+- [ ] Kit provider adapter: `migration-runner.sh --provider kaggle` (base URL + token from env,
+      tunnel URL discovery from the kernel log), quota/session-end treated like the usage-limit stop.
+- [ ] Allowlist `*.trycloudflare.com` (kit version bump).
+- [ ] Optional, measured: Vega/Laya as a cheap classifier for context-routing tasks (pick the
+      skill/agent persona for a prompt, categorise a failed operation's error report, Fit/Partial/Gap
+      first pass in gap analysis). Ship only if it beats the current rules on a labelled sample.
+- [ ] LIVE TEST: one runner group (no-LLM baseline + one agent stage) on the Kaggle provider,
+      compared with the same group on the default provider.
+
+**Separate track (not Phase 13) — Cloudflare Workers AI as a free public-repo option (owner idea
+2026-10-15; docs read that day, nothing built):** free 10,000 Neurons/day on Workers Free and Paid
+(reset 00:00 UTC; Free plan fails above it, Paid bills $0.011 per 1,000 Neurons). Free-plan tool-calling
+model `@cf/zai-org/glm-4.7-flash` (131K ctx): 5,500 Neurons/M input, 36,400/M output, so about
+1.5M input tokens or ~250K output tokens a day. `gpt-oss-120b`/`-20b` also need no paid billing
+method; `kimi-k2.7-code`, `glm-5.3` and DeepSeek v4 do.
+Verdict: too small for agent migration stages (millions of input tokens per session); a good fit for
+light context tasks: skill/persona routing, error-report categorising, first-pass Fit/Partial/Gap.
+For the public repo it gives users a no-GPU, no-billing option, documented with these limits.
+To verify first: the OpenAI-compatible endpoint (`/ai/v1/chat/completions`, `/v1/responses`) and
+tool calling on glm-4.7-flash. Keep account IDs and tokens out of the repo (env only).
+Sources: developers.cloudflare.com/workers-ai/platform/pricing/ and /workers-ai/models/.
 
 **Phase 13 candidates (Phase 12 shipped the first of the 2026-09-28 list):**
 - ~~**Kit fixes from Phase 11 findings**~~ (done in Phase 12) (`phase-11/live-test.md`): replay a session's
@@ -1670,11 +1716,11 @@ below.
   `vpcs_saas_service`, `hsn_code_automation_management`, `vpcs_data_sync_import`,
   `vpcs_delete_unwanted_users`) need tests first. Same flow: work on branch `20.0`, backend parity,
   then the live UI test + `index.html`.
-- **Second model provider:** the owner's Kaggle Ollama endpoint (Qwen3.8 27B;
+- **Second model provider** (now the Phase 13 proposal above): the owner's Kaggle Ollama endpoint (Qwen3.8 27B;
   `.sandbox/local-models/qwen38_27b_kaggle_ollama_codex_endpoint.ipynb`, token-protected, not yet
   run). Needs its cell 4 self-test (tool calls, `/v1/responses`, speed) before any use; a cloud use
   needs `*.trycloudflare.com` in the kit allowlist (new kit version).
-- **`odoo:20.0` on Docker Hub** (still 404 on 2026-09-28): pin it as `ODOO_20_BASE` when it appears.
+- ~~**`odoo:20.0` on Docker Hub**~~ (done 2026-10-09: pinned as `ODOO_20_BASE`).
 
 **Owner follow-ups outside the kit:**
 - Rotate the build-server credential that was hard-coded in the 19.0 `vpcs_gitlab` source and
