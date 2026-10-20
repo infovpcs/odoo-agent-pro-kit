@@ -186,14 +186,14 @@ Extract:
 
 Based on Q1 module category, load the relevant agent persona:
 
-| Category | Agent | Path |
+| Category | Agent | Skill |
 |----------|-------|------|
-| Sales/CRM | OdooServerSide | `Agents/OdooServerSide/SKILL.md` |
-| POS | OdooPOSAgent | `Agents/OdooPOSAgent/SKILL.md` |
-| Website/E-commerce | OdooWebsiteAgent | `Agents/OdooWebsiteAgent/SKILL.md` |
-| OWL/Frontend | OdooWebAgent | `Agents/OdooWebAgent/SKILL.md` |
-| Migration/Upgrade | OdooMigrationAgent | `Agents/OdooMigrationAgent/SKILL.md` |
-| All others | OdooServerSide | `Agents/OdooServerSide/SKILL.md` |
+| Sales/CRM | OdooServerSide | `OdooServerSide` (`plugin/skills/OdooServerSide/SKILL.md`) |
+| POS | OdooPOSAgent | `OdooPOSAgent` (`plugin/skills/OdooPOSAgent/SKILL.md`) |
+| Website/E-commerce | OdooWebsiteAgent | `OdooWebsiteAgent` (`plugin/skills/OdooWebsiteAgent/SKILL.md`) |
+| OWL/Frontend | OdooWebAgent | `OdooWebAgent` (`plugin/skills/OdooWebAgent/SKILL.md`) |
+| Migration/Upgrade | OdooMigrationAgent | `OdooMigrationAgent` (`plugin/skills/OdooMigrationAgent/SKILL.md`) |
+| All others | OdooServerSide | `OdooServerSide` (`plugin/skills/OdooServerSide/SKILL.md`) |
 
 ---
 

@@ -43,7 +43,7 @@ When processing any command, load these skills in order for the given version:
 1. AgentSkills/Odoo20CodingStandard/SKILL.md
 2. AgentSkills/OdooTools20/SKILL.md
 3. AgentSkills/Odoo20ExistingDependencyContext/SKILL.md
-4. AgentSkills/Agents/ (pick relevant agent)
+4. The relevant persona skill (`OdooServerSide`, `OdooPOSAgent`, `OdooWebsiteAgent`, `OdooWebAgent`, `OdooMigrationAgent`)
 5. AgentSkills/PRD-Writing/SKILL.md (for /plan-analysis only)
 6. AgentSkills/excalidraw-diagram-skill/SKILL.md (for /plan-analysis only — architecture diagram generation)
 ```
@@ -54,7 +54,7 @@ No Docker Sandbox image for 20 yet — run against a source checkout (`odoo-bin`
 1. AgentSkills/Odoo19CodingStandard/SKILL.md
 2. AgentSkills/OdooTools19/SKILL.md
 3. AgentSkills/Odoo19ExistingDependencyContext/SKILL.md
-4. AgentSkills/Agents/ (pick relevant agent: POS, Website, ServerSide, Web, Migration)
+4. The relevant persona skill: `OdooServerSide`, `OdooPOSAgent`, `OdooWebsiteAgent`, `OdooWebAgent` or `OdooMigrationAgent`
 5. AgentSkills/PRD-Writing/SKILL.md (for /plan-analysis only)
 6. AgentSkills/excalidraw-diagram-skill/SKILL.md (for /plan-analysis only — architecture diagram generation)
 ```
@@ -64,7 +64,7 @@ No Docker Sandbox image for 20 yet — run against a source checkout (`odoo-bin`
 1. AgentSkills/Odoo18CodingStandard/SKILL.md
 2. AgentSkills/OdooTools18/SKILL.md
 3. AgentSkills/Odoo18ExistingDependencyContext/SKILL.md
-4. AgentSkills/Agents/ (pick relevant agent)
+4. The relevant persona skill (`OdooServerSide`, `OdooPOSAgent`, `OdooWebsiteAgent`, `OdooWebAgent`, `OdooMigrationAgent`)
 5. AgentSkills/PRD-Writing/SKILL.md (for /plan-analysis only)
 6. AgentSkills/excalidraw-diagram-skill/SKILL.md (for /plan-analysis only — architecture diagram generation)
 ```
@@ -74,7 +74,7 @@ No Docker Sandbox image for 20 yet — run against a source checkout (`odoo-bin`
 1. AgentSkills/Odoo17CodingStandard/SKILL.md
 2. AgentSkills/OdooTools17/SKILL.md
 3. AgentSkills/Odoo17ExistingDependencyContext/SKILL.md
-4. AgentSkills/Agents/ (pick relevant agent)
+4. The relevant persona skill (`OdooServerSide`, `OdooPOSAgent`, `OdooWebsiteAgent`, `OdooWebAgent`, `OdooMigrationAgent`)
 5. AgentSkills/PRD-Writing/SKILL.md (for /plan-analysis only)
 6. AgentSkills/excalidraw-diagram-skill/SKILL.md (for /plan-analysis only — architecture diagram generation)
 ```

@@ -161,11 +161,11 @@ print(f"📝 Working on: {current_task.title}")
 
 # Load relevant sub-skill for this task type
 if "model" in current_task.title.lower():
-    read_skill("Agents/OdooServerSide/SKILL.md")
+    read_skill("OdooServerSide/SKILL.md")
 elif "view" in current_task.title.lower() or "owl" in current_task.title.lower():
-    read_skill("Agents/OdooWebAgent/SKILL.md")
+    read_skill("OdooWebAgent/SKILL.md")
 elif "website" in current_task.title.lower():
-    read_skill("Agents/OdooWebsiteAgent/SKILL.md")
+    read_skill("OdooWebsiteAgent/SKILL.md")
 ```
 
 ### 4b. Implement the task
