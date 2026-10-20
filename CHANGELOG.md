@@ -5,8 +5,21 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
 
 ## Unreleased
 
+### Added
+
+- **Five persona agent skills** that `/plan-analysis` (step 7) and `/start-coding` already route
+  to but the kit did not ship: `OdooServerSide`, `OdooWebAgent`, `OdooPOSAgent`,
+  `OdooWebsiteAgent` and `OdooMigrationAgent`, for Odoo 17.0 to 20.0. Each names the kit skills
+  to load per version, a table of the version facts that change its kind of code (checked in
+  `odoo/odoo` 17.0, 18.0 and 19.0 and in `Odoo20CodingStandard`), its work order and a done
+  checklist; code patterns stay in the version coding standards. CommandingSystem's workflows
+  now point at these skills instead of an external `AgentSkills/Agents/` folder.
+
 ### Fixed
 
+- **`Odoo17CodingStandard` said `attrs` is allowed in views.** Odoo 17.0 refuses `attrs` and
+  `states` (`ir_ui_view.py`: "Since 17.0, the "attrs" and "states" attributes are no longer
+  used"); the rule now says so.
 - **`sandboxctl module test` no longer passes when no test ran** (issue #3). It fails with
   `module_not_installed` before the run when the module is not installed (Odoo's `--update` on
   such a module is a silent no-op), with `no_tests_executed` when Odoo's `odoo.tests.result`

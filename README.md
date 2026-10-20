@@ -102,7 +102,7 @@ hermes plugins install infovpcs/odoo-agent-pro-kit/plugin --enable
 Registers 7 `odoo_*` model-discovery tools (in-process, no separate MCP
 server/port needed), the `/plan-analysis`, `/start-coding`, `/testing`,
 `/fleet`, `/rules-check-drift` slash commands, session-start Odoo workspace
-detection, and all 23 bundled skills under the `odoo-agent-pro-kit:` namespace. See
+detection, and all 31 bundled skills (including the five persona agents) under the `odoo-agent-pro-kit:` namespace. See
 [CHANGELOG.md](CHANGELOG.md) 0.5.0 for details, or run
 `hermes plugins doctor plugin --ci` from a clone to verify locally first.
 
@@ -130,7 +130,7 @@ reads it natively). See `integrations/codex/INSTALL.md`.
 
 | Component | Where |
 |---|---|
-| 23 Odoo skills (coding standards, dependency context, tools, testing, docs, sandbox ops, rules-drift audit, requirement gap analysis) | `plugin/skills/` |
+| 31 Odoo skills (coding standards, dependency context, tools, testing, docs, sandbox ops, rules-drift audit, requirement gap analysis, and five persona agents: server side, web, POS, website, migration) | `plugin/skills/` |
 | 5 slash commands (`/plan-analysis`, `/start-coding`, `/testing`, `/fleet`, `/rules-check-drift`) | `plugin/commands/` (Claude Code) / `plugin/__init__.py` (native Hermes) |
 | Hooks on SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop, SessionEnd, and PreCompact | `plugin/hooks/` (Claude Code) / `plugin/__init__.py` (native Hermes: `on_session_start`/`on_session_end`/`post_api_request`/`pre_tool_call`/`post_tool_call`) |
 | Deterministic pipeline hooks — `/start-coding` + `/testing` prerequisite gates, `odoo-bin`/`manage_modules.sh`/VCS/secret/Enterprise-source guardrails, sandbox operation-result verification, and a version-aware Odoo 17/18/19/20 coding-standard linter (rules L1–L17) | `plugin/hooks/odoo_hook.py` + `plugin/hooks/checks/` (Claude Code) / `plugin/__init__.py` `pre_tool_call`/`post_tool_call` (native Hermes) |

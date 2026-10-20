@@ -18,7 +18,7 @@ Apply Odoo 17.0 coding standards for maintainable, upgrade-safe code.
 - Upstream refs: github.com/odoo/odoo/tree/17.0
 
 ## Key rules (version-specific)
-- Views: use `<tree>` (lists arrive in 18/19); attrs allowed; domains explicit.
+- Views: use `<tree>` (lists arrive in 18/19); `attrs` and `states` are refused since 17.0 ("Since 17.0, the "attrs" and "states" attributes are no longer used", `ir_ui_view.py`): write `invisible="state != 'draft'"`, `readonly="..."`; domains explicit.
 - Constraints: `_sql_constraints` for DB checks/uniques; `@api.constrains` for logic.
 - Context: use `self._context` (19 moves to `self.env.context`).
 - Controllers: `type='json'` valid; `jsonrpc` optional.
