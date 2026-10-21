@@ -427,7 +427,9 @@ def _make_command_handler(ctx, command_md_relpath: str, extra: str = "", version
         except Exception as exc:  # noqa: BLE001 - a gate failure must never break the command
             logger.debug("[odoo-agent-pro-kit] command_gate failed: %s", exc)
         prompt = _command_prompt(command_md_relpath, version, rest, extra, version_optional)
-        queued = ctx.inject_message(prompt, role="user")
+        from .context_guard import inject_into_chat
+
+        queued = inject_into_chat(ctx, prompt, role="user")
         if queued:
             return None
         return prompt

@@ -161,6 +161,23 @@ def _write_handoff(module_dir: Path, usage_pct: float, threshold_pct: float, tri
         sys.path.remove(str(_CONTEXT_WRITER.parent)) if str(_CONTEXT_WRITER.parent) in sys.path else None
 
 
+def inject_into_chat(ctx: Any, message: str, role: str = "user") -> bool:
+    """Queue ``message`` as a turn in the chat this hook or command serves.
+
+    A hosted chat (Murmur, the desktop app) is reached through Hermes's gateway, which needs the
+    chat's session key; Hermes binds it while a command or hook runs. The CLI ignores it."""
+    session_key = ""
+    try:
+        from gateway.session_context import get_session_env
+
+        session_key = get_session_env("HERMES_SESSION_KEY")
+    except Exception:  # noqa: BLE001 - an older Hermes has no session context
+        pass
+    if not session_key:
+        return bool(ctx.inject_message(message, role=role))
+    return bool(ctx.inject_message(message, role=role, session_key=session_key))
+
+
 def maybe_handle_context_pressure(ctx: Any, **hook_kwargs: Any) -> None:
     """post_api_request handler: check usage, write handoff, nudge the agent.
 
@@ -218,7 +235,7 @@ def maybe_handle_context_pressure(ctx: Any, **hook_kwargs: Any) -> None:
         )
         logger.warning(message)
         try:
-            ctx.inject_message(message, role="system")
+            inject_into_chat(ctx, message, role="system")
         except Exception as exc:  # noqa: BLE001
             logger.debug("[odoo-agent-pro-kit] inject_message unavailable: %s", exc)
     except Exception as exc:  # noqa: BLE001 - fail-open guard
