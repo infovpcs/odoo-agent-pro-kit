@@ -49,3 +49,16 @@ mark a task done without a runner result.
 - `too_many_sessions`: destroy a session first.
 - An upload is kept 24 hours after its last use; a run from an upload is the member's own and
   is never promoted to a staging server.
+
+## Long runs
+
+A member's Hermes compacts the chat by itself, inside the running turn, at 60% of the context
+(75% on models with less than 512K). Two kit notes arrive at the end of a tool result:
+
+- **Save note** (5 points before the compaction): update `sessions/<module>_progress.json` and
+  `docs/tasks.md`, and write the handoff to `CLAUDE.md` and `AGENTS.md` in the module folder
+  (`context_handoff_workflow.md`). Then carry on with the same task.
+- **Resume note** (right after it): re-read those files and continue from the first open task
+  with the same rules.
+
+Never stop the command or ask the member to reset the chat because the context is full.
