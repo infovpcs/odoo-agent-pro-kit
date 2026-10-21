@@ -411,7 +411,10 @@ def _command_prompt(
     else:
         version_line = "Ask the user for the Odoo version (17, 18, 19, or 20) before proceeding."
     module_line = f"Module/argument: {rest}." if rest else ""
-    return f"{body}\n\n{version_line} {module_line}\n{extra}".strip()
+    # The context guard reads this line back to know which command a session is running.
+    name = command_md_relpath.split("/")[-1].removesuffix(".md").replace("_", "-")
+    marker = f"[odoo-kit-command] name={name} version={version or '-'} args={rest.strip() or '-'}"
+    return f"{body}\n\n{version_line} {module_line}\n{extra}".strip() + "\n" + marker
 
 
 def _make_command_handler(ctx, command_md_relpath: str, extra: str = "", version_optional: bool = False):

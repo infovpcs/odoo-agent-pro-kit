@@ -46,6 +46,27 @@ _RETRIGGER_BUCKET_PCT = 0.10
 _last_triggered_bucket: dict[str, float] = {}
 
 
+_MARKER_RE = re.compile(r"^\[odoo-kit-command\] name=(\S+) version=(\S+) args=(.*)$", re.M)
+
+
+def parse_command_marker(text: Any) -> Optional[dict]:
+    """The kit command named by the last marker line in ``text`` (see ``_command_prompt``)."""
+    if isinstance(text, list):
+        text = "\n".join(p.get("text", "") for p in text if isinstance(p, dict))
+    if not isinstance(text, str):
+        return None
+    matches = _MARKER_RE.findall(text)
+    if not matches:
+        return None
+    name, version, args = matches[-1]
+    args = args.strip()
+    return {
+        "name": name,
+        "version": None if version == "-" else version,
+        "args": None if args in ("", "-") else args,
+    }
+
+
 def _find_module_dir(start: Optional[Path] = None) -> Optional[Path]:
     """Walk up from ``start`` (default cwd) looking for docs/tasks.md.
 

@@ -213,3 +213,32 @@ class TestInjectIntoChat(unittest.TestCase):
             ctx = self._Ctx()
             self.assertTrue(context_guard.inject_into_chat(ctx, "hi", role="system"))
         self.assertEqual(ctx.calls, [("hi", "system", None)])
+
+
+class TestCommandMarker(unittest.TestCase):
+    def test_command_prompt_carries_marker(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        import plugin
+
+        prompt = plugin._command_prompt(
+            "commands/start-coding.md", "20", "edit_remove_pricelist_rule", ""
+        )
+        self.assertEqual(
+            prompt.splitlines()[-1],
+            "[odoo-kit-command] name=start-coding version=20 args=edit_remove_pricelist_rule",
+        )
+
+    def test_parse_command_marker(self):
+        text = (
+            "body\n[odoo-kit-command] name=plan-analysis version=19 args=x\n"
+            "more\n[odoo-kit-command] name=start-coding version=20 args=edit_remove_pricelist_rule"
+        )
+        self.assertEqual(
+            context_guard.parse_command_marker(text),
+            {"name": "start-coding", "version": "20", "args": "edit_remove_pricelist_rule"},
+        )
+        self.assertIsNone(context_guard.parse_command_marker("no marker here"))
+        self.assertEqual(
+            context_guard.parse_command_marker("[odoo-kit-command] name=testing version=- args=-"),
+            {"name": "testing", "version": None, "args": None},
+        )
