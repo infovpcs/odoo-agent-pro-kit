@@ -1,6 +1,7 @@
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "plugin"))
@@ -182,3 +183,33 @@ class TestMaybeHandleContextPressure(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestInjectIntoChat(unittest.TestCase):
+    """A hosted chat needs the session key Hermes binds for a command; the CLI does not."""
+
+    class _Ctx:
+        def __init__(self):
+            self.calls = []
+
+        def inject_message(self, message, role="user", session_key=None):
+            self.calls.append((message, role, session_key))
+            return True
+
+    def test_passes_the_bound_session_key(self):
+        import types
+
+        fake = types.ModuleType("gateway.session_context")
+        fake.get_session_env = lambda name, default="": "sess-123" if name == "HERMES_SESSION_KEY" else default
+        pkg = types.ModuleType("gateway")
+        pkg.session_context = fake
+        with unittest.mock.patch.dict(sys.modules, {"gateway": pkg, "gateway.session_context": fake}):
+            ctx = self._Ctx()
+            self.assertTrue(context_guard.inject_into_chat(ctx, "hi"))
+        self.assertEqual(ctx.calls, [("hi", "user", "sess-123")])
+
+    def test_without_session_context_calls_plainly(self):
+        with unittest.mock.patch.dict(sys.modules, {"gateway": None, "gateway.session_context": None}):
+            ctx = self._Ctx()
+            self.assertTrue(context_guard.inject_into_chat(ctx, "hi", role="system"))
+        self.assertEqual(ctx.calls, [("hi", "system", None)])
