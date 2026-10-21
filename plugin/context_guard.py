@@ -187,13 +187,7 @@ def inject_into_chat(ctx: Any, message: str, role: str = "user") -> bool:
 
     A hosted chat (Murmur, the desktop app) is reached through Hermes's gateway, which needs the
     chat's session key; Hermes binds it while a command or hook runs. The CLI ignores it."""
-    session_key = ""
-    try:
-        from gateway.session_context import get_session_env
-
-        session_key = get_session_env("HERMES_SESSION_KEY")
-    except Exception:  # noqa: BLE001 - an older Hermes has no session context
-        pass
+    session_key = _bound_session_key()
     if not session_key:
         return bool(ctx.inject_message(message, role=role))
     return bool(ctx.inject_message(message, role=role, session_key=session_key))
@@ -335,10 +329,27 @@ def _resume_note(command: Optional[dict]) -> str:
     )
 
 
+def _bound_session_key() -> str:
+    """The chat's key, which Hermes binds while a turn runs; empty on an older Hermes."""
+    try:
+        from gateway.session_context import get_session_env
+
+        return get_session_env("HERMES_SESSION_KEY") or ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def _key(session_id: Any) -> Optional[str]:
+    # A compaction can move the chat to a new session id; the chat's key stays the same.
+    key = _bound_session_key() or session_id
+    return key if isinstance(key, str) and key else None
+
+
 def _state(session_id: Any) -> Optional[dict]:
-    if not isinstance(session_id, str) or not session_id:
+    key = _key(session_id)
+    if key is None:
         return None
-    return _hosted.setdefault(session_id, {"command": None, "tokens": 0, "saved": False, "note": None})
+    return _hosted.setdefault(key, {"command": None, "tokens": 0, "saved": False, "note": None})
 
 
 def on_post_api_request(ctx: Any, **kw: Any) -> None:
@@ -366,7 +377,8 @@ def on_post_api_request(ctx: Any, **kw: Any) -> None:
 
 
 def _take_note(session_id: Any) -> Optional[str]:
-    state = _hosted.get(session_id) if isinstance(session_id, str) else None
+    key = _key(session_id)
+    state = _hosted.get(key) if key else None
     if not state or not state.get("note"):
         return None
     note, state["note"] = state["note"], None

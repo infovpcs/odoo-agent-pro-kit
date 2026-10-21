@@ -383,3 +383,25 @@ class TestHostedGuardRegistration(unittest.TestCase):
         guard._hosted.clear()
         hooks["pre_llm_call"](session_id="r1", user_message="[odoo-kit-command] name=testing version=20 args=m")
         self.assertEqual(guard._hosted["r1"]["command"]["name"], "testing")
+
+
+class TestHostedGuardSessionSplit(unittest.TestCase):
+    def setUp(self):
+        context_guard._hosted.clear()
+        self.ctx = _HostedCtx()
+
+    def test_resume_note_survives_a_compression_split(self):
+        # Hermes's compaction can move the chat to a new session id; the chat's key stays.
+        with unittest.mock.patch.object(context_guard, "_bound_session_key", return_value="chat-1"):
+            context_guard.on_pre_llm_call(self.ctx, session_id="parent", user_message=MARKER)
+            _api(self.ctx, "parent", 0.58)
+            context_guard.on_transform_tool_result(self.ctx, session_id="parent", result="ok")
+            _api(self.ctx, "child", 0.20)
+            out = context_guard.on_transform_tool_result(self.ctx, session_id="child", result="ok")
+        self.assertIn("This chat was just compacted. To carry on /start-coding 20 edit_remove_pricelist_rule", out)
+
+    def test_without_a_session_key_the_session_id_is_used(self):
+        with unittest.mock.patch.object(context_guard, "_bound_session_key", return_value=""):
+            context_guard.on_pre_llm_call(self.ctx, session_id="a", user_message=MARKER)
+            _api(self.ctx, "a", 0.56)
+            self.assertIn("edit_remove_pricelist_rule", context_guard.on_transform_tool_result(self.ctx, session_id="a", result=""))
