@@ -40,5 +40,28 @@ stamp automatically on success, so the normal flow is just to run it — no manu
 `touch` needed. Read-only git subcommands (`git merge-base`, `git tag -l`,
 `git rebase --abort`) are not blocked.
 
+## Merging into `main`
+
+Every change reaches `main` through a pull request, and a pull request is merged only when
+**every check on its latest commit has passed**:
+
+- `CI / validate`
+- `Docker Sandbox release / validate`, `image-build (17)` to `(20)` and `compose-smoke (17)` to `(20)`
+
+Before you merge:
+
+1. Run `./scripts/validate.sh` and `python -m pytest tests -q` locally; both green.
+2. Wait for the checks, then read `gh pr checks <number>` once more just before merging
+   (`--watch` output can mix in earlier rows). Every row says `pass`; none is `fail`,
+   `pending` or `skipping`.
+3. If `main` moved, update the branch from `main` and wait for the checks again.
+
+A failing check is a blocker, even when it also fails on `main`: fix it first in its own pull
+request, merge that when it is green, then update the waiting branch. Never merge "known red".
+A test step that runs no test fails (since `5039a46`), so a module or fixture that CI tests
+carries at least one real Odoo test.
+
+`CLAUDE.md` and `GEMINI.md` point here; this file holds the rules.
+
 Preserve unrelated user changes and keep secrets, customer data, and licensed
 Odoo Enterprise source out of this repository and its artifacts.
