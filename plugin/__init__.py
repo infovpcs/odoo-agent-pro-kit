@@ -574,6 +574,13 @@ def register(ctx) -> None:
             maybe_handle_context_pressure(ctx, **kwargs)
 
         ctx.register_hook("post_api_request", _on_post_api_request)
+
+        # Hosted mode: notes before and after Hermes compacts the chat (context_guard.py).
+        from .context_guard import on_post_api_request, on_pre_llm_call, on_transform_tool_result
+
+        ctx.register_hook("post_api_request", lambda **kw: on_post_api_request(ctx, **kw))
+        ctx.register_hook("pre_llm_call", lambda **kw: on_pre_llm_call(ctx, **kw))
+        ctx.register_hook("transform_tool_result", lambda **kw: on_transform_tool_result(ctx, **kw))
     except Exception as exc:  # noqa: BLE001 - never block plugin registration
         logger.warning("odoo-agent-pro-kit: context_guard hook registration failed: %s", exc)
 

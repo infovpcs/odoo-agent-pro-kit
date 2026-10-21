@@ -32,6 +32,8 @@ provides_hooks:
   - on_session_start
   - on_session_end
   - post_api_request
+  - pre_llm_call
+  - transform_tool_result
   - pre_tool_call
   - post_tool_call
 python_dependencies:
@@ -63,9 +65,17 @@ config_schema:
     type: int
     default: 128000
     description: >-
-      Context window size (tokens) used to compute usage percentage from the
-      real per-turn usage totals reported by post_api_request. Set to match
-      the active model's actual context window for accurate percentages.
+      Fallback context window size (tokens), used only when Hermes does not
+      send the model's context_length with post_api_request.
+    required: false
+  context_handoff.compaction_threshold_pct:
+    type: float
+    default: 0.60
+    description: >-
+      Hosted mode: the compression.threshold the member's Hermes compacts a
+      chat at (Hermes raises it to 0.75 for windows below 512K tokens). The
+      guard gives the agent a save note 5 points before it and a resume note
+      right after the compaction (plugin/context_guard.py).
     required: false
   context_handoff.retrigger_bucket_pct:
     type: float
