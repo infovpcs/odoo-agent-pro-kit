@@ -46,6 +46,27 @@ _RETRIGGER_BUCKET_PCT = 0.10
 _last_triggered_bucket: dict[str, float] = {}
 
 
+_MARKER_RE = re.compile(r"^\[odoo-kit-command\] name=(\S+) version=(\S+) args=(.*)$", re.M)
+
+
+def parse_command_marker(text: Any) -> Optional[dict]:
+    """The kit command named by the last marker line in ``text`` (see ``_command_prompt``)."""
+    if isinstance(text, list):
+        text = "\n".join(p.get("text", "") for p in text if isinstance(p, dict))
+    if not isinstance(text, str):
+        return None
+    matches = _MARKER_RE.findall(text)
+    if not matches:
+        return None
+    name, version, args = matches[-1]
+    args = args.strip()
+    return {
+        "name": name,
+        "version": None if version == "-" else version,
+        "args": None if args in ("", "-") else args,
+    }
+
+
 def _find_module_dir(start: Optional[Path] = None) -> Optional[Path]:
     """Walk up from ``start`` (default cwd) looking for docs/tasks.md.
 
@@ -197,7 +218,12 @@ def maybe_handle_context_pressure(ctx: Any, **hook_kwargs: Any) -> None:
             ctx.get_config("context_handoff.retrigger_bucket_pct", _RETRIGGER_BUCKET_PCT)
         )
 
-        usage_pct = _usage_pct(usage, context_window_tokens)
+        # Hermes sends the model's real window; the config value is only the fallback.
+        given_window = hook_kwargs.get("context_length")
+        if isinstance(given_window, (int, float)) and given_window > 0:
+            context_window_tokens = int(given_window)
+        tokens = context_tokens(usage)
+        usage_pct = tokens / context_window_tokens if tokens else _usage_pct(usage, context_window_tokens)
         if usage_pct is None:
             return
 
@@ -240,3 +266,135 @@ def maybe_handle_context_pressure(ctx: Any, **hook_kwargs: Any) -> None:
             logger.debug("[odoo-agent-pro-kit] inject_message unavailable: %s", exc)
     except Exception as exc:  # noqa: BLE001 - fail-open guard
         logger.warning("[odoo-agent-pro-kit] context pressure guard failed: %s", exc)
+
+
+# ---------------------------------------------------------------------------
+# Hosted mode (Hermes behind a gateway, the module in another container).
+#
+# Hermes compacts a chat by itself, inside the running turn, once the context passes its
+# compression.threshold. This guard puts two notes in front of the agent: a save note just
+# before that compaction and a resume note just after it. transform_tool_result is the only
+# hook that reaches the model inside a running turn; pre_llm_call covers the start of a turn.
+# The deployed Hermes has no post_compaction hook, so a compaction shows as the prompt
+# shrinking by a third. The agent writes the files itself: they are not on this filesystem.
+# ---------------------------------------------------------------------------
+
+_DEFAULT_COMPACTION_THRESHOLD_PCT = 0.60
+_SAVE_MARGIN = 0.05
+_SHRINK_RATIO = 2 / 3
+_LARGE_WINDOW = 512_000  # Hermes floors smaller windows at 0.75 (raise-only)
+
+# session_id -> {"command": dict | None, "tokens": int, "saved": bool, "note": str | None}
+_hosted: dict[str, dict] = {}
+
+
+def compaction_threshold(context_length: int, configured: float) -> float:
+    """Hermes's effective compaction ratio for a window of ``context_length`` tokens."""
+    if context_length >= _LARGE_WINDOW:
+        return configured
+    return max(0.75, configured)
+
+
+def context_tokens(usage: Any) -> Optional[int]:
+    """Tokens the last request sent: the size of the chat's context."""
+    if not isinstance(usage, dict):
+        return None
+    prompt = usage.get("prompt_tokens")
+    if isinstance(prompt, (int, float)) and prompt > 0:
+        return int(prompt)
+    given = usage.get("input_tokens")
+    if isinstance(given, (int, float)) and given > 0:
+        cached = usage.get("cache_read_tokens")
+        return int(given) + (int(cached) if isinstance(cached, (int, float)) and cached > 0 else 0)
+    return None
+
+
+def _command_text(command: Optional[dict]) -> Optional[str]:
+    if not command:
+        return None
+    return " ".join(p for p in (f"/{command['name']}", command.get("version"), command.get("args")) if p)
+
+
+def _save_note(command: Optional[dict], pct: float, limit: float) -> str:
+    what = f" for {_command_text(command)}" if command else ""
+    return (
+        f"[odoo-agent-pro-kit] This chat is at {pct * 100:.0f}% of its context; Hermes compacts it at "
+        f"{limit * 100:.0f}%. Before your next step{what}: update sessions/<module>_progress.json and "
+        "docs/tasks.md, and write the handoff to CLAUDE.md and AGENTS.md in the module folder "
+        "(CommandingSystem/context_handoff_workflow.md). Then carry on with the same task; do not stop "
+        "or ask the user to reset."
+    )
+
+
+def _resume_note(command: Optional[dict]) -> str:
+    what = _command_text(command) or "the kit command you were running"
+    return (
+        f"[odoo-agent-pro-kit] This chat was just compacted. To carry on {what}: re-read CLAUDE.md, "
+        "docs/tasks.md and sessions/<module>_progress.json in the module folder, then continue from "
+        "the first open task with the same rules."
+    )
+
+
+def _state(session_id: Any) -> Optional[dict]:
+    if not isinstance(session_id, str) or not session_id:
+        return None
+    return _hosted.setdefault(session_id, {"command": None, "tokens": 0, "saved": False, "note": None})
+
+
+def on_post_api_request(ctx: Any, **kw: Any) -> None:
+    try:
+        state = _state(kw.get("session_id"))
+        tokens = context_tokens(kw.get("usage"))
+        window = kw.get("context_length")
+        if state is None or tokens is None or not isinstance(window, (int, float)) or window <= 0:
+            return
+        configured = float(
+            ctx.get_config("context_handoff.compaction_threshold_pct", _DEFAULT_COMPACTION_THRESHOLD_PCT)
+        )
+        limit = compaction_threshold(int(window), configured)
+        previous, state["tokens"] = state["tokens"], tokens
+        if previous and tokens <= previous * _SHRINK_RATIO and (state["saved"] or previous >= window * limit / 2):
+            state["saved"] = False
+            state["note"] = _resume_note(state["command"])
+            return
+        pct = tokens / window
+        if not state["saved"] and pct >= limit - _SAVE_MARGIN:
+            state["saved"] = True
+            state["note"] = _save_note(state["command"], pct, limit)
+    except Exception as exc:  # noqa: BLE001 - fail-open guard
+        logger.warning("[odoo-agent-pro-kit] hosted context guard failed: %s", exc)
+
+
+def _take_note(session_id: Any) -> Optional[str]:
+    state = _hosted.get(session_id) if isinstance(session_id, str) else None
+    if not state or not state.get("note"):
+        return None
+    note, state["note"] = state["note"], None
+    return note
+
+
+def on_pre_llm_call(ctx: Any, **kw: Any) -> Optional[dict]:
+    try:
+        state = _state(kw.get("session_id"))
+        if state is None:
+            return None
+        command = parse_command_marker(kw.get("user_message"))
+        if command:
+            state["command"] = command
+        note = _take_note(kw.get("session_id"))
+        return {"context": note} if note else None
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[odoo-agent-pro-kit] hosted context guard failed: %s", exc)
+        return None
+
+
+def on_transform_tool_result(ctx: Any, **kw: Any) -> Optional[str]:
+    try:
+        result = kw.get("result")
+        if not isinstance(result, str):
+            return None
+        note = _take_note(kw.get("session_id"))
+        return f"{result}\n\n{note}" if note else None
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[odoo-agent-pro-kit] hosted context guard failed: %s", exc)
+        return None

@@ -170,6 +170,33 @@ class TestMaybeHandleContextPressure(unittest.TestCase):
                 os.chdir(old_cwd)
                 context_guard._last_triggered_bucket.clear()
 
+    def test_uses_the_real_context_length(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            module_dir = Path(tmp) / "my_module"
+            (module_dir / "docs").mkdir(parents=True)
+            (module_dir / "docs" / "tasks.md").write_text(
+                "\n".join(f"- [ ] task {i}" for i in range(8)) + "\n"
+            )
+            import os
+
+            old_cwd = os.getcwd()
+            os.chdir(module_dir)
+            context_guard._last_triggered_bucket.clear()
+            try:
+                ctx = self._FakeCtx({})
+                # 89,600 tokens is 70% of the 128K default but under 9% of a 1M window
+                context_guard.maybe_handle_context_pressure(
+                    ctx, usage={"prompt_tokens": 89600}, context_length=1_050_000, model="m"
+                )
+                self.assertFalse((module_dir / "CLAUDE.md").exists())
+                context_guard.maybe_handle_context_pressure(
+                    ctx, usage={"input_tokens": 700_000}, context_length=1_050_000, model="m"
+                )
+                self.assertTrue((module_dir / "CLAUDE.md").exists())
+            finally:
+                os.chdir(old_cwd)
+                context_guard._last_triggered_bucket.clear()
+
     def test_never_raises_on_malformed_usage(self):
         """Fail-open guarantee: malformed hook kwargs must never raise."""
         ctx = self._FakeCtx({})
@@ -213,3 +240,146 @@ class TestInjectIntoChat(unittest.TestCase):
             ctx = self._Ctx()
             self.assertTrue(context_guard.inject_into_chat(ctx, "hi", role="system"))
         self.assertEqual(ctx.calls, [("hi", "system", None)])
+
+
+class TestCommandMarker(unittest.TestCase):
+    def test_command_prompt_carries_marker(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        import plugin
+
+        prompt = plugin._command_prompt(
+            "commands/start-coding.md", "20", "edit_remove_pricelist_rule", ""
+        )
+        self.assertEqual(
+            prompt.splitlines()[-1],
+            "[odoo-kit-command] name=start-coding version=20 args=edit_remove_pricelist_rule",
+        )
+
+    def test_parse_command_marker(self):
+        text = (
+            "body\n[odoo-kit-command] name=plan-analysis version=19 args=x\n"
+            "more\n[odoo-kit-command] name=start-coding version=20 args=edit_remove_pricelist_rule"
+        )
+        self.assertEqual(
+            context_guard.parse_command_marker(text),
+            {"name": "start-coding", "version": "20", "args": "edit_remove_pricelist_rule"},
+        )
+        self.assertIsNone(context_guard.parse_command_marker("no marker here"))
+        self.assertEqual(
+            context_guard.parse_command_marker("[odoo-kit-command] name=testing version=- args=-"),
+            {"name": "testing", "version": None, "args": None},
+        )
+
+
+class _HostedCtx:
+    def __init__(self, config=None):
+        self._config = config or {}
+
+    def get_config(self, key, default=None):
+        return self._config.get(key, default)
+
+
+WINDOW = 1_050_000
+MARKER = "[odoo-kit-command] name=start-coding version=20 args=edit_remove_pricelist_rule"
+
+
+def _api(ctx, session, fraction, window=WINDOW):
+    context_guard.on_post_api_request(
+        ctx, session_id=session, usage={"prompt_tokens": int(window * fraction)}, context_length=window
+    )
+
+
+class TestHostedGuard(unittest.TestCase):
+    def setUp(self):
+        context_guard._hosted.clear()
+        self.ctx = _HostedCtx()
+
+    def test_threshold_floor_small_window(self):
+        self.assertAlmostEqual(context_guard.compaction_threshold(128_000, 0.60), 0.75)
+        self.assertAlmostEqual(context_guard.compaction_threshold(1_050_000, 0.60), 0.60)
+        self.assertAlmostEqual(context_guard.compaction_threshold(128_000, 0.80), 0.80)
+
+    def test_context_tokens_fallbacks(self):
+        self.assertEqual(context_guard.context_tokens({"prompt_tokens": 9, "input_tokens": 5}), 9)
+        self.assertEqual(context_guard.context_tokens({"input_tokens": 5, "cache_read_tokens": 3}), 8)
+        self.assertEqual(context_guard.context_tokens({"input_tokens": 5}), 5)
+        self.assertIsNone(context_guard.context_tokens({}))
+        self.assertIsNone(context_guard.context_tokens(None))
+
+    def test_no_note_without_pressure(self):
+        _api(self.ctx, "s1", 0.30)
+        self.assertIsNone(context_guard.on_transform_tool_result(self.ctx, session_id="s1", result="ok"))
+
+    def test_save_note_once_before_compaction(self):
+        context_guard.on_pre_llm_call(self.ctx, session_id="s1", user_message="go\n" + MARKER)
+        _api(self.ctx, "s1", 0.56)
+        _api(self.ctx, "s1", 0.57)
+        out = context_guard.on_transform_tool_result(self.ctx, session_id="s1", result="ok")
+        self.assertTrue(out.startswith("ok\n\n[odoo-agent-pro-kit] This chat is at 56%"))
+        self.assertIn("Hermes compacts it at 60%", out)
+        self.assertIn("/start-coding 20 edit_remove_pricelist_rule", out)
+        self.assertIn("do not stop or ask the user to reset", out)
+        self.assertIsNone(context_guard.on_transform_tool_result(self.ctx, session_id="s1", result="ok"))
+
+    def test_save_note_small_window_comes_before_floored_compaction(self):
+        _api(self.ctx, "s1", 0.65, window=128_000)
+        self.assertIsNone(context_guard.on_transform_tool_result(self.ctx, session_id="s1", result="ok"))
+        _api(self.ctx, "s1", 0.71, window=128_000)
+        out = context_guard.on_transform_tool_result(self.ctx, session_id="s1", result="ok")
+        self.assertIn("Hermes compacts it at 75%", out)
+
+    def test_resume_note_after_shrink(self):
+        context_guard.on_pre_llm_call(self.ctx, session_id="s1", user_message=MARKER)
+        _api(self.ctx, "s1", 0.58)
+        context_guard.on_transform_tool_result(self.ctx, session_id="s1", result="ok")  # save note
+        _api(self.ctx, "s1", 0.20)
+        out = context_guard.on_transform_tool_result(self.ctx, session_id="s1", result="ok")
+        self.assertIn("This chat was just compacted. To carry on /start-coding 20 edit_remove_pricelist_rule", out)
+        self.assertIn("continue from the first open task with the same rules", out)
+
+    def test_resume_note_without_recorded_command(self):
+        _api(self.ctx, "s2", 0.50)
+        _api(self.ctx, "s2", 0.10)
+        out = context_guard.on_transform_tool_result(self.ctx, session_id="s2", result="ok")
+        self.assertIn("To carry on the kit command you were running: re-read", out)
+
+    def test_sessions_kept_apart(self):
+        context_guard.on_pre_llm_call(self.ctx, session_id="a", user_message=MARKER)
+        context_guard.on_pre_llm_call(
+            self.ctx, session_id="b",
+            user_message="[odoo-kit-command] name=start-coding version=20 args=currency_rate_of_rbi",
+        )
+        _api(self.ctx, "a", 0.56)
+        _api(self.ctx, "b", 0.56)
+        self.assertIn("edit_remove_pricelist_rule", context_guard.on_transform_tool_result(self.ctx, session_id="a", result=""))
+        self.assertIn("currency_rate_of_rbi", context_guard.on_transform_tool_result(self.ctx, session_id="b", result=""))
+
+    def test_pre_llm_call_delivers_pending_note(self):
+        context_guard.on_pre_llm_call(self.ctx, session_id="s1", user_message=MARKER)
+        _api(self.ctx, "s1", 0.58)
+        _api(self.ctx, "s1", 0.20)
+        # the save note was never delivered; the resume note replaces it
+        got = context_guard.on_pre_llm_call(self.ctx, session_id="s1", user_message="continue")
+        self.assertIn("This chat was just compacted", got["context"])
+        self.assertIsNone(context_guard.on_pre_llm_call(self.ctx, session_id="s1", user_message="x"))
+
+    def test_guard_never_raises(self):
+        self.assertIsNone(context_guard.on_post_api_request(self.ctx, usage="junk", context_length="x"))
+        self.assertIsNone(context_guard.on_transform_tool_result(self.ctx, result=None))
+        self.assertIsNone(context_guard.on_pre_llm_call(None, session_id=None, user_message=object()))
+
+
+class TestHostedGuardRegistration(unittest.TestCase):
+    def test_register_wires_the_hosted_hooks(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        import plugin
+
+        ctx = unittest.mock.MagicMock()
+        plugin.register(ctx)
+        hooks = {c.args[0]: c.args[1] for c in ctx.register_hook.call_args_list}
+        for name in ("post_api_request", "pre_llm_call", "transform_tool_result"):
+            self.assertIn(name, hooks)
+        guard = sys.modules["plugin.context_guard"]
+        guard._hosted.clear()
+        hooks["pre_llm_call"](session_id="r1", user_message="[odoo-kit-command] name=testing version=20 args=m")
+        self.assertEqual(guard._hosted["r1"]["command"]["name"], "testing")

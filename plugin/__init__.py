@@ -411,7 +411,10 @@ def _command_prompt(
     else:
         version_line = "Ask the user for the Odoo version (17, 18, 19, or 20) before proceeding."
     module_line = f"Module/argument: {rest}." if rest else ""
-    return f"{body}\n\n{version_line} {module_line}\n{extra}".strip()
+    # The context guard reads this line back to know which command a session is running.
+    name = command_md_relpath.split("/")[-1].removesuffix(".md").replace("_", "-")
+    marker = f"[odoo-kit-command] name={name} version={version or '-'} args={rest.strip() or '-'}"
+    return f"{body}\n\n{version_line} {module_line}\n{extra}".strip() + "\n" + marker
 
 
 def _make_command_handler(ctx, command_md_relpath: str, extra: str = "", version_optional: bool = False):
@@ -571,6 +574,13 @@ def register(ctx) -> None:
             maybe_handle_context_pressure(ctx, **kwargs)
 
         ctx.register_hook("post_api_request", _on_post_api_request)
+
+        # Hosted mode: notes before and after Hermes compacts the chat (context_guard.py).
+        from .context_guard import on_post_api_request, on_pre_llm_call, on_transform_tool_result
+
+        ctx.register_hook("post_api_request", lambda **kw: on_post_api_request(ctx, **kw))
+        ctx.register_hook("pre_llm_call", lambda **kw: on_pre_llm_call(ctx, **kw))
+        ctx.register_hook("transform_tool_result", lambda **kw: on_transform_tool_result(ctx, **kw))
     except Exception as exc:  # noqa: BLE001 - never block plugin registration
         logger.warning("odoo-agent-pro-kit: context_guard hook registration failed: %s", exc)
 
