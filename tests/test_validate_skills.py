@@ -69,3 +69,21 @@ class TestCLI(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestHostedRunnerMode(unittest.TestCase):
+    """A hosted agent (no Docker beside it) runs sandboxes on the runner: the workflows say how."""
+
+    ROOT = Path(__file__).resolve().parents[1] / "plugin" / "skills" / "CommandingSystem"
+    TOOLS = (
+        "runner_health", "runner-upload", "runner_session_create_upload", "runner_session_status",
+        "runner_module_install", "runner_module_test", "runner_module_replace", "runner_module_update",
+        "runner_session_export", "runner_session_destroy", "gate_result",
+    )
+
+    def test_hosted_runner_mode_linked(self):
+        mode = (self.ROOT / "hosted_runner_mode.md").read_text()
+        for name in self.TOOLS:
+            self.assertIn(name, mode, name)
+        for workflow in ("start_coding_workflow.md", "testing_workflow.md", "SKILL.md"):
+            self.assertIn("hosted_runner_mode.md", (self.ROOT / workflow).read_text(), workflow)

@@ -235,6 +235,9 @@ curl -s "http://localhost:${ODOO_PORT}/web/health" | grep -q "pass" || \
 
 **Install/update the module — CRITICAL patterns:**
 
+Hosted runner mode (no Docker beside the agent, `runner_health` among its tools): follow
+`hosted_runner_mode.md` instead of the sandbox and local modes below.
+
 Sandbox mode (when `.sandbox/session.json` exists):
 
 ```bash

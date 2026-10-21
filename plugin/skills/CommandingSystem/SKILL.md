@@ -152,6 +152,7 @@ For step-by-step execution of each command, read:
 - `plan_analysis_workflow.md` — complete /plan-analysis execution steps
 - `start_coding_workflow.md` — complete /start-coding execution steps
 - `testing_workflow.md` — complete /testing execution steps
+- `hosted_runner_mode.md` — sandboxes on a remote runner, for an agent without Docker (hosted Hermes)
 
 ### Phase 25: Harness Engineering & Context Handoff
 

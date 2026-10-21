@@ -212,6 +212,9 @@ echo "✅ All system dependencies ready"
 
 ## STEP 5: Install / Update Module
 
+Hosted runner mode (no Docker beside the agent, `runner_health` among its tools): install,
+update and test through the runner as `hosted_runner_mode.md` says.
+
 Sandbox mode (when `.sandbox/session.json` exists): resolve `session_id`, run
 `sandbox/bin/sandboxctl module <session_id> update {module_name}`, and require
 the emitted result JSON to report `status: succeeded`. Record that path in
