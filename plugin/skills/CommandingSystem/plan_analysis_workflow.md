@@ -182,6 +182,20 @@ Extract:
 
 ---
 
+## STEP 6b: Knowledge Lookup
+
+Find the OKF knowledge bundles this workspace can read, nearest first:
+
+1. A `knowledge/` folder in the module's repository or next to it (a customer or project bundle).
+2. `/knowledge/customers/<key>/` on a hosted workspace (the customer's bundles).
+3. The Odoo documentation bundle for `{version}` (`Odoo{version}-okf/` or `/knowledge/odoo{version}`).
+
+Start from each bundle's `index.md`, then read the pages about the models, rules, playbooks and
+integrations the requirement touches. Note the page path for each fact you use. Bundles are
+read-only, and the code wins when a page and the code disagree: say so in the design.
+
+---
+
 ## STEP 7: Agent Persona Selection
 
 Based on Q1 module category, load the relevant agent persona:
@@ -205,7 +219,10 @@ Using `PRD-Writing/SKILL.md` templates and all gathered context, generate:
 # {Module Display Name} — PRD Draft
 
 ## Functional Requirements
-[From Q4 + Q5 + clarification discussion]
+[From Q4 + Q5 + clarification discussion. Give every functional requirement a
+`Knowledge:` line (a column, in a table) naming the bundle pages from STEP 6b it rests on,
+as paths from the bundle root, e.g. `Knowledge: ai_football_skills/playbooks/add_new_football_skill.md`.
+Where no page covers it, write `Knowledge: none found` so the gap is visible.]
 
 ## Technical Design
 [Based on MCP model analysis + coding standards]
