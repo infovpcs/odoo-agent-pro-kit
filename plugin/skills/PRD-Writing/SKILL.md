@@ -17,7 +17,7 @@ Produce concise PRD artifacts (requirements → design → tasks) for Odoo custo
 - Reusable tools (see AgentSkills/OdooTools19/SKILL.md) and upstream refs (odoo/odoo 19.0, 18.0, 17.0).
 
 ## Outputs
-- requirements.md: scoped needs and existing/new mapping.
+- requirements.md: scoped needs and existing/new mapping; each requirement has a `Knowledge:` line naming the knowledge-bundle pages it rests on (or `Knowledge: none found`).
 - design.md: solution outline derived from requirements.
 - tasks.md: actionable breakdown derived from design.
 - Architecture.md: visual architecture document demonstrating the entire flow diagram, generated using the `excalidraw-diagram-skill` combined with analysis from `copilot_odoo_agent.py` agents.
