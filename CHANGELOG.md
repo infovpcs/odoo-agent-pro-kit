@@ -5,6 +5,13 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
 
 ## Unreleased
 
+### Fixed
+- **Hosted Hermes: the hooks read the chat's folder (N10.7).** With the agent's terminal in
+  another container, `Path.cwd()` was Hermes's own folder, so version detection, the
+  `/start-coding` gate and the tool-call checks looked in the wrong place. `_session_dir()` asks
+  Hermes for the session's folder (by task id, else the current scope) and uses it when Hermes can
+  see it; otherwise cwd as before. Version detection now also finds `20.0`.
+
 ### Added
 
 - **Every Apps Store module ships a LICENSE (owner's rule, 2026-10-29).** `/testing` is blocked

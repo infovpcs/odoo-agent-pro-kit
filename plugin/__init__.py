@@ -417,6 +417,31 @@ def _command_prompt(
     return f"{body}\n\n{version_line} {module_line}\n{extra}".strip() + "\n" + marker
 
 
+def _session_dir(task_id: Optional[str] = None) -> Path:
+    """The chat's own folder (N10.7). A hosted Hermes runs the agent's terminal in another
+    container, so ``Path.cwd()`` is Hermes's folder, not the chat's. Ask Hermes for the
+    session's working directory (by task id, else the current scope) and use it when this
+    process can see it (the workspace is mounted read-only); otherwise fall back to cwd."""
+    candidates = []
+    try:
+        from tools.file_tools_paths import _authoritative_workspace_root  # type: ignore
+
+        candidates.append(_authoritative_workspace_root(task_id or "default"))
+    except Exception:  # noqa: BLE001 - not inside Hermes, or its internals changed
+        pass
+    try:
+        from agent.runtime_cwd import scope_terminal_cwd  # type: ignore
+
+        candidates.append(scope_terminal_cwd())
+    except Exception:  # noqa: BLE001
+        pass
+    for raw in candidates:
+        text = str(raw or "").strip()
+        if text.startswith("/") and Path(text).is_dir():
+            return Path(text)
+    return Path.cwd()
+
+
 def _make_command_handler(ctx, command_md_relpath: str, extra: str = "", version_optional: bool = False):
     def _handler(raw_args: str) -> str:
         version, rest = _parse_version_and_rest(raw_args)
@@ -424,7 +449,7 @@ def _make_command_handler(ctx, command_md_relpath: str, extra: str = "", version
             from .hooks.checks.hermes_adapter import command_gate
 
             cmd_name = command_md_relpath.split("/")[-1].removesuffix(".md")
-            block = command_gate(cmd_name, raw_args, Path.cwd())
+            block = command_gate(cmd_name, raw_args, _session_dir())
             if block:
                 return block
         except Exception as exc:  # noqa: BLE001 - a gate failure must never break the command
@@ -468,19 +493,20 @@ def _on_session_start(**_kwargs) -> None:
             logger.debug("[odoo-agent-pro-kit] Could not parse sandbox session file: %s", exc)
         return
 
-    for version in ("19.0", "18.0", "17.0"):
-        if Path(f"./{version}").is_dir():
+    here = _session_dir(_kwargs.get("task_id"))
+    for version in ("20.0", "19.0", "18.0", "17.0"):
+        if (here / version).is_dir():
             logger.info(
                 "[odoo-agent-pro-kit] Detected Odoo %s workspace in %s — odoo_* tools default to this version",
                 version,
-                Path.cwd(),
+                here,
             )
             break
 
     try:
         from .hooks.checks.hermes_adapter import session_start_lines
 
-        for line in session_start_lines(Path.cwd()):
+        for line in session_start_lines(here):
             logger.info("[odoo-agent-pro-kit] %s", line)
     except Exception as exc:  # noqa: BLE001 - session-start detail must never crash the hook
         logger.debug("[odoo-agent-pro-kit] session_start_lines failed: %s", exc)
@@ -596,7 +622,7 @@ def register(ctx) -> None:
                 return pre_tool_call_directive(
                     kwargs.get("tool_name", ""),
                     kwargs.get("args") or kwargs.get("tool_args") or kwargs.get("arguments") or {},
-                    Path.cwd(),
+                    _session_dir(kwargs.get("task_id")),
                 )
             except Exception as exc:  # noqa: BLE001 - hooks must never break a turn
                 logger.debug("[odoo-agent-pro-kit] pre_tool_call hook failed: %s", exc)
@@ -607,7 +633,7 @@ def register(ctx) -> None:
                 for note in post_tool_call_notes(
                     kwargs.get("tool_name", ""),
                     kwargs.get("args") or kwargs.get("tool_args") or kwargs.get("arguments") or {},
-                    Path.cwd(),
+                    _session_dir(kwargs.get("task_id")),
                 ):
                     logger.warning("[odoo-agent-pro-kit] %s", note)
             except Exception as exc:  # noqa: BLE001 - hooks must never break a turn
