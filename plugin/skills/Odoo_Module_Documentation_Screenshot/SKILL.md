@@ -50,6 +50,14 @@ Comprehensive skill for automating screenshot capture, icon/banner generation, a
   2. Composite of multiple screenshots
   3. Design template with module info
 
+#### LICENSE (every Apps Store module)
+- A `LICENSE` file in the module root, matching the manifest's `license` key (usually the
+  company's LGPL-3 notice). Copy it from the module's earlier version or from another module
+  with the same licence. `/testing` is blocked without it, and lint rule L18 warns when the
+  manifest is written.
+- Keep `price`, `currency`, `images` (the banner first), `author`, `website` and `license` from
+  the earlier version's manifest unless the owner changes them.
+
 #### Screenshots (01_*.png, 02_*.png, ...)
 - **Naming**: Sequential numbering (01_, 02_, 03_...)
 - **Format**: PNG
@@ -180,6 +188,19 @@ rm -f /tmp/ck
   `AB eval "[...document.querySelectorAll('.o_field_invalid')].map(e=>e.getAttribute('name'))"`.
 - Never click buttons that call `window.alert()` (e.g. a download that fails without an
   external token): the dialog blocks the browser session.
+- **agent-browser 0.35.1 can leave the Odoo 20 web client blank** (2026-10-29: the login form
+  stayed `d-none` and `/odoo` mounted nothing, with no page or console error, while Playwright's
+  Chromium on the same bridge rendered both). If `body` has no children after 15 s, switch to
+  Playwright for the captures and record the method in the `ui_check` evidence.
+- The first page after an install or update builds the asset bundles (a minute or more for
+  `web.assets_web` in a 2-CPU sandbox): wait for it, or the page loads blank or times out.
+- `sale` alone has no Sales menu: install `sale_management` in the sandbox for realistic
+  screenshots of sales features.
+- An Apps Store `index.html` is a page for customers: no `<script>`, `<style>`, `<link>` or
+  `<head>` (they are stripped), Bootstrap classes and inline styles only, and no session ids,
+  sandbox users or test-report wording. Keep evidence in `sessions/` and `docs/`.
+- An archive made with macOS `tar` adds `._*` files beside each file: delete them
+  (`find <module> -name '._*' -delete`) before committing or packaging.
 - Screenshot names that collide with existing app-store images overwrite them: prefix new
   captures (e.g. `odoo20_NN_name.png`) and add them to `index.html` as a section, keeping the
   existing marketing content.

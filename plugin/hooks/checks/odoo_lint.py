@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import ast
+import os
 import re
 from typing import List, Optional
 
@@ -163,7 +165,39 @@ def _strip_comments(text: str, kind: str) -> str:
     return "\n".join(out)
 
 
+_LICENSE_FILES = ("LICENSE", "LICENSE.txt", "LICENSE.md", "COPYING")
+
+
+def _lint_manifest(path: str, content: str) -> List[Finding]:
+    """L18: an Apps Store module declares its licence and ships a LICENSE file beside it.
+
+    A warning while files are written (the LICENSE often comes right after the manifest);
+    the /testing gate is where a missing licence blocks.
+    """
+    try:
+        data = ast.literal_eval(content or "")
+    except (ValueError, SyntaxError):
+        return []
+    if not isinstance(data, dict):
+        return []
+    out: List[Finding] = []
+    if not data.get("license"):
+        out.append(Finding(severity="warn", rule="L18", line=1,
+                           message="__manifest__.py has no 'license' key",
+                           fix="Add 'license': 'LGPL-3' (or the module's licence) to the manifest."))
+    folder = os.path.dirname(path)
+    if folder and os.path.isdir(folder) and not any(
+            os.path.isfile(os.path.join(folder, name)) for name in _LICENSE_FILES):
+        out.append(Finding(severity="warn", rule="L18", line=1,
+                           message="module has no LICENSE file beside __manifest__.py",
+                           fix="Copy the LICENSE file (matching the manifest licence) into the module root; "
+                               "every Apps Store module ships one."))
+    return out
+
+
 def lint(path: str, content: str, version: Optional[str]) -> List[Finding]:
+    if (path or "").replace("\\", "/").endswith("__manifest__.py"):
+        return _lint_manifest(path, content)
     kind = _kind(path or "")
     if kind is None:
         return []

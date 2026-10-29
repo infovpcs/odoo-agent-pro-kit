@@ -24,7 +24,9 @@ def _repo(tmp_path, *modules):
     (root / ".git").mkdir(parents=True)
     for name in modules:
         (root / name).mkdir()
-        (root / name / "__manifest__.py").write_text("{'name': '%s', 'depends': ['base']}" % name)
+        (root / name / "__manifest__.py").write_text(
+            "{'name': '%s', 'depends': ['base'], 'license': 'LGPL-3'}" % name)
+        (root / name / "LICENSE").write_text("GNU Lesser General Public License v3\n")
     return root
 
 
@@ -117,3 +119,12 @@ def test_modules_above_the_repository_root_are_not_scanned(tmp_path):
     root = tmp_path / "project"
     (root / ".git").mkdir(parents=True)
     assert _run("UserPromptSubmit", {"cwd": str(root), "prompt": "/start-coding 20"}) == 0
+
+
+def test_testing_blocks_a_module_without_its_license_file(tmp_path, capsys):
+    root = _repo(tmp_path, "mod_a")
+    (root / "mod_a" / "LICENSE").unlink()
+    _tasks(root / "mod_a", "- [x] Task 1\n")
+    _progress(root / "mod_a", PARITY)
+    assert _run("UserPromptSubmit", {"cwd": str(root), "prompt": "/testing 20"}) == 2
+    assert "LICENSE" in capsys.readouterr().err

@@ -106,3 +106,39 @@ def test_testing_blocks_tasks_without_checklist(tmp_path):
     mod = _mk(tmp_path, tasks=_PROSE_TASKS)
     g = gates.check_testing(mod)
     assert g.ok is False and "- [ ]" in g.message
+
+
+def _manifest(mod, body='{"name": "M", "license": "LGPL-3"}', license_file=True):
+    (mod / "__manifest__.py").write_text(body)
+    if license_file:
+        (mod / "LICENSE").write_text("GNU Lesser General Public License v3\n")
+    return mod
+
+
+def test_testing_ok_with_manifest_license_and_file(tmp_path):
+    mod = _manifest(_mk(tmp_path))
+    assert gates.check_testing(mod).ok is True
+
+
+def test_testing_blocks_module_without_license_file(tmp_path):
+    mod = _manifest(_mk(tmp_path), license_file=False)
+    g = gates.check_testing(mod)
+    assert g.ok is False and "LICENSE" in g.message and "LGPL-3" in g.message
+
+
+def test_testing_blocks_manifest_without_license_key(tmp_path):
+    mod = _manifest(_mk(tmp_path), body='{"name": "M"}')
+    g = gates.check_testing(mod)
+    assert g.ok is False and "'license'" in g.message
+
+
+def test_testing_accepts_license_file_variants(tmp_path):
+    mod = _manifest(_mk(tmp_path), license_file=False)
+    (mod / "LICENSE.txt").write_text("LGPL-3\n")
+    assert gates.check_testing(mod).ok is True
+
+
+def test_testing_does_not_block_on_unreadable_manifest(tmp_path):
+    # Not this gate's job to judge manifest syntax; the install step reports that.
+    mod = _manifest(_mk(tmp_path), body="{ not python", license_file=True)
+    assert gates.check_testing(mod).ok is True

@@ -7,6 +7,17 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
 
 ### Added
 
+- **Every Apps Store module ships a LICENSE (owner's rule, 2026-10-29).** `/testing` is blocked
+  until a module with a `__manifest__.py` has a `license` key and a LICENSE file (`LICENSE`,
+  `LICENSE.txt`, `LICENSE.md` or `COPYING`) in its root; hook lint rule **L18** (warn, all
+  versions) flags either gap as soon as the manifest is written. On `vpcs_apps_store`, 6 of 40
+  modules on 19.0 and 14 of 64 on 18.0 had no LICENSE file.
+- **`Odoo_Module_Documentation_Screenshot`:** the LICENSE requirement; Playwright as the fallback
+  when `agent-browser` 0.35.1 leaves the Odoo 20 web client blank (no error, nothing mounted);
+  the Apps Store page rules (no `<script>`, `<style>`, `<link>` or `<head>`, Bootstrap classes
+  and inline styles, customer-facing text only, no session ids or test wording); and stripping
+  macOS `._*` files from archives copied into a module.
+
 - **Five persona agent skills** that `/plan-analysis` (step 7) and `/start-coding` already route
   to but the kit did not ship: `OdooServerSide`, `OdooWebAgent`, `OdooPOSAgent`,
   `OdooWebsiteAgent` and `OdooMigrationAgent`, for Odoo 17.0 to 20.0. Each names the kit skills
