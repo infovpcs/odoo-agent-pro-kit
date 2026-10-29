@@ -35,7 +35,7 @@ for Odoo 17.0, 18.0, 19.0, and 20.0 — without building any of it from scratch.
 
 > **Odoo 20.0 support (2026-09-24):** skills (`Odoo20CodingStandard`, `OdooTools20`,
 > `Odoo20ExistingDependencyContext`), version detection, slash commands, MCP discovery
-> (JSON-RPC 2.0, port 8768) and hook lint rules L7–L17 (`ir.access`, `mail_tracking`, Material
+> (JSON-RPC 2.0, port 8768) and hook lint rules L7–L18 (`ir.access`, `mail_tracking`, Material
 > Symbols, removed `toggle_active`/`get_param`/`_table_query`/`ir.attachment.datas`, `BinaryValue`)
 > cover 20.0. Local 20 workspaces need Python ≥ 3.12 and **PostgreSQL ≥ 16**: on Linux
 > `./bootstrap.sh --versions 20` (Ubuntu 24.04 ships both), on macOS

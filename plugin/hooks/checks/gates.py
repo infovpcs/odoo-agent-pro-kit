@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import json
 import re
 from pathlib import Path
@@ -74,6 +75,9 @@ def check_testing(module_dir: Optional[Path]) -> Gate:
                 "to finish them first."
             ),
         )
+    unlicensed = _license_gate(module_dir)
+    if unlicensed:
+        return unlicensed
     data = _progress(module_dir)
     if data.get("backend_tests_baseline_parity") and not data.get("backend_tests_passed") \
             and not data.get("backend_tests_baseline"):
@@ -97,6 +101,39 @@ def check_testing(module_dir: Optional[Path]) -> Gate:
             ),
         )
     return Gate(ok=True)
+
+
+LICENSE_FILES = ("LICENSE", "LICENSE.txt", "LICENSE.md", "COPYING")
+
+
+def _license_gate(module_dir: Path) -> Optional[Gate]:
+    """Block /testing until a module ships a LICENSE file and declares 'license' in its manifest.
+
+    Every Apps Store module carries both (owner's rule, 2026-10-29); a module released without
+    them cannot be published. Only folders with a readable __manifest__.py are judged.
+    """
+    manifest = module_dir / "__manifest__.py"
+    try:
+        data = ast.literal_eval(manifest.read_text(encoding="utf-8", errors="replace"))
+    except (OSError, ValueError, SyntaxError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    missing = []
+    if not data.get("license"):
+        missing.append("a 'license' key in __manifest__.py (for example 'LGPL-3')")
+    if not any((module_dir / name).is_file() for name in LICENSE_FILES):
+        missing.append(f"a LICENSE file in the module root matching its licence ({data.get('license') or 'LGPL-3'})")
+    if not missing:
+        return None
+    return Gate(
+        ok=False,
+        message=(
+            f"/testing blocked: '{module_dir.name}' has no " + " and no ".join(missing) + ". "
+            "Every Apps Store module ships both; copy the LICENSE file from the module's earlier "
+            "version or another module with the same licence, then run /testing again."
+        ),
+    )
 
 
 def _progress(module_dir: Path) -> dict:

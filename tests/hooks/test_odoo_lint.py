@@ -92,3 +92,29 @@ def test_line_number_reported():
     f = odoo_lint.lint("mymod/views/x.xml", xml, "19")
     assert _sev(f, "L1") == "block"
     assert next(x.line for x in f if x.rule == "L1") == 3
+
+
+def test_l18_manifest_without_license_key_warns(tmp_path):
+    mod = tmp_path / "mymod"; mod.mkdir(); (mod / "LICENSE").write_text("x")
+    path = str(mod / "__manifest__.py")
+    f = odoo_lint.lint(path, '{"name": "M", "version": "20.0.1.0.0"}', "20")
+    assert "L18" in _rules(f) and _sev(f, "L18") == "warn"
+
+
+def test_l18_module_without_license_file_warns(tmp_path):
+    mod = tmp_path / "mymod"; mod.mkdir()
+    path = str(mod / "__manifest__.py")
+    f = odoo_lint.lint(path, '{"name": "M", "license": "LGPL-3"}', "19")
+    assert "L18" in _rules(f)
+    assert any("LICENSE" in x.message for x in f if x.rule == "L18")
+
+
+def test_l18_clean_manifest_and_file(tmp_path):
+    mod = tmp_path / "mymod"; mod.mkdir(); (mod / "LICENSE").write_text("x")
+    path = str(mod / "__manifest__.py")
+    assert odoo_lint.lint(path, '{"name": "M", "license": "LGPL-3"}', "20") == []
+
+
+def test_l18_ignores_manifest_it_cannot_parse(tmp_path):
+    mod = tmp_path / "mymod"; mod.mkdir(); (mod / "LICENSE").write_text("x")
+    assert "L18" not in _rules(odoo_lint.lint(str(mod / "__manifest__.py"), "{ broken", "20"))
