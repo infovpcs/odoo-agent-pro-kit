@@ -469,7 +469,7 @@ def _make_command_handler(ctx, command_md_relpath: str, extra: str = "", version
 # Hooks — session-start Odoo workspace detection, session-end connection cleanup
 # ---------------------------------------------------------------------------
 
-_MCP_PORTS = {"17.0": 8765, "18.0": 8766, "19.0": 8767}
+_MCP_PORTS = {"17.0": 8765, "18.0": 8766, "19.0": 8767, "20.0": 8768}
 
 
 def _on_session_start(**_kwargs) -> None:
