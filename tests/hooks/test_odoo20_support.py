@@ -405,3 +405,14 @@ def test_l17_base64_bytes_written_to_a_field_warns_on_20_only():
 
 def _line_of_rule(findings, rule):
     return next(f.line for f in findings if f.rule == rule)
+
+
+def test_session_start_mcp_ports_match_the_mcp_config():
+    """plugin/__init__.py's port map must name every version odoo_mcp/config.py serves."""
+    import re
+
+    root = Path(__file__).resolve().parents[2]
+    init = (root / "plugin" / "__init__.py").read_text()
+    config = (root / "plugin" / "odoo_mcp" / "config.py").read_text()
+    pick = lambda text, name: dict(re.findall(r'"(\d+\.0)":\s*(\d+)', re.search(name + r"\s*=\s*\{([^}]*)\}", text).group(1)))
+    assert pick(init, "_MCP_PORTS") == pick(config, "default_mcp_ports")

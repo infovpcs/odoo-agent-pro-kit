@@ -5,7 +5,11 @@ track the `plugin/.claude-plugin/plugin.json` `version` field.
 
 ## Unreleased
 
+## 0.9.0 — 2026-11-25
+
 ### Fixed
+- **Session-start MCP port map names Odoo 20.** `plugin/__init__.py` `_MCP_PORTS` lacked
+  `20.0: 8768` while `odoo_mcp/config.py` serves it; a test keeps the two maps equal.
 - **Hosted Hermes: the hooks read the chat's folder (N10.7).** With the agent's terminal in
   another container, `Path.cwd()` was Hermes's own folder, so version detection, the
   `/start-coding` gate and the tool-call checks looked in the wrong place. `_session_dir()` asks
