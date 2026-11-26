@@ -7,10 +7,10 @@ scoped to that.
 ## Workflow
 
 1. **Fork** this repository.
-2. Keep your fork's `main` branch synced with `infovpcs/odoo-agent-pro-kit:main`
+2. Keep your fork's `main` branch synced with `VPerfectCS/odoo-agent-pro-kit:main`
    before starting work:
    ```bash
-   git remote add upstream https://github.com/infovpcs/odoo-agent-pro-kit.git
+   git remote add upstream https://github.com/VPerfectCS/odoo-agent-pro-kit.git
    git fetch upstream
    git checkout main && git merge upstream/main
    ```
@@ -24,7 +24,7 @@ scoped to that.
    `requirements-dev.txt` holds the test-only dependencies (pytest and PyYAML).
    If you add a test that imports a new third-party module, declare it there —
    `tests/test_dev_dependencies.py` fails the suite until you do.
-5. Open a pull request against `infovpcs/odoo-agent-pro-kit:main` using the PR
+5. Open a pull request against `VPerfectCS/odoo-agent-pro-kit:main` using the PR
    template — fill in Summary, Motivation, Odoo version(s) affected,
    skill(s)/component(s) touched, testing done, and the checklist.
 

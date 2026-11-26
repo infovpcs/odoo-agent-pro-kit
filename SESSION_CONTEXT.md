@@ -20,7 +20,7 @@ Before changing files:
 
 ## Project
 
-- Repository: `infovpcs/odoo-agent-pro-kit`
+- Repository: `VPerfectCS/odoo-agent-pro-kit`
 - Organization: VPerfectCS
 - Public license: Apache-2.0
 - Supported Odoo versions: 17.0, 18.0, 19.0, and 20.0 everywhere, including the Docker Sandbox

@@ -864,7 +864,7 @@ module (`excel_sheet_data_import`, 17.0 → 18.0, in Docker Sandbox session
 ### Added
 
 - **Native Hermes plugin** (`plugin/plugin.yaml` + `plugin/__init__.py`) —
-  `hermes plugins install infovpcs/odoo-agent-pro-kit/plugin --enable` now
+  `hermes plugins install VPerfectCS/odoo-agent-pro-kit/plugin --enable` now
   registers everything in-process, no separate MCP server/port/sidecar
   required for a Hermes session:
   - 7 `odoo_*` tools (`odoo_search_models`, `odoo_get_fields`,

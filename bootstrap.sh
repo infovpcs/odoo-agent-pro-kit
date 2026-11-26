@@ -67,7 +67,7 @@ Workspace(s) ready under: $BASE_DIR
 
 Next steps:
   1. Install the Claude Code plugin (one time):
-       /plugin marketplace add infovpcs/odoo-agent-pro-kit
+       /plugin marketplace add VPerfectCS/odoo-agent-pro-kit
        /plugin install odoo-agent-pro-kit
   2. For Codex, Cursor, Antigravity, VS Code, or GitHub Copilot: see integrations/<tool>/INSTALL.md
   3. From your agent, run /plan-analysis <version> to begin.

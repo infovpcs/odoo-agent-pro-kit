@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/infovpcs/odoo-agent-pro-kit/schemas/session.schema.json",
+  "$id": "https://github.com/VPerfectCS/odoo-agent-pro-kit/schemas/session.schema.json",
   "title": "Odoo Sandbox Session",
   "type": "object",
   "additionalProperties": false,

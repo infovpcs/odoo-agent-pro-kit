@@ -8,8 +8,8 @@
     "email": "vinay.ra@vperfectcs.com",
     "url": "https://www.vperfectcs.com"
   },
-  "homepage": "https://github.com/infovpcs/odoo-agent-pro-kit",
-  "repository": "https://github.com/infovpcs/odoo-agent-pro-kit",
+  "homepage": "https://github.com/VPerfectCS/odoo-agent-pro-kit",
+  "repository": "https://github.com/VPerfectCS/odoo-agent-pro-kit",
   "license": "Apache-2.0",
   "keywords": ["odoo", "odoo-17", "odoo-18", "odoo-19", "odoo-20", "erp", "ai-agent", "mcp"]
 }

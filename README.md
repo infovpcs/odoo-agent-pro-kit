@@ -63,7 +63,7 @@ contract without exposing an additional network port.
 ## Quickstart
 
 ```bash
-git clone https://github.com/infovpcs/odoo-agent-pro-kit.git
+git clone https://github.com/VPerfectCS/odoo-agent-pro-kit.git
 cd odoo-agent-pro-kit
 ./bootstrap.sh --versions 19
 ```
@@ -91,13 +91,13 @@ and [`plugin/odoo_mcp/MCP_SERVER_USAGE.md`](plugin/odoo_mcp/MCP_SERVER_USAGE.md)
 
 **Claude Code:**
 ```
-/plugin marketplace add infovpcs/odoo-agent-pro-kit
+/plugin marketplace add VPerfectCS/odoo-agent-pro-kit
 /plugin install odoo-agent-pro-kit
 ```
 
 **Hermes (native plugin):**
 ```bash
-hermes plugins install infovpcs/odoo-agent-pro-kit/plugin --enable
+hermes plugins install VPerfectCS/odoo-agent-pro-kit/plugin --enable
 ```
 Registers 7 `odoo_*` model-discovery tools (in-process, no separate MCP
 server/port needed), the `/plan-analysis`, `/start-coding`, `/testing`,
