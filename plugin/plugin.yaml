@@ -15,7 +15,7 @@ description: >-
   detection, and all bundled Odoo skills registered under the
   odoo-agent-pro-kit: namespace.
 author: "Vinay Rana"
-homepage: "https://github.com/infovpcs/odoo-agent-pro-kit"
+homepage: "https://github.com/VPerfectCS/odoo-agent-pro-kit"
 license: "Apache-2.0"
 manifest_version: 1
 api_version: 1

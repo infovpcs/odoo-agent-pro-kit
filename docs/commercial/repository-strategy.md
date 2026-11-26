@@ -14,7 +14,7 @@ and security-sensitive deployment details.
 ## Recommended topology
 
 ```text
-infovpcs/odoo-agent-pro-kit                 PUBLIC, Apache-2.0
+VPerfectCS/odoo-agent-pro-kit                 PUBLIC, Apache-2.0
   contracts, CLI, skills, local runtime, schemas, SDK, examples
                          |
                          | versioned packages/releases

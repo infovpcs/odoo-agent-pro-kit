@@ -8,7 +8,7 @@ open-source project.
 
 Maintain two principal repositories:
 
-1. **Public:** `infovpcs/odoo-agent-pro-kit` — community runtime contracts,
+1. **Public:** `VPerfectCS/odoo-agent-pro-kit` — community runtime contracts,
    skills, basic single-session sandbox, documentation, examples, and extension
    APIs under Apache-2.0.
 2. **Private:** `vperfectcs/odoo-agent-platform-pro` — licensed control plane,

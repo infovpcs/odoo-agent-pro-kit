@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/infovpcs/odoo-agent-pro-kit/schemas/operation-result.schema.json",
+  "$id": "https://github.com/VPerfectCS/odoo-agent-pro-kit/schemas/operation-result.schema.json",
   "title": "Odoo Sandbox Operation Result",
   "type": "object",
   "additionalProperties": false,
